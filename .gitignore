@@ -1,0 +1,68 @@
+# Environment files at every level, including .env.example (local only).
+.env*
+*.env
+*.env.*
+
+# Local design references and verification artifacts.
+/design-reference/
+/.verification/
+
+# Dependencies and package-manager caches. Keep package-lock.json tracked.
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/install-state.gz
+.pnp.*
+
+# Build output, generated metadata and caches.
+dist/
+build/
+.next/
+out/
+.cache/
+.turbo/
+*.tsbuildinfo
+*.tsbuildinfo.*
+
+# Tests and browser reports.
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+
+# Runtime logs and temporary files.
+*.log
+*.pid
+*.pid.lock
+*.seed
+*.stackdump
+tmp/
+temp/
+.tmp/
+
+# Local credentials and private keys.
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local editor/agent state; retain project AGENTS.md and source configuration.
+.idea/
+.vs/
+.agents/
+.claude/
+.codex/
+.windsurf/
+*.swp
+*.swo
+*~
+
+# Operating-system metadata.
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/

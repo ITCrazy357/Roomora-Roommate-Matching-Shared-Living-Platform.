@@ -1,0 +1,59 @@
+# All environment files stay local, including .env.example.
+.env*
+*.env
+*.env.*
+
+# Dependencies; keep package-lock.json tracked.
+/node_modules/
+/.pnp/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Tests and browser reports.
+/coverage/
+/.nyc_output/
+/playwright-report/
+/test-results/
+/blob-report/
+
+# Next.js output and generated types.
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+*.tsbuildinfo.*
+
+# Build and deployment caches.
+/build/
+/dist/
+/.vercel/
+/.netlify/
+/.cache/
+/.turbo/
+
+# Local credentials.
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Runtime files and local tools.
+*.log
+*.pid
+*.pid.lock
+/tmp/
+/temp/
+/.tmp/
+/.agents/
+/.claude/
+/.codex/
+/.windsurf/
+
+# Operating-system metadata.
+.DS_Store
+Thumbs.db
+Desktop.ini

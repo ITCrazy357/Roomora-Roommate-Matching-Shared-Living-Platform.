@@ -1,0 +1,22 @@
+name: roomora
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: roomora
+      POSTGRES_USER: roomora
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - roomora_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roomora -d roomora"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  roomora_postgres_data:

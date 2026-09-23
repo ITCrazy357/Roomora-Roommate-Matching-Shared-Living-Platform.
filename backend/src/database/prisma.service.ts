@@ -5,6 +5,7 @@ import {
   OnModuleInit,
   OnModuleDestroy,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
 
@@ -15,11 +16,17 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
 
-  constructor() {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) throw new Error('DATABASE_URL is required');
-    super({ adapter: new PrismaPg({ connectionString }) });
+  constructor(config: ConfigService) {
+    const adapter = new PrismaPg({
+      connectionString: config.getOrThrow<string>('DATABASE_URL'),
+      connectionTimeoutMillis: 5_000,
+      query_timeout: 5_000,
+      max: 10,
+    });
+
+    super({ adapter });
   }
+
   async onModuleInit() {
     await this.$connect();
     await this.$queryRaw`SELECT 1`;

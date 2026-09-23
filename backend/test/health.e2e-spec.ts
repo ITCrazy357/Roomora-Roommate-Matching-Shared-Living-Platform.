@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { HealthModule } from '../src/modules/health/health.module.js';
-import { PrismaService } from '../src/prisma/prisma.service.js';
+import { PrismaService } from '../src/database/prisma.service.js';
 
 describe('Health HTTP contract', () => {
   let app: INestApplication;

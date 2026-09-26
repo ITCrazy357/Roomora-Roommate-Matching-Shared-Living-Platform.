@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "./auth-provider";
+import { authErrorMessage } from "@/lib/auth-errors";
 
 const links = [
   { href: "/", label: "Trang chủ" },
@@ -12,8 +15,27 @@ const links = [
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   const toggle = useRef<HTMLButtonElement>(null);
+
+  async function handleLogout() {
+    setPending(true);
+    setError("");
+    try {
+      await logout();
+      setOpen(false);
+      router.replace("/dang-nhap");
+      router.refresh();
+    } catch (error) {
+      setError(authErrorMessage(error));
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <header
@@ -52,6 +74,27 @@ export function SiteHeader() {
               {label}
             </Link>
           ))}
+          {!loading && !user && (
+            <>
+              <Link href="/dang-nhap">Đăng nhập</Link>
+              <Link href="/dang-ky" className="nav-primary">
+                Tạo tài khoản
+              </Link>
+            </>
+          )}
+          {!loading && user && (
+            <>
+              <Link href="/tai-khoan/ho-so">{user.displayName}</Link>
+              <button
+                type="button"
+                className="nav-button"
+                disabled={pending}
+                onClick={handleLogout}
+              >
+                Đăng xuất
+              </button>
+            </>
+          )}
         </nav>
         <button
           ref={toggle}
@@ -82,7 +125,40 @@ export function SiteHeader() {
             {label}
           </Link>
         ))}
+        {!loading && !user && (
+          <>
+            <Link href="/dang-nhap" onClick={() => setOpen(false)}>
+              Đăng nhập
+            </Link>
+            <Link href="/dang-ky" onClick={() => setOpen(false)}>
+              Tạo tài khoản
+            </Link>
+          </>
+        )}
+        {!loading && user && (
+          <>
+            <Link href="/tai-khoan/ho-so" onClick={() => setOpen(false)}>
+              Hồ sơ của tôi
+            </Link>
+            <Link href="/tai-khoan/cai-dat" onClick={() => setOpen(false)}>
+              Cài đặt
+            </Link>
+            <button
+              type="button"
+              className="mobile-nav-button"
+              disabled={pending}
+              onClick={handleLogout}
+            >
+              Đăng xuất
+            </button>
+          </>
+        )}
       </nav>
+      {error && (
+        <p className="container error-state" role="alert">
+          {error}
+        </p>
+      )}
     </header>
   );
 }

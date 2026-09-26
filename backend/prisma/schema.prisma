@@ -7,3 +7,109 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum ProfileVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum SleepSchedule {
+  EARLY_BIRD
+  FLEXIBLE
+  NIGHT_OWL
+}
+
+enum SmokingPreference {
+  NO_SMOKING
+  OUTDOOR_ONLY
+  SMOKER
+}
+
+enum PetPreference {
+  NO_PETS
+  PET_FRIENDLY
+  HAS_PETS
+}
+
+enum QuietLevel {
+  QUIET
+  BALANCED
+  SOCIAL
+}
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique @db.VarChar(320)
+  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  profile    Profile?
+  sessions   Session[]
+  authTokens AuthToken[]
+
+  @@map("users")
+}
+
+model Profile {
+  userId                String             @id @map("user_id") @db.Uuid
+  displayName           String             @map("display_name") @db.VarChar(80)
+  avatarUrl             String?            @map("avatar_url") @db.VarChar(2048)
+  bio                   String?            @db.VarChar(500)
+  budgetMin             Int?               @map("budget_min")
+  budgetMax             Int?               @map("budget_max")
+  desiredAreas          String[]           @default([]) @map("desired_areas")
+  sleepSchedule         SleepSchedule?     @map("sleep_schedule")
+  smokingPreference     SmokingPreference? @map("smoking_preference")
+  petPreference         PetPreference?     @map("pet_preference")
+  quietLevel            QuietLevel?        @map("quiet_level")
+  visibility            ProfileVisibility  @default(PUBLIC)
+  showBudget            Boolean            @default(true) @map("show_budget")
+  showDesiredAreas      Boolean            @default(true) @map("show_desired_areas")
+  showLifestyle         Boolean            @default(true) @map("show_lifestyle")
+  onboardingCompletedAt DateTime?          @map("onboarding_completed_at")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Session {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash") @db.Char(64)
+  userAgent  String?   @map("user_agent") @db.VarChar(500)
+  ipAddress  String?   @map("ip_address") @db.VarChar(64)
+  expiresAt  DateTime  @map("expires_at")
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  revokedAt  DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+model AuthToken {
+  id         String        @id @default(uuid()) @db.Uuid
+  userId     String        @map("user_id") @db.Uuid
+  type       AuthTokenType
+  tokenHash  String        @unique @map("token_hash") @db.Char(64)
+  expiresAt  DateTime      @map("expires_at")
+  consumedAt DateTime?     @map("consumed_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, expiresAt])
+  @@map("auth_tokens")
+}

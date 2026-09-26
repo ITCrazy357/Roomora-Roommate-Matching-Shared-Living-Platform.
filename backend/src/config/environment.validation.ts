@@ -10,7 +10,11 @@ export function validateEnvironment(
     throw new Error('NODE_ENV phải là development, test hoặc production');
   }
 
-  const rawPort = String(config.PORT ?? '5000').trim();
+  const portValue = config.PORT ?? '5000';
+  if (typeof portValue !== 'string' && typeof portValue !== 'number') {
+    throw new Error('PORT phải là số nguyên từ 1 đến 65535');
+  }
+  const rawPort = `${portValue}`.trim();
 
   if (!/^\d+$/.test(rawPort)) {
     throw new Error('PORT phải là số nguyên từ 1 đến 65535');
@@ -49,10 +53,65 @@ export function validateEnvironment(
     );
   }
 
+  const booleanValue = (key: string, fallback: boolean) => {
+    const value = config[key];
+    if (value === undefined || value === '') return fallback;
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    throw new Error(`${key} phải là true hoặc false`);
+  };
+
+  const optionalText = (key: string) => {
+    const value = config[key];
+    if (value === undefined || value === '') return undefined;
+    if (typeof value !== 'string' || value.trim() === '') {
+      throw new Error(`${key} phải là chuỗi không rỗng`);
+    }
+    return value.trim();
+  };
+
+  const smtpHost = optionalText('SMTP_HOST');
+  const smtpUser = optionalText('SMTP_USER');
+  const smtpPassword = optionalText('SMTP_PASSWORD');
+  const mailFrom = optionalText('MAIL_FROM');
+
+  if ((smtpUser && !smtpPassword) || (!smtpUser && smtpPassword)) {
+    throw new Error('SMTP_USER và SMTP_PASSWORD phải được cấu hình cùng nhau');
+  }
+
+  if (smtpHost && !mailFrom) {
+    throw new Error('MAIL_FROM là bắt buộc khi cấu hình SMTP_HOST');
+  }
+
+  const smtpPortValue = config.SMTP_PORT ?? '587';
+  if (typeof smtpPortValue !== 'string' && typeof smtpPortValue !== 'number') {
+    throw new Error('SMTP_PORT phải là số nguyên từ 1 đến 65535');
+  }
+  const rawSmtpPort = `${smtpPortValue}`;
+  if (!/^\d+$/.test(rawSmtpPort)) {
+    throw new Error('SMTP_PORT phải là số nguyên từ 1 đến 65535');
+  }
+  const smtpPort = Number(rawSmtpPort);
+  if (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535) {
+    throw new Error('SMTP_PORT phải là số nguyên từ 1 đến 65535');
+  }
+
+  const devExposeLinks = booleanValue('AUTH_DEV_EXPOSE_LINKS', false);
+  if (nodeEnv === 'production' && devExposeLinks) {
+    throw new Error('AUTH_DEV_EXPOSE_LINKS không được bật ở production');
+  }
+
   return {
     ...config,
     NODE_ENV: nodeEnv,
     PORT: port,
     FRONTEND_ORIGIN: origin.origin,
+    AUTH_DEV_EXPOSE_LINKS: devExposeLinks,
+    SMTP_HOST: smtpHost,
+    SMTP_PORT: smtpPort,
+    SMTP_SECURE: booleanValue('SMTP_SECURE', false),
+    SMTP_USER: smtpUser,
+    SMTP_PASSWORD: smtpPassword,
+    MAIL_FROM: mailFrom,
   };
 }

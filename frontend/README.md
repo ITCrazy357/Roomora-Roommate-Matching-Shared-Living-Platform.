@@ -26,9 +26,17 @@ frontend rồi khởi động lại. NEXT_PUBLIC được đóng vào bundle t�
 - `/tim-phong`, `/tim-nguoi-o-ghep`: thông báo tính năng đang chuẩn bị.
 - `/dev/health`: chỉ có trong development; gọi API trực tiếp từ trình duyệt,
   có loading, thành công, lỗi và thử lại. Production trả 404.
+- `/dang-ky`, `/dang-nhap`: đăng ký và đăng nhập bằng email/mật khẩu.
+- `/xac-minh-email`, `/gui-lai-xac-minh`: xác minh email bằng token dùng một lần.
+- `/quen-mat-khau`, `/dat-lai-mat-khau`: khôi phục mật khẩu; đổi mật khẩu thu hồi
+  toàn bộ phiên cũ.
+- `/onboarding`: hồ sơ ngắn; chỉ tên hiển thị là bắt buộc.
+- `/tai-khoan/ho-so`: ảnh đại diện qua URL, giới thiệu, ngân sách, khu vực và thói quen.
+- `/tai-khoan/cai-dat`: quyền riêng tư và danh sách/thu hồi phiên đăng nhập.
+- `/ho-so/[id]`: hồ sơ công khai, không trả email và tuân theo lựa chọn privacy.
 
-`src/lib/api.ts` cung cấp fetch JSON, timeout mặc định 8 giây, hủy request và
-phân loại lỗi HTTP/mạng/phản hồi. `src/components/ui.tsx` chứa các component dùng chung.
+`src/lib/api.ts` cung cấp fetch JSON có cookie, timeout mặc định 8 giây, hủy request
+và phân loại lỗi HTTP/mạng/phản hồi. `src/components/ui.tsx` chứa các component dùng chung.
 
 ## Kiểm tra
 
@@ -44,3 +52,7 @@ Build cần mạng để next/font tải Be Vietnam Pro, sau đó font được 
 
 Danh sách file thay đổi, kết quả HTTP/trình duyệt và giới hạn hiện tại:
 [FOUNDATION_STATUS.md](../FOUNDATION_STATUS.md).
+
+Phase 2: [cấu trúc, cấu hình và kết quả kiểm tra](../PHASE_2_STATUS.md).
+Hai trang đăng nhập/đăng ký dùng chung `AuthCard`, nền kem, xanh ngọc và cam đào
+theo bộ mẫu. Form giữ riêng từng trang để dễ đọc; không thêm thư viện form.

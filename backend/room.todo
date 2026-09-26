@@ -1,0 +1,224 @@
+Mình chia Roomora thành 13 phase, từ Phase 0 đến Phase 12. Mỗi phase sẽ làm đủ database → API NestJS → giao diện → kiểm thử, để hoàn thành đến đâu có thể sử dụng đến đó.
+
+1. Phase 0 — Chuẩn bị môi trường và chốt phạm vi
+
+Công việc:
+
+Chuẩn bị môi trường chạy frontend, backend NestJS và database.
+Tạo repository, cấu trúc thư mục, cấu hình biến môi trường và Git.
+Thiết lập format code, kiểm tra lỗi, tài liệu API và kết nối database.
+Chốt các đối tượng chính: tài khoản, hồ sơ, tin đăng, kết nối, nhà chung, khoản chi, giao dịch.
+Tách quyền quản trị hệ thống khỏi vai trò trưởng nhà/thành viên trong từng nhà.
+Chuẩn bị dữ liệu mẫu để phát triển.
+
+Hoàn thành khi: frontend và backend chạy được, backend kết nối database, có API kiểm tra trạng thái và hướng dẫn chạy dự án.
+
+2. Phase 1 — Bộ giao diện dùng chung
+
+Bám phong cách trong file: xanh teal, nền sáng, font Be Vietnam Pro, bố cục thoáng.
+
+Công việc:
+
+Dựng khung trang: thanh điều hướng, sidebar, khu vực nội dung.
+Tạo component chung: nút, input, bộ lọc, thẻ phòng, thẻ hồ sơ, modal, phân trang.
+Chuẩn hóa trạng thái đang tải, không có dữ liệu, lỗi và thành công.
+Làm responsive cho điện thoại và máy tính.
+Dựng khung các trang chính bằng dữ liệu mẫu.
+
+Đơn giản hóa: điều hướng chính chỉ cần Khám phá, Tìm người ở ghép, Tin nhắn, Nhà chung. Tin đã lưu, tin của tôi và cài đặt nằm trong menu tài khoản.
+
+Hoàn thành khi: có thể đi qua các trang chính, giao diện nhất quán và dùng được trên điện thoại.
+
+3. Phase 2 — Tài khoản và hồ sơ cá nhân
+
+Màn hình: xác thực tài khoản, onboarding, hồ sơ, cài đặt.
+
+Công việc:
+
+Đăng ký, đăng nhập, đăng xuất.
+Xác minh email, quên mật khẩu, đặt lại mật khẩu.
+Đăng nhập Google.
+Quản lý phiên đăng nhập và bảo vệ API cần xác thực.
+Cập nhật ảnh đại diện, giới thiệu, ngân sách, khu vực mong muốn.
+Khai báo thói quen: giờ ngủ, hút thuốc, thú cưng, mức độ yên tĩnh.
+Phân biệt dữ liệu công khai và dữ liệu riêng tư.
+
+Đơn giản hóa: onboarding ngắn, cho phép bổ sung hồ sơ sau; chưa làm xác thực CCCD và 2FA.
+
+Hoàn thành khi: người dùng tạo tài khoản, đăng nhập và chỉnh sửa được hồ sơ; không thể sửa dữ liệu của người khác.
+
+4. Phase 3 — Đăng tin, tìm phòng và kiểm duyệt cơ bản
+
+Màn hình: khám phá phòng, chi tiết phòng, đăng tin, tin của tôi, đã lưu, kiểm duyệt tin.
+
+Công việc:
+
+Tạo và sửa tin đăng, tải ảnh, lưu nháp.
+Nhập giá thuê, chi phí phụ, vị trí, tiện ích và tiêu chí ở ghép.
+Quản lý trạng thái: nháp, chờ duyệt, công khai, bị từ chối, đóng tin.
+Admin duyệt hoặc từ chối kèm lý do.
+Tìm kiếm, lọc theo khu vực, giá và tiện ích; sắp xếp, phân trang.
+Xem chi tiết và lưu tin yêu thích.
+Hiển thị vị trí khu vực trên bản đồ; hạn chế công khai địa chỉ riêng tư.
+
+Đơn giản hóa: ưu tiên loại tin “Có phòng, tìm người ở ghép”. Nhu cầu tìm phòng thể hiện qua hồ sơ; chưa làm bộ sưu tập và so sánh nhiều phòng.
+
+Hoàn thành khi: một người đăng tin, admin duyệt, người khác tìm thấy và lưu tin bằng dữ liệu thật.
+
+5. Phase 4 — Tìm người ở ghép và yêu cầu kết nối
+
+Màn hình: tìm người ở ghép, hồ sơ công khai, yêu cầu kết nối.
+
+Công việc:
+
+Tìm người theo khu vực, ngân sách và thói quen.
+Tính mức độ phù hợp bằng quy tắc rõ ràng.
+Hiển thị lý do phù hợp hoặc khác biệt.
+Gửi, nhận, chấp nhận, từ chối và hủy yêu cầu kết nối.
+Ngăn gửi trùng, gửi cho chính mình và gửi quá nhiều.
+Cho phép chặn và báo cáo người dùng.
+
+Đơn giản hóa: chưa dùng AI để chấm điểm. Người dùng có thể hiểu vì sao hệ thống đề xuất một hồ sơ.
+
+Hoàn thành khi: hai tài khoản có thể tìm thấy nhau và hoàn tất một yêu cầu kết nối.
+
+6. Phase 5 — Nhắn tin, lịch xem phòng và thông báo
+
+Màn hình: hộp thư, lịch xem phòng, trung tâm thông báo.
+
+Công việc:
+
+Mở cuộc trò chuyện khi kết nối được chấp nhận.
+Nhắn tin thời gian thực, lưu lịch sử, hiển thị số tin chưa đọc.
+Tải thêm tin nhắn cũ và xử lý kết nối lại.
+Đề xuất, xác nhận, đổi hoặc hủy lịch xem phòng.
+Thông báo trong ứng dụng; gửi email cho các sự kiện cần thiết.
+Kiểm tra quyền truy cập từng cuộc trò chuyện.
+
+Đơn giản hóa: làm tin nhắn văn bản trước; chưa có gọi thoại, gọi video hoặc gửi file tùy ý.
+
+Hoàn thành khi: hai người có thể trao đổi và thống nhất lịch xem phòng, tải lại trang vẫn giữ nguyên dữ liệu.
+
+Mốc A — Sau Phase 5: có bản MVP để thử nghiệm luồng đăng phòng → tìm phòng/người → kết nối → nhắn tin → hẹn xem phòng.
+
+7. Phase 6 — Tạo và quản lý nhà chung
+
+Màn hình: tổng quan nhà chung, thành viên, thông tin nhà.
+
+Công việc:
+
+Tạo nhà chung, mời và chấp nhận thành viên.
+Phân quyền trưởng nhà và thành viên theo từng nhà.
+Chuyển quyền trưởng nhà, rời nhà, lưu lịch sử thành viên.
+Quản lý nội quy, thông báo chung và thông tin cơ bản.
+Hiển thị tổng quan nhà bằng dữ liệu thực tế.
+
+Đơn giản hóa: cho phép tạo nhà trực tiếp, không bắt buộc đã tìm phòng qua Roomora.
+
+Hoàn thành khi: nhiều tài khoản cùng tham gia một nhà, thao tác đúng quyền và không truy cập được dữ liệu nhà khác.
+
+8. Phase 7 — Khoản chi, chia tiền và công nợ
+
+Màn hình: chi phí, công nợ, quyết toán.
+
+Công việc:
+
+Ghi khoản chi, người trả, người tham gia và ảnh biên nhận.
+Chia đều hoặc chia theo số tiền cụ thể.
+Tính số dư từng thành viên và đề xuất chuyển tiền bù trừ.
+Ghi nhận thanh toán tiền mặt/chuyển khoản.
+Người nhận xác nhận đã nhận tiền.
+Lưu lịch sử chỉnh sửa và điều chỉnh khoản chi.
+
+Các quy tắc cần làm kỹ:
+
+Tổng tiền phân chia phải bằng tổng khoản chi.
+Xử lý làm tròn tiền nhất quán.
+Không ghi nhận một khoản thanh toán hai lần.
+Thành viên rời nhà vẫn giữ lịch sử công nợ.
+Khoản chi đã quyết toán phải có quy trình điều chỉnh rõ ràng.
+
+Hoàn thành khi: một nhóm ghi chi phí, chia tiền và xác nhận trả nợ với số dư chính xác.
+
+Lưu ý phạm vi: ở phase này Roomora ghi nhận việc các thành viên trả tiền cho nhau; hệ thống không giữ tiền của họ.
+
+9. Phase 8 — Sinh hoạt chung và báo cáo
+
+Màn hình: việc nhà, mua chung, chi phí định kỳ, báo cáo.
+
+Công việc:
+
+Tạo việc nhà, giao người thực hiện, đặt hạn và xác nhận hoàn thành.
+Danh sách đồ cần mua chung.
+Tạo bản nháp khoản chi định kỳ và nhắc người dùng xác nhận.
+Thống kê chi phí theo tháng, danh mục và thành viên.
+Xuất bảng quyết toán PDF hoặc bảng tính.
+
+Đơn giản hóa: chưa làm xoay vòng việc nhà phức tạp; khoản chi biến động như điện, nước cần người nhập hoặc xác nhận.
+
+Hoàn thành khi: nhóm có thể dùng Roomora cho sinh hoạt hằng tuần và chốt chi phí hằng tháng.
+
+Mốc B — Sau Phase 8: Roomora có giá trị sử dụng thường xuyên sau khi người dùng đã tìm được chỗ ở.
+
+10. Phase 9 — Dịch vụ trả phí và chứng từ
+
+Màn hình: dịch vụ Roomora, nâng cấp hiển thị, lịch sử thanh toán.
+
+Công việc:
+
+Bắt đầu với một dịch vụ: đẩy tin trong thời hạn xác định.
+Tạo đơn hàng và tích hợp một cổng thanh toán ở môi trường thử nghiệm.
+Xác thực thông báo thanh toán từ cổng.
+Chống xử lý trùng, kích hoạt gói đúng một lần.
+Tự hết hạn gói, lưu lịch sử giao dịch.
+Xử lý thanh toán thất bại, thông báo đến chậm và yêu cầu hoàn tiền.
+Xuất biên nhận thanh toán dịch vụ; tách riêng tích hợp hóa đơn điện tử nếu triển khai.
+
+Hoàn thành khi: thanh toán thành công kích hoạt đúng gói; thông báo thanh toán gửi lặp không tạo thêm quyền lợi.
+
+Bảng quyết toán nhà chung và chứng từ mua dịch vụ Roomora là hai loại tài liệu riêng.
+
+11. Phase 10 — Quản trị và hỗ trợ hoàn chỉnh
+
+Màn hình: dashboard admin, quản lý người dùng, báo cáo vi phạm, hỗ trợ.
+
+Công việc:
+
+Mở rộng kiểm duyệt đã có từ Phase 3.
+Tiếp nhận và xử lý báo cáo tin đăng/người dùng.
+Khóa hoặc mở tài khoản kèm lý do.
+Quản lý yêu cầu hỗ trợ và tra cứu giao dịch.
+Ghi nhật ký thao tác quản trị.
+Thống kê người dùng, tin đăng, kết nối và doanh thu dịch vụ.
+Hoàn thiện cài đặt riêng tư và quy trình đóng tài khoản.
+
+Hoàn thành khi: admin xử lý được một báo cáo từ lúc tiếp nhận đến khi kết thúc, có lịch sử kiểm tra.
+
+12. Phase 11 — AI hỗ trợ đúng nghiệp vụ
+
+Dựa trên các tương tác AI trong bộ giao diện, triển khai theo thứ tự:
+
+Hỗ trợ viết mô tả từ thông tin phòng đã nhập.
+Đọc ảnh biên nhận và đề xuất bản nháp khoản chi.
+Chuyển câu tìm kiếm tự nhiên thành bộ lọc.
+Giải thích độ phù hợp dựa trên dữ liệu hồ sơ.
+Tóm tắt chi tiêu nhà chung.
+
+Nguyên tắc: người dùng kiểm tra trước khi lưu; AI không tự sửa công nợ hoặc xác nhận thanh toán. Có giới hạn sử dụng và luồng hoạt động khi AI lỗi.
+
+Hoàn thành khi: AI giảm thao tác nhập liệu, kết quả có thể chỉnh sửa và các chức năng chính vẫn dùng được khi AI không khả dụng.
+
+13. Phase 12 — Hoàn thiện để triển khai và kiểm chứng tải
+
+Công việc:
+
+Kiểm thử xuyên suốt các luồng chính và quyền truy cập.
+Kiểm thử truy cập đồng thời, đặc biệt ở nhắn tin, quyết toán và thanh toán.
+Đo truy vấn chậm, bổ sung index và cache nơi có nhu cầu.
+Đưa tác vụ email, xử lý ảnh và báo cáo nặng sang hàng đợi khi cần.
+Hoàn thiện log, theo dõi lỗi, health check và cảnh báo.
+Thiết lập CI/CD, môi trường staging, production.
+Sao lưu, thử khôi phục database và chuẩn bị rollback.
+Triển khai, thu phản hồi từ nhóm người dùng đầu tiên.
+
+Hoàn thành khi: có bản chạy công khai, quy trình vận hành và kết quả đo tải cụ thể. Mức tải công bố dựa trên kiểm thử thực tế.

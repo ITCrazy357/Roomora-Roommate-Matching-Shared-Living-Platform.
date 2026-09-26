@@ -1,12 +1,19 @@
 export class ApiError extends Error {
   readonly kind: "http" | "network" | "timeout" | "response" | "config";
   readonly status?: number;
+  readonly code?: string;
 
-  constructor(message: string, kind: ApiError["kind"], status?: number) {
+  constructor(
+    message: string,
+    kind: ApiError["kind"],
+    status?: number,
+    code?: string,
+  ) {
     super(message);
     this.name = "ApiError";
     this.kind = kind;
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -40,13 +47,22 @@ export async function apiFetch<T>(
     const response = await fetch(`${baseUrl.replace(/\/+$/, "")}${path}`, {
       ...init,
       headers,
+      credentials: init.credentials ?? "include",
       signal: controller.signal,
     });
     if (!response.ok) {
+      let code: string | undefined;
+      try {
+        const body = (await response.json()) as { code?: unknown };
+        if (typeof body.code === "string") code = body.code;
+      } catch {
+        // Error bodies are optional. Never show raw server content to users.
+      }
       throw new ApiError(
         `Yêu cầu không thành công (HTTP ${response.status}).`,
         "http",
         response.status,
+        code,
       );
     }
     if (response.status === 204) return undefined as T;

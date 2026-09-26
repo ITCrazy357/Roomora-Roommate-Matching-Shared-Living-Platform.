@@ -18,9 +18,24 @@ test("joins the API prefix and reads a successful JSON response", async () => {
   globalThis.fetch = async (url, options) => {
     assert.equal(url, "http://localhost:5000/api/v1/health");
     assert.equal(options.headers.get("Accept"), "application/json");
+    assert.equal(options.credentials, "include");
     return Response.json({ status: "ok" });
   };
   assert.deepEqual(await apiFetch("/health"), { status: "ok" });
+});
+
+test("keeps a safe application error code without exposing server messages", async () => {
+  globalThis.fetch = async () =>
+    Response.json(
+      { code: "EMAIL_NOT_VERIFIED", message: "internal wording" },
+      { status: 403 },
+    );
+  await assert.rejects(apiFetch("/auth/login"), (error) => {
+    assert.ok(error instanceof ApiError);
+    assert.equal(error.code, "EMAIL_NOT_VERIFIED");
+    assert.doesNotMatch(error.message, /internal wording/);
+    return true;
+  });
 });
 
 test("preserves HTTP status without exposing the internal response", async () => {

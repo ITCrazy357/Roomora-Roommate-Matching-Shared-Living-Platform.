@@ -4,6 +4,8 @@ import type {
   ComponentProps,
   HTMLAttributes,
   InputHTMLAttributes,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
   ReactNode,
 } from "react";
 
@@ -83,6 +85,53 @@ export function Input({
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+export function Textarea({
+  label,
+  id,
+  hint,
+  ...props
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  id: string;
+  label: string;
+  hint?: string;
+}) {
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <textarea
+        {...props}
+        id={id}
+        aria-describedby={hint ? `${id}-hint` : undefined}
+      />
+      {hint && (
+        <p id={`${id}-hint`} className="text-muted text-sm">
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function Select({
+  label,
+  id,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & {
+  id: string;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <select {...props} id={id}>
+        {children}
+      </select>
     </div>
   );
 }

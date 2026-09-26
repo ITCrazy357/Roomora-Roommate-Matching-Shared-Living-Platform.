@@ -4,6 +4,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { AuthProvider } from "@/components/auth-provider";
 import "./globals.css";
+import "./profile-editor.css";
 
 const beVietnam = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",

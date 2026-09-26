@@ -90,6 +90,34 @@ không ghi token vào log.
 Google đã được gỡ theo phạm vi học tập. Thêm biến môi trường sẽ không bật lại tính năng.
 Xem [bài hướng dẫn tự triển khai](../docs/google-login-guide.md).
 
+## Avatar và địa chỉ hồ sơ
+
+Trong `backend/.env`, cấu hình đủ `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
+`CLOUDINARY_API_SECRET` theo API credentials của cùng một Cloudinary product environment.
+Cloud name là định danh trong Dashboard, không phải tên hiển thị của project.
+Không đưa API secret vào frontend hoặc commit `.env`.
+
+- `POST /api/v1/profiles/me/avatar`: multipart field `avatar`, session cookie và Origin hợp lệ.
+- `DELETE /api/v1/profiles/me/avatar`: xóa ảnh của tài khoản hiện tại.
+- JPG/PNG/WebP, tối đa 5 MB, 25 triệu pixel; từ chối SVG và ảnh nhiều frame.
+  Ảnh được giải mã lại, xoay/cắt 640×640, mã hóa JPEG và loại bỏ metadata nguồn.
+- Avatar dùng delivery công khai; chế độ hồ sơ riêng tư không thu hồi liên kết CDN đã biết.
+  Đây không phải kho tài liệu riêng tư/CCCD. Chỉ lưu public ID do backend tạo để cleanup.
+- Upload mới được lưu DB trước khi xóa ảnh cũ. Xung đột/DB lỗi sẽ cleanup ảnh mới;
+  cleanup thất bại được cảnh báo để quản trị kiểm tra. Giới hạn 10 upload/10 phút/tài khoản
+  đang là in-memory; triển khai nhiều API instance cần shared rate limit.
+- `PATCH /api/v1/profiles/me` không còn nhận `avatarUrl`; dùng endpoint upload riêng.
+- `GET /api/v1/locations/provinces`, `GET /api/v1/locations/provinces/:code/wards`:
+  danh mục hai cấp offline, không trả quận/huyện.
+- `desiredLocations` nhận tối đa 5 cặp `{ provinceCode, wardCode }`; `wardCode: null`
+  nghĩa là cả tỉnh/thành phố. Backend kiểm tra quan hệ và tự tạo tên khu vực.
+  Khu vực cũ vẫn được giữ nếu không cập nhật. Quyền `showDesiredAreas` áp dụng cả tên và mã.
+
+Nguồn, snapshot và giấy phép: [DATA_SOURCE.md](src/modules/locations/DATA_SOURCE.md).
+Migration bổ sung: `20260926100000_profile_avatar_locations`; áp dụng bằng
+`npm run prisma:migrate:deploy`, không reset database. Sau thay đổi cần restart API.
+Unit test mock SDK; test HTTP/DB dùng adapter giả lập, không upload hoặc gửi SMTP thật.
+
 ## Kiểm tra và chạy bản build
 
 ```powershell

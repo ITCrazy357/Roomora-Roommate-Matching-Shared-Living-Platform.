@@ -4,6 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { MailService } from '../src/modules/auth/mail.service.js';
 
 describe('Authentication and profile (e2e)', () => {
   let app: INestApplication<App>;
@@ -19,6 +20,13 @@ describe('Authentication and profile (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    // Tests must never send mail using the developer's real SMTP credentials.
+    vi.spyOn(app.get(MailService), 'sendVerification').mockRejectedValue(
+      new Error('SMTP disabled in E2E'),
+    );
+    vi.spyOn(app.get(MailService), 'sendPasswordReset').mockRejectedValue(
+      new Error('SMTP disabled in E2E'),
+    );
     app.setGlobalPrefix('api/v1');
     app.useGlobalPipes(
       new ValidationPipe({
@@ -92,12 +100,12 @@ describe('Authentication and profile (e2e)', () => {
     await agent
       .patch('/api/v1/profiles/me')
       .set('Origin', origin)
-      .send({ bio: null, budgetMin: null, budgetMax: null, avatarUrl: null })
+      .send({ bio: null, budgetMin: null, budgetMax: null })
       .expect(200);
     await agent
       .patch('/api/v1/profiles/me')
       .set('Origin', origin)
-      .send({ avatarUrl: 'http://example.com/avatar.png' })
+      .send({ avatarUrl: 'https://example.com/avatar.png' })
       .expect(400);
 
     await agent

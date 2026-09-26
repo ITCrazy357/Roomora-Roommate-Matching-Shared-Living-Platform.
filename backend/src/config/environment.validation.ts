@@ -97,6 +97,17 @@ export function validateEnvironment(
   }
 
   const devExposeLinks = booleanValue('AUTH_DEV_EXPOSE_LINKS', false);
+  const cloudName = optionalText('CLOUDINARY_CLOUD_NAME');
+  const cloudKey = optionalText('CLOUDINARY_API_KEY');
+  const cloudSecret = optionalText('CLOUDINARY_API_SECRET');
+  if (
+    [cloudName, cloudKey, cloudSecret].some(Boolean) &&
+    ![cloudName, cloudKey, cloudSecret].every(Boolean)
+  ) {
+    throw new Error(
+      'Cần cấu hình đủ CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET',
+    );
+  }
   if (nodeEnv === 'production' && devExposeLinks) {
     throw new Error('AUTH_DEV_EXPOSE_LINKS không được bật ở production');
   }
@@ -113,5 +124,8 @@ export function validateEnvironment(
     SMTP_USER: smtpUser,
     SMTP_PASSWORD: smtpPassword,
     MAIL_FROM: mailFrom,
+    CLOUDINARY_CLOUD_NAME: cloudName,
+    CLOUDINARY_API_KEY: cloudKey,
+    CLOUDINARY_API_SECRET: cloudSecret,
   };
 }

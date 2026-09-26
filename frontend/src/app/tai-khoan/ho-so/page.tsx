@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Hồ sơ của tôi" };
 
 export default function MyProfilePage() {
   return (
-    <section className="container account-page">
+    <section className="container account-page profile-workspace">
       <div className="account-heading account-heading-row">
         <div>
           <span className="eyebrow">TÀI KHOẢN CỦA TÔI</span>

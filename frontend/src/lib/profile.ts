@@ -1,3 +1,10 @@
+export interface DesiredLocation {
+  provinceCode: string;
+  wardCode: string | null;
+  provinceName: string;
+  wardName: string | null;
+}
+
 export interface MyProfile {
   id?: string;
   userId: string;
@@ -9,6 +16,7 @@ export interface MyProfile {
   budgetMin: number | null;
   budgetMax: number | null;
   desiredAreas: string[];
+  desiredLocations: DesiredLocation[];
   sleepSchedule: string | null;
   smokingPreference: string | null;
   petPreference: string | null;

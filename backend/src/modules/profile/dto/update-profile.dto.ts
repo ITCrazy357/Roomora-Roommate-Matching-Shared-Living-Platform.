@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -7,7 +7,8 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUrl,
+  Matches,
+  ValidateNested,
   Length,
   Max,
   MaxLength,
@@ -25,18 +26,23 @@ import {
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
+export class DesiredLocationDto {
+  @IsString()
+  @Matches(/^\d{2}$/)
+  provinceCode: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{5}$/)
+  wardCode?: string | null;
+}
+
 export class UpdateProfileDto {
   @ValidateIf((_, value: unknown) => value !== undefined)
   @Transform(trim)
   @IsString()
   @Length(2, 80)
   displayName?: string;
-
-  @IsOptional()
-  @Transform(trim)
-  @IsUrl({ protocols: ['https'], require_protocol: true })
-  @MaxLength(2048)
-  avatarUrl?: string | null;
 
   @IsOptional()
   @Transform(trim)
@@ -62,6 +68,13 @@ export class UpdateProfileDto {
   @IsString({ each: true })
   @MaxLength(80, { each: true })
   desiredAreas?: string[];
+
+  @ValidateIf((_, value: unknown) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(5)
+  @ValidateNested({ each: true })
+  @Type(() => DesiredLocationDto)
+  desiredLocations?: DesiredLocationDto[];
 
   @IsOptional()
   @IsEnum(SleepSchedule)

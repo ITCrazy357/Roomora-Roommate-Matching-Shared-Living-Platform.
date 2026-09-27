@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
       { key: "X-Frame-Options", value: "DENY" },
       {
         key: "Permissions-Policy",
-        value: "camera=(), microphone=(), geolocation=()",
+        value: "camera=(), microphone=(), geolocation=(self)",
       },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     ];

@@ -60,10 +60,17 @@ Admin duyệt hoặc từ chối kèm lý do.
 Tìm kiếm, lọc theo khu vực, giá và tiện ích; sắp xếp, phân trang.
 Xem chi tiết và lưu tin yêu thích.
 Hiển thị vị trí khu vực trên bản đồ; hạn chế công khai địa chỉ riêng tư.
+Ghim cố định tại tâm, kéo bản đồ để chọn vị trí, không nhập tọa độ. Dùng Leaflet + Geoapify;
+cấu hình NEXT_PUBLIC_GEOAPIFY_MAPS_API_KEY theo docs/maps-setup.md.
 
 Đơn giản hóa: ưu tiên loại tin “Có phòng, tìm người ở ghép”. Nhu cầu tìm phòng thể hiện qua hồ sơ; chưa làm bộ sưu tập và so sánh nhiều phòng.
 
 Hoàn thành khi: một người đăng tin, admin duyệt, người khác tìm thấy và lưu tin bằng dữ liệu thật.
+
+Trạng thái 27/09/2026: đã triển khai Phase 3 theo thiết kế trong design-reference,
+giữ theme cam đỏ/kem hiện tại. Có wizard lưu nháp, ảnh Cloudinary, kiểm duyệt,
+tìm/lọc/phân trang, chi tiết và bản đồ khu vực, tin của tôi và tin đã lưu.
+Đã kiểm chứng luồng bằng PostgreSQL, HTTP và Chrome. Xem PHASE_3_STATUS.md.
 
 5. Phase 4 — Tìm người ở ghép và yêu cầu kết nối
 

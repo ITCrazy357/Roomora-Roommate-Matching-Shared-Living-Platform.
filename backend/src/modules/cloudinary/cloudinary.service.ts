@@ -15,7 +15,7 @@ export interface UploadedAvatar {
   secureUrl: string;
 }
 
-/** Avatar-only adapter. Credentials and signing stay on the API server. */
+/** Image adapter. Credentials and signing stay on the API server. */
 @Injectable()
 export class CloudinaryService {
   private readonly logger = new Logger(CloudinaryService.name);
@@ -37,9 +37,24 @@ export class CloudinaryService {
     file: Express.Multer.File,
     userId: string,
   ): Promise<UploadedAvatar> {
+    return this.uploadImage(file, `roomora/avatars/${userId}`, 'AVATAR');
+  }
+
+  async uploadListingPhoto(
+    file: Express.Multer.File,
+    listingId: string,
+  ): Promise<UploadedAvatar> {
+    return this.uploadImage(file, `roomora/listings/${listingId}`, 'PHOTO');
+  }
+
+  private async uploadImage(
+    file: Express.Multer.File,
+    folder: string,
+    kind: 'AVATAR' | 'PHOTO',
+  ): Promise<UploadedAvatar> {
     if (!file?.buffer?.length || file.buffer.length > MAX_AVATAR_BYTES) {
       throw new BadRequestException({
-        code: 'AVATAR_SIZE_INVALID',
+        code: `${kind}_SIZE_INVALID`,
         message: 'Ảnh phải nhỏ hơn hoặc bằng 5 MB',
       });
     }
@@ -58,24 +73,31 @@ export class CloudinaryService {
         throw new Error('Unsupported image');
       buffer = await image
         .rotate()
-        .resize(640, 640, { fit: 'cover' })
+        .resize(
+          kind === 'AVATAR' ? 640 : 1600,
+          kind === 'AVATAR' ? 640 : 1200,
+          {
+            fit: kind === 'AVATAR' ? 'cover' : 'inside',
+            withoutEnlargement: kind === 'PHOTO',
+          },
+        )
         .flatten({ background: '#f8f7f4' })
         .jpeg({ quality: 85 })
         .toBuffer();
       // Re-encoding also removes EXIF/GPS and other source metadata.
     } catch {
       throw new BadRequestException({
-        code: 'AVATAR_FORMAT_INVALID',
+        code: `${kind}_FORMAT_INVALID`,
         message: 'Chọn ảnh JPG, PNG hoặc WebP hợp lệ',
       });
     }
     if (Object.values(this.credentials).some((value) => !value)) {
       throw new ServiceUnavailableException({
-        code: 'AVATAR_UPLOAD_UNAVAILABLE',
+        code: `${kind}_UPLOAD_UNAVAILABLE`,
         message: 'Chưa cấu hình dịch vụ ảnh',
       });
     }
-    const publicId = `roomora/avatars/${userId}/${randomUUID()}`;
+    const publicId = `${folder}/${randomUUID()}`;
     try {
       return await new Promise<UploadedAvatar>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -99,13 +121,13 @@ export class CloudinaryService {
               const unauthorized = error?.http_code === 401;
               if (unauthorized)
                 this.logger.warn(
-                  'Cloudinary rejected avatar credentials (HTTP 401)',
+                  'Cloudinary rejected image credentials (HTTP 401)',
                 );
               reject(
                 new ServiceUnavailableException({
                   code: unauthorized
-                    ? 'AVATAR_CONFIGURATION_INVALID'
-                    : 'AVATAR_UPLOAD_UNAVAILABLE',
+                    ? `${kind}_CONFIGURATION_INVALID`
+                    : `${kind}_UPLOAD_UNAVAILABLE`,
                   message: 'Không thể tải ảnh lên lúc này',
                 }),
               );
@@ -121,17 +143,28 @@ export class CloudinaryService {
         stream.end(buffer);
       });
     } catch (error) {
-      await this.deleteAvatar(publicId, userId);
+      await this.deleteImage(publicId, folder);
       if (error instanceof ServiceUnavailableException) throw error;
       throw new ServiceUnavailableException({
-        code: 'AVATAR_UPLOAD_UNAVAILABLE',
+        code: `${kind}_UPLOAD_UNAVAILABLE`,
         message: 'Không thể tải ảnh lên lúc này',
       });
     }
   }
 
   async deleteAvatar(publicId: string | null, userId: string): Promise<void> {
-    if (!publicId?.startsWith(`roomora/avatars/${userId}/`)) return;
+    return this.deleteImage(publicId, `roomora/avatars/${userId}`);
+  }
+
+  async deleteListingPhoto(publicId: string, listingId: string): Promise<void> {
+    return this.deleteImage(publicId, `roomora/listings/${listingId}`);
+  }
+
+  private async deleteImage(
+    publicId: string | null,
+    folder: string,
+  ): Promise<void> {
+    if (!publicId?.startsWith(`${folder}/`)) return;
     try {
       // The SDK forwards timeout/credentials; its destroy overload only lists
       // delivery flags, so use a structurally compatible options object.
@@ -149,7 +182,7 @@ export class CloudinaryService {
         throw new Error('Cleanup failed');
     } catch {
       // Cleanup failure must not roll back an already-persisted new avatar.
-      this.logger.warn('Avatar cleanup failed; manual cleanup may be needed');
+      this.logger.warn('Image cleanup failed; manual cleanup may be needed');
     }
   }
 }

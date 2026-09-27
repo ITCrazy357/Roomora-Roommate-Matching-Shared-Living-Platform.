@@ -294,6 +294,7 @@ export class AuthService {
 
   serializeUser(user: {
     id: string;
+    role?: 'USER' | 'ADMIN';
     email: string;
     emailVerifiedAt: Date | null;
     profile: {
@@ -304,6 +305,7 @@ export class AuthService {
   }) {
     return {
       id: user.id,
+      role: user.role ?? 'USER',
       email: user.email,
       emailVerified: Boolean(user.emailVerifiedAt),
       displayName: user.profile?.displayName ?? '',

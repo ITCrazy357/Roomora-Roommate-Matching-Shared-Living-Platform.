@@ -164,4 +164,35 @@ describe('Cloudinary avatar adapter', () => {
       },
     });
   });
+
+  it('keeps room photo proportions, limits dimensions and removes EXIF', async () => {
+    const buffer = await sharp({
+      create: { width: 2400, height: 1200, channels: 3, background: 'white' },
+    })
+      .withMetadata()
+      .jpeg()
+      .toBuffer();
+    const result = await service.uploadListingPhoto(file(buffer), 'room-id');
+    expect(result.publicId).toMatch(/^roomora\/listings\/room-id\//);
+    const metadata = await sharp(encoded).metadata();
+    expect(metadata).toMatchObject({
+      width: 1600,
+      height: 800,
+      format: 'jpeg',
+    });
+    expect(metadata.exif).toBeUndefined();
+    expect(metadata.icc).toBeUndefined();
+    await service.deleteListingPhoto(
+      'roomora/listings/another-room/photo',
+      'room-id',
+    );
+    expect(cloudinary.uploader.destroy).not.toHaveBeenCalled();
+  });
+
+  it('rejects a fake room photo before contacting storage', async () => {
+    await expect(
+      service.uploadListingPhoto(file(Buffer.from('fake image')), 'room-id'),
+    ).rejects.toMatchObject({ response: { code: 'PHOTO_FORMAT_INVALID' } });
+    expect(cloudinary.uploader.upload_stream).not.toHaveBeenCalled();
+  });
 });

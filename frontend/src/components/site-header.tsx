@@ -22,6 +22,7 @@ export function SiteHeader() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const toggle = useRef<HTMLButtonElement>(null);
+  const accountMenu = useRef<HTMLDetailsElement>(null);
 
   async function handleLogout() {
     setPending(true);
@@ -42,13 +43,20 @@ export function SiteHeader() {
     <header
       className="site-header"
       onKeyDown={(event) => {
+        if (event.key === "Escape" && accountMenu.current?.open) {
+          accountMenu.current.open = false;
+          accountMenu.current.querySelector("summary")?.focus();
+        }
         if (event.key === "Escape" && open) {
           setOpen(false);
           toggle.current?.focus();
         }
       }}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setOpen(false);
+          if (accountMenu.current) accountMenu.current.open = false;
+        }
       }}
     >
       <div className="container header-inner">
@@ -86,15 +94,38 @@ export function SiteHeader() {
           )}
           {!loading && user && (
             <>
-              <Link href="/tai-khoan/ho-so">{user.displayName}</Link>
-              <button
-                type="button"
-                className="nav-button"
-                disabled={pending}
-                onClick={handleLogout}
-              >
-                Đăng xuất
-              </button>
+              <Link href="/dang-tin" className="nav-primary">
+                + Đăng tin
+              </Link>
+              <details ref={accountMenu} className="account-menu">
+                <summary>{user.displayName}</summary>
+                <nav
+                  aria-label="Menu tài khoản"
+                  onClick={(event) => {
+                    if (
+                      (event.target as HTMLElement).closest("a") &&
+                      accountMenu.current
+                    )
+                      accountMenu.current.open = false;
+                  }}
+                >
+                  <Link href="/tai-khoan/ho-so">Hồ sơ của tôi</Link>
+                  <Link href="/tin-cua-toi">Tin của tôi</Link>
+                  <Link href="/da-luu">Tin đã lưu</Link>
+                  <Link href="/tai-khoan/cai-dat">Cài đặt</Link>
+                  {user.role === "ADMIN" && (
+                    <Link href="/admin/tin-dang">Kiểm duyệt tin</Link>
+                  )}
+                  <button
+                    type="button"
+                    className="nav-button"
+                    disabled={pending}
+                    onClick={handleLogout}
+                  >
+                    Đăng xuất
+                  </button>
+                </nav>
+              </details>
             </>
           )}
         </nav>
@@ -139,6 +170,20 @@ export function SiteHeader() {
         )}
         {!loading && user && (
           <>
+            <Link href="/dang-tin" onClick={() => setOpen(false)}>
+              + Đăng tin
+            </Link>
+            <Link href="/tin-cua-toi" onClick={() => setOpen(false)}>
+              Tin của tôi
+            </Link>
+            <Link href="/da-luu" onClick={() => setOpen(false)}>
+              Tin đã lưu
+            </Link>
+            {user.role === "ADMIN" && (
+              <Link href="/admin/tin-dang" onClick={() => setOpen(false)}>
+                Kiểm duyệt tin
+              </Link>
+            )}
             <Link href="/tai-khoan/ho-so" onClick={() => setOpen(false)}>
               Hồ sơ của tôi
             </Link>

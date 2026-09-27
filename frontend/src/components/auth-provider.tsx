@@ -12,6 +12,7 @@ import {
 
 export interface CurrentUser {
   id: string;
+  role: "USER" | "ADMIN";
   email: string;
   emailVerified: boolean;
   displayName: string;

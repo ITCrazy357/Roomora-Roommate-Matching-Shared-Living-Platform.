@@ -42,20 +42,136 @@ enum QuietLevel {
   SOCIAL
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  REJECTED
+  CLOSED
+}
+
+enum Amenity {
+  FURNISHED
+  AIR_CONDITIONER
+  WASHING_MACHINE
+  PARKING
+  WIFI
+  KITCHEN
+  BALCONY
+  PRIVATE_BATHROOM
+}
+
 model User {
   id              String    @id @default(uuid()) @db.Uuid
+  role            UserRole  @default(USER)
   email           String    @unique @db.VarChar(320)
   passwordHash    String?   @map("password_hash") @db.VarChar(255)
   emailVerifiedAt DateTime? @map("email_verified_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  profile       Profile?
-  sessions      Session[]
-  authTokens    AuthToken[]
-  googleAccount GoogleAccount?
+  profile        Profile?
+  sessions       Session[]
+  authTokens     AuthToken[]
+  googleAccount  GoogleAccount?
+  listings       Listing[]       @relation("ListingOwner")
+  savedListings  SavedListing[]
+  listingReviews ListingReview[]
 
   @@map("users")
+}
+
+model Listing {
+  id                String             @id @default(uuid()) @db.Uuid
+  ownerId           String             @map("owner_id") @db.Uuid
+  status            ListingStatus      @default(DRAFT)
+  version           Int                @default(1)
+  title             String             @default("") @db.VarChar(150)
+  description       String             @default("") @db.VarChar(5000)
+  rent              Int?
+  deposit           Int                @default(0)
+  electricityCost   Int                @default(0) @map("electricity_cost")
+  waterCost         Int                @default(0) @map("water_cost")
+  internetCost      Int                @default(0) @map("internet_cost")
+  otherCost         Int                @default(0) @map("other_cost")
+  costNote          String             @default("") @map("cost_note") @db.VarChar(500)
+  area              Int?
+  availableSlots    Int                @default(1) @map("available_slots")
+  currentResidents  Int                @default(0) @map("current_residents")
+  availableFrom     DateTime?          @map("available_from") @db.Date
+  provinceCode      String?            @map("province_code") @db.VarChar(2)
+  provinceName      String?            @map("province_name") @db.VarChar(100)
+  wardCode          String?            @map("ward_code") @db.VarChar(5)
+  wardName          String?            @map("ward_name") @db.VarChar(100)
+  privateAddress    String             @default("") @map("private_address") @db.VarChar(300)
+  // Only a coarse area center is stored; never precise room coordinates.
+  latitude          Float?
+  longitude         Float?
+  amenities         Amenity[]          @default([])
+  roommateNote      String             @default("") @map("roommate_note") @db.VarChar(1000)
+  smokingPreference SmokingPreference? @map("smoking_preference")
+  petPreference     PetPreference?     @map("pet_preference")
+  quietLevel        QuietLevel?        @map("quiet_level")
+  rejectionReason   String?            @map("rejection_reason") @db.VarChar(1000)
+  submittedAt       DateTime?          @map("submitted_at")
+  publishedAt       DateTime?          @map("published_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  owner   User            @relation("ListingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  photos  ListingPhoto[]
+  saves   SavedListing[]
+  reviews ListingReview[]
+
+  @@index([status, publishedAt, id])
+  @@index([status, provinceCode, wardCode, rent])
+  @@index([ownerId, updatedAt])
+  @@index([amenities], type: Gin)
+  @@map("listings")
+}
+
+model ListingPhoto {
+  id        String  @id @default(uuid()) @db.Uuid
+  listingId String  @map("listing_id") @db.Uuid
+  url       String  @db.VarChar(2048)
+  publicId  String  @unique @map("public_id") @db.VarChar(255)
+  position  Int
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, position])
+  @@map("listing_photos")
+}
+
+model SavedListing {
+  userId    String   @map("user_id") @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([userId, listingId])
+  @@index([userId, createdAt])
+  @@map("saved_listings")
+}
+
+model ListingReview {
+  id        String        @id @default(uuid()) @db.Uuid
+  listingId String        @map("listing_id") @db.Uuid
+  adminId   String        @map("admin_id") @db.Uuid
+  decision  ListingStatus
+  reason    String?       @db.VarChar(1000)
+  version   Int
+  createdAt DateTime      @default(now()) @map("created_at")
+  listing   Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  admin     User          @relation(fields: [adminId], references: [id], onDelete: Restrict)
+
+  @@index([listingId, createdAt])
+  @@map("listing_reviews")
 }
 
 model Profile {

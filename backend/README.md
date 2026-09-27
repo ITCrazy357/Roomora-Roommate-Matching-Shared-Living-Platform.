@@ -42,6 +42,8 @@ Xem kết quả kiểm tra trong `../FOUNDATION_STATUS.md`.
 - `prisma7.config.ts`: nạp `.env`, cấu hình URL database và đường dẫn schema/migrations.
   Đây là tên config được CLI Prisma 7.10 đang cài nhận diện tự động.
 - `prisma/schema.prisma`: tài khoản, hồ sơ, session và token dùng một lần.
+- Phase 3 thêm tin phòng, ảnh, tin đã lưu, lịch sử kiểm duyệt và role USER/ADMIN.
+  Luồng sử dụng, cấp quyền admin và kết quả kiểm thử: [PHASE_3_STATUS.md](../PHASE_3_STATUS.md).
 - `src/generated/prisma/`: Prisma Client được generate, không sửa tay hoặc commit.
 - `src/database/prisma.module.ts`: cung cấp và export `PrismaService`.
   Module nghiệp vụ cần database thì import `PrismaModule`.

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
-import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { AuthProvider } from "@/components/auth-provider";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import "./profile-editor.css";
 import "./listings.css";
+import "./people.css";
 
 const beVietnam = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",
@@ -39,18 +40,7 @@ export default function RootLayout({
           <main id="main-content" tabIndex={-1}>
             {children}
           </main>
-          <footer className="site-footer">
-            <div className="container footer-inner">
-              <div>
-                <Link href="/" className="footer-brand">
-                  Roomora<span>.</span>
-                </Link>
-                <p>Hợp người, chung nhà.</p>
-              </div>
-              <p>Một nơi để ở. Một chốn để thuộc về.</p>
-              <a href="#main-content">Về đầu trang ↑</a>
-            </div>
-          </footer>
+          <SiteFooter />
         </AuthProvider>
       </body>
     </html>

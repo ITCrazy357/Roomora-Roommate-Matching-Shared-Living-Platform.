@@ -26,7 +26,11 @@ frontend rồi khởi động lại. NEXT_PUBLIC được đóng vào bundle t�
 ## Các trang
 
 - `/`: giới thiệu Roomora, hai hướng tìm phòng và tìm người ở ghép.
-- `/tim-phong`, `/tim-nguoi-o-ghep`: thông báo tính năng đang chuẩn bị.
+- `/tim-phong`: tìm/lọc/phân trang tin phòng đã được duyệt.
+- `/phong/[id]`, `/dang-tin`, `/tin-cua-toi`, `/da-luu`: chi tiết, đăng/quản lý và lưu tin.
+- `/admin/tin-dang`: kiểm duyệt tin, chỉ dành cho admin.
+- `/tim-nguoi-o-ghep`: tìm theo khu vực/ngân sách/thói quen, xem đối chiếu và gửi lời kết nối.
+- `/ket-noi`: lời mời nhận/gửi, kết nối đã chấp nhận và danh sách đã chặn.
 - `/dev/health`: chỉ có trong development; gọi API trực tiếp từ trình duyệt,
   có loading, thành công, lỗi và thử lại. Production trả 404.
 - `/dang-ky`, `/dang-nhap`: đăng ký và đăng nhập bằng email/mật khẩu.
@@ -34,9 +38,10 @@ frontend rồi khởi động lại. NEXT_PUBLIC được đóng vào bundle t�
 - `/quen-mat-khau`, `/dat-lai-mat-khau`: khôi phục mật khẩu; đổi mật khẩu thu hồi
   toàn bộ phiên cũ.
 - `/onboarding`: hồ sơ ngắn; chỉ tên hiển thị là bắt buộc.
-- `/tai-khoan/ho-so`: ảnh đại diện qua URL, giới thiệu, ngân sách, khu vực và thói quen.
+- `/tai-khoan/ho-so`: tải ảnh đại diện, giới thiệu, ngân sách, khu vực và thói quen.
 - `/tai-khoan/cai-dat`: quyền riêng tư và danh sách/thu hồi phiên đăng nhập.
-- `/ho-so/[id]`: hồ sơ công khai, không trả email và tuân theo lựa chọn privacy.
+- `/ho-so/[id]`: hồ sơ công khai, đối chiếu nếp sống, kết nối, chặn và báo cáo;
+  không trả email và tuân theo lựa chọn riêng tư.
 
 `src/lib/api.ts` cung cấp fetch JSON có cookie, timeout mặc định 8 giây, hủy request
 và phân loại lỗi HTTP/mạng/phản hồi. `src/components/ui.tsx` chứa các component dùng chung.
@@ -59,3 +64,15 @@ Danh sách file thay đổi, kết quả HTTP/trình duyệt và giới hạn hi
 Phase 2: [cấu trúc, cấu hình và kết quả kiểm tra](../PHASE_2_STATUS.md).
 Hai trang đăng nhập/đăng ký dùng chung `AuthCard`, nền kem hồng, cam đỏ và cam đào
 theo bộ mẫu. Form giữ riêng từng trang để dễ đọc; không thêm thư viện form.
+
+Phase 3: [tin phòng, bản đồ và kiểm duyệt](../PHASE_3_STATUS.md).
+Phase 4: [tìm người ở ghép, kết nối và quy tắc đối chiếu](../PHASE_4_STATUS.md).
+
+Trang chủ dùng `HomeSlideshow`: 4 ảnh minh họa từ bộ thiết kế, tự trượt từ phải sang trái
+mỗi 6 giây, lặp liền mạch từ ảnh cuối về ảnh đầu,
+có hai nút ảnh trước/sau ở hai bên và luôn tự chuyển khi tab đang hiển thị.
+Rê chuột, focus hay chạm các nút không dừng banner. Tùy chọn giảm chuyển động
+chỉ bỏ hiệu ứng trượt, ảnh vẫn tự đổi. Ảnh WebP được lưu
+local tại `public/images`, tải trực tiếp vì đã nén sẵn; nguồn ảnh ghi trong
+[README ảnh](public/images/README.md).
+`SiteFooter` dùng chung trên các trang, gồm giới thiệu Roomora và các liên kết khám phá/tài khoản.

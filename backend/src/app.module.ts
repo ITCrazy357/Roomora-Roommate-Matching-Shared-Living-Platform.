@@ -10,6 +10,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { OriginGuard } from './common/origin.guard.js';
 import { ProfileModule } from './modules/profile/profile.module.js';
 import { ListingsModule } from './modules/listings/listings.module.js';
+import { PeopleModule } from './modules/people/people.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ListingsModule } from './modules/listings/listings.module.js';
     AuthModule,
     ProfileModule,
     ListingsModule,
+    PeopleModule,
   ],
   controllers: [AppController],
   providers: [

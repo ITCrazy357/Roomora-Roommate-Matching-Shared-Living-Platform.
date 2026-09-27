@@ -110,6 +110,7 @@ export function SiteHeader() {
                   }}
                 >
                   <Link href="/tai-khoan/ho-so">Hồ sơ của tôi</Link>
+                  <Link href="/ket-noi">Yêu cầu kết nối</Link>
                   <Link href="/tin-cua-toi">Tin của tôi</Link>
                   <Link href="/da-luu">Tin đã lưu</Link>
                   <Link href="/tai-khoan/cai-dat">Cài đặt</Link>
@@ -175,6 +176,9 @@ export function SiteHeader() {
             </Link>
             <Link href="/tin-cua-toi" onClick={() => setOpen(false)}>
               Tin của tôi
+            </Link>
+            <Link href="/ket-noi" onClick={() => setOpen(false)}>
+              Yêu cầu kết nối
             </Link>
             <Link href="/da-luu" onClick={() => setOpen(false)}>
               Tin đã lưu

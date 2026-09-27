@@ -66,6 +66,27 @@ enum Amenity {
   PRIVATE_BATHROOM
 }
 
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum UserReportReason {
+  SPAM
+  HARASSMENT
+  SCAM
+  INAPPROPRIATE
+  OTHER
+}
+
+enum UserReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
 model User {
   id              String    @id @default(uuid()) @db.Uuid
   role            UserRole  @default(USER)
@@ -75,13 +96,20 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  profile        Profile?
-  sessions       Session[]
-  authTokens     AuthToken[]
-  googleAccount  GoogleAccount?
-  listings       Listing[]       @relation("ListingOwner")
-  savedListings  SavedListing[]
-  listingReviews ListingReview[]
+  profile             Profile?
+  sessions            Session[]
+  authTokens          AuthToken[]
+  googleAccount       GoogleAccount?
+  listings            Listing[]           @relation("ListingOwner")
+  savedListings       SavedListing[]
+  listingReviews      ListingReview[]
+  sentConnections     Connection[]        @relation("ConnectionSender")
+  receivedConnections Connection[]        @relation("ConnectionReceiver")
+  connectionAttempts  ConnectionAttempt[]
+  blockedUsers        UserBlock[]         @relation("Blocker")
+  blockedBy           UserBlock[]         @relation("BlockedUser")
+  sentReports         UserReport[]        @relation("Reporter")
+  receivedReports     UserReport[]        @relation("ReportedUser")
 
   @@map("users")
 }
@@ -198,7 +226,67 @@ model Profile {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([visibility, updatedAt, userId])
+  @@index([desiredLocations], type: Gin)
   @@map("profiles")
+}
+
+model Connection {
+  id         String           @id @default(uuid()) @db.Uuid
+  // Sorted UUIDs identify a pair regardless of who sends the request.
+  pairKey    String           @unique @map("pair_key") @db.VarChar(73)
+  senderId   String           @map("sender_id") @db.Uuid
+  receiverId String           @map("receiver_id") @db.Uuid
+  status     ConnectionStatus @default(PENDING)
+  message    String           @default("") @db.VarChar(500)
+  version    Int              @default(1)
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  sender     User             @relation("ConnectionSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User             @relation("ConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([receiverId, status, createdAt])
+  @@index([senderId, status, createdAt])
+  @@map("connections")
+}
+
+model ConnectionAttempt {
+  id        String   @id @default(uuid()) @db.Uuid
+  senderId  String   @map("sender_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, createdAt])
+  @@map("connection_attempts")
+}
+
+model UserBlock {
+  blockerId String   @map("blocker_id") @db.Uuid
+  targetId  String   @map("target_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  target    User     @relation("BlockedUser", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, targetId])
+  @@index([targetId, blockerId])
+  @@map("user_blocks")
+}
+
+model UserReport {
+  id         String           @id @default(uuid()) @db.Uuid
+  reporterId String           @map("reporter_id") @db.Uuid
+  targetId   String           @map("target_id") @db.Uuid
+  reason     UserReportReason
+  details    String           @db.VarChar(1000)
+  status     UserReportStatus @default(OPEN)
+  createdAt  DateTime         @default(now()) @map("created_at")
+  reporter   User             @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  target     User             @relation("ReportedUser", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, targetId])
+  @@index([reporterId, createdAt])
+  @@index([status, createdAt])
+  @@map("user_reports")
 }
 
 model Session {

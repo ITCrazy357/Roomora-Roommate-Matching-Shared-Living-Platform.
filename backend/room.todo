@@ -89,6 +89,13 @@ Cho phép chặn và báo cáo người dùng.
 
 Hoàn thành khi: hai tài khoản có thể tìm thấy nhau và hoàn tất một yêu cầu kết nối.
 
+Trạng thái 27/09/2026: đã triển khai Phase 4 theo thiết kế trong design-reference,
+giữ theme cam đỏ/kem hiện tại. Có tìm/lọc/phân trang hồ sơ công khai, đối chiếu
+6 tiêu chí có giải thích, gửi/nhận/chấp nhận/từ chối/hủy lời mời, chặn/bỏ chặn
+và tiếp nhận báo cáo riêng tư. Giới hạn gửi và chống trùng được bảo vệ trong database.
+Đã kiểm chứng hai tài khoản kết nối bằng API, PostgreSQL và Chrome thật.
+Xem PHASE_4_STATUS.md. Nhắn tin thuộc Phase 5; xử lý báo cáo quản trị thuộc Phase 10.
+
 6. Phase 5 — Nhắn tin, lịch xem phòng và thông báo
 
 Màn hình: hộp thư, lịch xem phòng, trung tâm thông báo.

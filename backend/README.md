@@ -44,6 +44,8 @@ Xem kết quả kiểm tra trong `../FOUNDATION_STATUS.md`.
 - `prisma/schema.prisma`: tài khoản, hồ sơ, session và token dùng một lần.
 - Phase 3 thêm tin phòng, ảnh, tin đã lưu, lịch sử kiểm duyệt và role USER/ADMIN.
   Luồng sử dụng, cấp quyền admin và kết quả kiểm thử: [PHASE_3_STATUS.md](../PHASE_3_STATUS.md).
+- Phase 4 thêm kết nối, lịch sử gửi để giới hạn tần suất, chặn và báo cáo người dùng.
+  Quy tắc đối chiếu, API và kiểm chứng: [PHASE_4_STATUS.md](../PHASE_4_STATUS.md).
 - `src/generated/prisma/`: Prisma Client được generate, không sửa tay hoặc commit.
 - `src/database/prisma.module.ts`: cung cấp và export `PrismaService`.
   Module nghiệp vụ cần database thì import `PrismaModule`.

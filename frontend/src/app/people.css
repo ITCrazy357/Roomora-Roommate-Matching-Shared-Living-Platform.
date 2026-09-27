@@ -1,0 +1,343 @@
+.people-page {
+  display: grid;
+  gap: 24px;
+}
+.people-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.people-page-heading h1 {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  margin-block: 8px 12px;
+}
+.people-page-heading > div {
+  max-width: 760px;
+}
+.people-preferences {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.people-preferences > div {
+  flex: 1;
+  min-width: 0;
+}
+.people-filters {
+  padding: 24px;
+}
+.people-filter-form {
+  display: grid;
+  gap: 20px;
+}
+.people-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.people-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.people-filter-toggle {
+  display: none;
+}
+.people-result-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.people-result-heading h2 {
+  flex: 1;
+  font-size: 1.3rem;
+}
+.people-results {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+.people-list {
+  display: grid;
+  gap: 18px;
+}
+.person-card,
+.connection-card {
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+.person-card.is-selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.person-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.person-identity > div {
+  min-width: 0;
+}
+.person-identity h1 {
+  font-size: 2rem;
+}
+.person-identity h2,
+.person-identity h3 {
+  font-size: 1.2rem;
+}
+.person-identity p {
+  font-size: 0.85rem;
+}
+.person-avatar {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  border-radius: 18px;
+  display: grid;
+  place-content: center;
+  overflow: hidden;
+  background: var(--primary-soft);
+  color: var(--primary-foreground);
+  font-size: 2rem;
+  font-weight: 600;
+}
+.person-avatar img {
+  width: 76px;
+  height: 76px;
+  object-fit: cover;
+}
+.person-card-bio {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--muted);
+}
+.people-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.people-tags span {
+  font-size: 0.75rem;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: var(--primary-subtle);
+  color: var(--primary-foreground);
+}
+.person-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--primary-subtle);
+}
+.person-card-footer strong {
+  color: var(--primary-foreground);
+  font-size: 0.85rem;
+}
+.person-card-footer small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.people-detail-panel {
+  min-width: 0;
+  position: sticky;
+  top: 100px;
+}
+.person-details {
+  display: grid;
+  gap: 20px;
+  padding: 26px;
+  overflow-wrap: anywhere;
+}
+.person-bio {
+  white-space: pre-wrap;
+  background: var(--surface-muted);
+  padding: 16px;
+  border-radius: 12px;
+}
+.person-match {
+  display: grid;
+  gap: 12px;
+}
+.person-match-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.person-match-heading h3 {
+  font-size: 1rem;
+}
+.person-match-heading > strong {
+  color: var(--primary-foreground);
+  font-size: 0.9rem;
+}
+.person-match ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.person-match li {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--primary-subtle);
+}
+.person-match li > div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+.person-match li span {
+  color: var(--primary-foreground);
+  font-size: 0.75rem;
+}
+.person-match li p {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.person-match .match-partial,
+.person-match .match-different {
+  background: var(--secondary-soft);
+}
+.person-match .match-unknown {
+  background: var(--surface-muted);
+}
+.person-match details > p {
+  margin-top: 12px;
+}
+.person-actions,
+.people-safety {
+  display: grid;
+  gap: 14px;
+}
+.person-connection-state {
+  color: var(--primary-foreground);
+  padding: 12px;
+  background: var(--primary-subtle);
+  border-radius: 10px;
+}
+.people-safety {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+.people-safety details .form-stack {
+  margin-top: 16px;
+}
+.people-panel-empty {
+  display: grid;
+  gap: 16px;
+  padding: 36px;
+  text-align: center;
+}
+.people-panel-empty > span {
+  font-size: 3rem;
+  color: var(--primary);
+}
+.connection-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.connection-card blockquote {
+  padding: 16px;
+  background: var(--primary-subtle);
+  border-radius: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.people-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+}
+.people-public-page {
+  display: grid;
+  gap: 24px;
+  max-width: 880px;
+}
+@media (max-width: 1000px) {
+  .people-results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .people-detail-panel {
+    position: static;
+  }
+  .people-detail-panel:has(.person-details) {
+    grid-row: 1;
+  }
+  .people-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .people-page-heading,
+  .people-preferences {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .people-preferences {
+    gap: 12px;
+  }
+  .people-filter-toggle {
+    display: inline-flex;
+  }
+  .people-filter-form {
+    display: none;
+  }
+  .people-filter-form.is-open {
+    display: grid;
+    margin-top: 20px;
+  }
+  .people-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .people-filters,
+  .person-card,
+  .connection-card,
+  .person-details {
+    padding: 18px;
+  }
+  .person-avatar,
+  .person-avatar img {
+    width: 58px;
+    height: 58px;
+  }
+  .person-card-footer {
+    flex-wrap: wrap;
+  }
+  .person-card-footer .button {
+    width: 100%;
+  }
+  .connection-tabs .button {
+    flex: 1 1 40%;
+  }
+  .person-match li > div {
+    flex-wrap: wrap;
+  }
+  .people-pagination {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}

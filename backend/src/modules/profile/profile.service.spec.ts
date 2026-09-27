@@ -20,6 +20,7 @@ describe('Profile avatar consistency and location privacy', () => {
   };
   function setup() {
     const prisma = {
+      userBlock: { findFirst: vi.fn().mockResolvedValue(null) },
       profile: {
         findUnique: vi.fn().mockResolvedValue(existing),
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -34,12 +35,10 @@ describe('Profile avatar consistency and location privacy', () => {
       },
     };
     const cloudinary = {
-      uploadAvatar: vi
-        .fn()
-        .mockResolvedValue({
-          publicId: 'roomora/avatars/owner/new',
-          secureUrl: 'https://example.test/new.jpg',
-        }),
+      uploadAvatar: vi.fn().mockResolvedValue({
+        publicId: 'roomora/avatars/owner/new',
+        secureUrl: 'https://example.test/new.jpg',
+      }),
       deleteAvatar: vi.fn().mockResolvedValue(undefined),
     };
     const service = new ProfileService(

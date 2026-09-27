@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { HomeSlideshow } from "@/components/home-slideshow";
 import { Badge, ButtonLink, Card } from "@/components/ui";
 
 export default function Home() {
@@ -30,25 +30,7 @@ export default function Home() {
             <span aria-hidden="true">✳</span> Bắt đầu từ điều phù hợp với bạn.
           </div>
         </div>
-        <figure className="hero-visual">
-          <Image
-            src="/images/roomora-home.png"
-            alt="Minh họa không gian phòng ấm áp với ban công đầy nắng và cây xanh"
-            fill
-            sizes="(max-width: 767px) 100vw, 50vw"
-            preload
-            className="hero-image"
-          />
-          <div className="image-note">
-            <span aria-hidden="true">⌂</span>
-            <div>
-              Chút nắng. Chút xanh.
-              <br />
-              <strong>Thêm một chút an yên.</strong>
-            </div>
-          </div>
-          <figcaption>Hình ảnh minh họa không gian sống</figcaption>
-        </figure>
+        <HomeSlideshow />
       </section>
       <section className="journey-section" aria-labelledby="journey-title">
         <div className="section-heading">

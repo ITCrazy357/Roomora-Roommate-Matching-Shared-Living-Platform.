@@ -12,6 +12,7 @@ import type { Profile } from '../../generated/prisma/client.js';
 import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
 import { LocationsService } from '../locations/locations.service.js';
 import type { DesiredLocation } from '../locations/locations.service.js';
+import { publicProfile } from './public-profile.js';
 
 @Injectable()
 export class ProfileService {
@@ -177,28 +178,23 @@ export class ProfileService {
     if (!profile) throw this.notFound();
 
     const owner = requesterId === userId;
+    if (
+      !owner &&
+      requesterId &&
+      (await this.prisma.userBlock.findFirst({
+        where: {
+          OR: [
+            { blockerId: requesterId, targetId: userId },
+            { blockerId: userId, targetId: requesterId },
+          ],
+        },
+      }))
+    )
+      throw this.notFound();
     if (!owner && profile.visibility === 'PRIVATE') throw this.notFound();
     if (owner) return this.fullProfile(profile);
 
-    return {
-      userId: profile.userId,
-      displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
-      bio: profile.bio,
-      visibility: profile.visibility,
-      budgetMin: profile.showBudget ? profile.budgetMin : undefined,
-      budgetMax: profile.showBudget ? profile.budgetMax : undefined,
-      desiredAreas: profile.showDesiredAreas ? profile.desiredAreas : undefined,
-      desiredLocations: profile.showDesiredAreas
-        ? this.profileLocations(profile)
-        : undefined,
-      sleepSchedule: profile.showLifestyle ? profile.sleepSchedule : undefined,
-      smokingPreference: profile.showLifestyle
-        ? profile.smokingPreference
-        : undefined,
-      petPreference: profile.showLifestyle ? profile.petPreference : undefined,
-      quietLevel: profile.showLifestyle ? profile.quietLevel : undefined,
-    };
+    return publicProfile(profile, this.locations);
   }
 
   private profileLocations(profile: Profile) {

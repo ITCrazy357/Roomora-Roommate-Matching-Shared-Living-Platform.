@@ -97,6 +97,43 @@ export function validateEnvironment(
   }
 
   const devExposeLinks = booleanValue('AUTH_DEV_EXPOSE_LINKS', false);
+  const googleClientId = optionalText('GOOGLE_CLIENT_ID');
+  const googleClientSecret = optionalText('GOOGLE_CLIENT_SECRET');
+  const googleRedirectUri = optionalText('GOOGLE_REDIRECT_URI');
+  const googleSettings = [
+    googleClientId,
+    googleClientSecret,
+    googleRedirectUri,
+  ];
+  if (googleSettings.some(Boolean) && !googleSettings.every(Boolean)) {
+    throw new Error(
+      'Cần cấu hình đủ GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET và GOOGLE_REDIRECT_URI',
+    );
+  }
+  if (googleRedirectUri) {
+    let callback: URL;
+    try {
+      callback = new URL(googleRedirectUri);
+    } catch {
+      throw new Error('GOOGLE_REDIRECT_URI phải là URL hợp lệ');
+    }
+    const localHttp =
+      nodeEnv !== 'production' &&
+      callback.protocol === 'http:' &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(callback.hostname);
+    if (
+      (callback.protocol !== 'https:' && !localHttp) ||
+      callback.username ||
+      callback.password ||
+      callback.search ||
+      callback.hash ||
+      callback.pathname !== '/api/v1/auth/google/callback'
+    ) {
+      throw new Error(
+        'GOOGLE_REDIRECT_URI cần HTTPS (HTTP chỉ dùng localhost) và đường dẫn /api/v1/auth/google/callback',
+      );
+    }
+  }
   const cloudName = optionalText('CLOUDINARY_CLOUD_NAME');
   const cloudKey = optionalText('CLOUDINARY_API_KEY');
   const cloudSecret = optionalText('CLOUDINARY_API_SECRET');
@@ -118,6 +155,9 @@ export function validateEnvironment(
     PORT: port,
     FRONTEND_ORIGIN: origin.origin,
     AUTH_DEV_EXPOSE_LINKS: devExposeLinks,
+    GOOGLE_CLIENT_ID: googleClientId,
+    GOOGLE_CLIENT_SECRET: googleClientSecret,
+    GOOGLE_REDIRECT_URI: googleRedirectUri,
     SMTP_HOST: smtpHost,
     SMTP_PORT: smtpPort,
     SMTP_SECURE: booleanValue('SMTP_SECURE', false),

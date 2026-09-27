@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { AuthCard } from "@/components/auth-card";
+import { GoogleSignIn } from "@/components/google-sign-in";
+import { GoogleAuthNotice } from "@/components/google-auth-notice";
 import { useAuth, type CurrentUser } from "@/components/auth-provider";
 import { Button, ErrorState, Input } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
@@ -48,6 +50,8 @@ export function LoginForm() {
       description="Tiếp tục hoàn thiện hồ sơ và tìm nhịp sống phù hợp với bạn."
       welcome
     >
+      <GoogleAuthNotice />
+      <GoogleSignIn disabled={pending} />
       <form className="form-stack" onSubmit={submit}>
         <Input
           id="email"

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import { AuthCard } from "@/components/auth-card";
+import { GoogleSignIn } from "@/components/google-sign-in";
 import { Button, ErrorState, Input } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
 import { authErrorMessage } from "@/lib/auth-errors";
@@ -53,6 +54,7 @@ export function RegisterForm() {
       description="Một khởi đầu nhỏ cho nơi ở mới. Tạo tài khoản và giới thiệu đôi nét về bạn."
       welcome
     >
+      {!result && <GoogleSignIn disabled={pending} />}
       {result ? (
         <div className="success-state" role="status">
           <p>{result.message}</p>

@@ -53,9 +53,10 @@ chạy. Sau khi sửa schema trong lúc watch đang chạy, chạy lại `npm ru
 
 ## Schema và migrations
 
-Phase 2 có migration tạo tài khoản và `20260924170000_remove_google_auth` gỡ Google.
-Migration gỡ Google chỉ chạy khi hai bảng OAuth rỗng và mọi tài khoản có mật khẩu;
-nếu không thỏa điều kiện, transaction dừng trước khi xóa bảng. Không sửa migration cũ.
+Phase 2 có migration tạo tài khoản, migration gỡ Google trong giai đoạn học tập,
+và `20260926140000_google_login` triển khai lại Google theo yêu cầu mới.
+Migration mới thêm bảng Google và cho phép tài khoản không có mật khẩu; giữ dữ liệu cũ.
+Không sửa migration đã áp dụng.
 Kiểm tra trạng thái
 và áp dụng migration đã duyệt bằng lệnh an toàn sau:
 
@@ -87,8 +88,11 @@ validator cấm bật cờ này ở production.
 nếu cần `SMTP_USER` + `SMTP_PASSWORD`. Nếu chưa có SMTP, API báo `emailSent: false`;
 không ghi token vào log.
 
-Google đã được gỡ theo phạm vi học tập. Thêm biến môi trường sẽ không bật lại tính năng.
-Xem [bài hướng dẫn tự triển khai](../docs/google-login-guide.md).
+Google dùng ba biến `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
+Callback local: `http://localhost:5000/api/v1/auth/google/callback`.
+`GET /auth/config` báo tính năng đã bật hay chưa; `/auth/google` bắt đầu đăng nhập.
+Tài khoản email có sẵn cần xác nhận mật khẩu rồi liên kết Google trong cài đặt.
+Xem [cấu hình, luồng xử lý và cách đọc code](../docs/google-login-guide.md).
 
 ## Avatar và địa chỉ hồ sơ
 

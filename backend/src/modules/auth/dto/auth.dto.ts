@@ -50,6 +50,13 @@ export class EmailDto {
   email!: string;
 }
 
+export class LinkGoogleDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  password!: string;
+}
+
 export class TokenDto {
   @IsString()
   @Matches(/^[A-Za-z0-9_-]{40,128}$/)

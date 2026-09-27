@@ -1,7 +1,20 @@
 # Roomora — kiểm tra lại Phase 2
 
-Ngày 24/09/2026. Phạm vi hiện tại: tài khoản email/mật khẩu và hồ sơ cá nhân.
-Google đã được gỡ theo yêu cầu để người học tự triển khai sau.
+Cập nhật 26/09/2026: đã triển khai lại đăng nhập và liên kết Google theo yêu cầu mới.
+Xem [hướng dẫn Google](docs/google-login-guide.md) để cấu hình và đọc code.
+
+- Dùng lại PrismaService và session HttpOnly hiện có; thêm migration `20260926140000_google_login`.
+- Google client/service/controller có trách nhiệm riêng; xác minh token bằng thư viện Google.
+- Có nút Google ở đăng nhập/đăng ký và liên kết có xác nhận mật khẩu trong cài đặt.
+- Unit test xác minh token ký thật; E2E PostgreSQL giả lập phía Google. Lượt consent/callback
+  với tài khoản Google thật cần kiểm tra thủ công.
+- Kiểm tra bản cập nhật: 42 unit test, 17 E2E PostgreSQL và 8 frontend API test đạt;
+  backend/frontend build, lint và Prisma validate đạt. Migration đã áp dụng ở DB local.
+- Chrome: nút Google ở 320/390/768/1440px, trang Google thật, callback hủy,
+  xác nhận mật khẩu và hủy liên kết đạt; không có lỗi JavaScript. Đã dọn tài khoản thử.
+
+Các mục bên dưới là bản ghi kiểm tra **ngày 24/09/2026**, trước khi thêm lại Google
+và trước thay đổi upload ảnh/địa chỉ. Những mô tả gỡ Google hoặc nhập URL ảnh là lịch sử.
 
 ## Cấu trúc và cách đọc
 

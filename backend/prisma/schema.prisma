@@ -45,14 +45,15 @@ enum QuietLevel {
 model User {
   id              String    @id @default(uuid()) @db.Uuid
   email           String    @unique @db.VarChar(320)
-  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  passwordHash    String?   @map("password_hash") @db.VarChar(255)
   emailVerifiedAt DateTime? @map("email_verified_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  profile    Profile?
-  sessions   Session[]
-  authTokens AuthToken[]
+  profile       Profile?
+  sessions      Session[]
+  authTokens    AuthToken[]
+  googleAccount GoogleAccount?
 
   @@map("users")
 }
@@ -95,7 +96,8 @@ model Session {
   createdAt  DateTime  @default(now()) @map("created_at")
   revokedAt  DateTime? @map("revoked_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  googleLoginStates GoogleLoginState[]
 
   @@index([userId, expiresAt])
   @@map("sessions")
@@ -114,4 +116,31 @@ model AuthToken {
 
   @@index([userId, type, expiresAt])
   @@map("auth_tokens")
+}
+
+// Google sub is stable; email is not an account identifier.
+model GoogleAccount {
+  userId    String   @id @map("user_id") @db.Uuid
+  googleId  String   @unique @map("google_id") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("google_accounts")
+}
+
+// Short-lived, one-use state shared by all backend instances.
+model GoogleLoginState {
+  stateHash        String   @id @map("state_hash") @db.Char(64)
+  browserTokenHash String   @map("browser_token_hash") @db.Char(64)
+  nonce            String   @db.VarChar(128)
+  codeVerifier     String   @map("code_verifier") @db.VarChar(128)
+  linkSessionId    String?  @map("link_session_id") @db.Uuid
+  expiresAt        DateTime @map("expires_at")
+
+  linkSession Session? @relation(fields: [linkSessionId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([linkSessionId])
+  @@map("google_login_states")
 }

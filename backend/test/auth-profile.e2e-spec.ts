@@ -42,9 +42,11 @@ describe('Authentication and profile (e2e)', () => {
   it('completes account, session, privacy and password-reset flows', async () => {
     const agent = request.agent(app.getHttpServer());
 
-    await agent.get('/api/v1/auth/config').expect(404);
-    await agent.get('/api/v1/auth/google').expect(404);
-    await agent.get('/api/v1/auth/google/callback').expect(404);
+    await agent.get('/api/v1/auth/config').expect(200);
+    await agent
+      .get('/api/v1/auth/google/callback')
+      .expect(302)
+      .expect('Location', `${origin}/dang-nhap?google=GOOGLE_STATE_INVALID`);
 
     const registration = await agent
       .post('/api/v1/auth/register')

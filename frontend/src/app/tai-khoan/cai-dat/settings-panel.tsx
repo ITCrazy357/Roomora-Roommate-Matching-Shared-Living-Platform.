@@ -13,6 +13,7 @@ import {
 import { apiFetch } from "@/lib/api";
 import { authErrorMessage } from "@/lib/auth-errors";
 import type { MyProfile } from "@/lib/profile";
+import { GoogleAccountCard } from "./google-account-card";
 
 interface LoginSession {
   id: string;
@@ -118,6 +119,7 @@ export function SettingsPanel() {
 
   return (
     <div className="settings-grid">
+      <GoogleAccountCard />
       <Card className="settings-card">
         <span className="eyebrow">HỒ SƠ CÔNG KHAI</span>
         <h2>Ai có thể xem gì?</h2>

@@ -6,10 +6,13 @@ import { AuthService } from './auth.service.js';
 import { MailService } from './mail.service.js';
 import { PasswordService } from './password.service.js';
 import { SessionService } from './session.service.js';
+import { GoogleAuthController } from './google-auth.controller.js';
+import { GoogleAuthService } from './google-auth.service.js';
+import { GoogleClientService } from './google-client.service.js';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [AuthController],
+  controllers: [AuthController, GoogleAuthController],
   providers: [
     AuthService,
     AuthGuard,
@@ -17,6 +20,8 @@ import { SessionService } from './session.service.js';
     MailService,
     PasswordService,
     SessionService,
+    GoogleAuthService,
+    GoogleClientService,
   ],
   exports: [AuthGuard, OptionalAuthGuard, SessionService],
 })

@@ -2,6 +2,9 @@
 
 Next.js 16.3.5 App Router (`src/app/`), React 19, Tailwind CSS 4.
 Thiết kế theo `design-reference/`, dùng Be Vietnam Pro có hỗ trợ tiếng Việt.
+Theme chung theo ảnh landing: cam đỏ `#E65036`, cam đào `#F28E6B`, nền kem
+`#FAF8F5`, chữ đen/xám ấm. Quy tắc cho giao diện hiện tại và mới:
+[UI theme](../docs/ui-theme.md).
 
 ## Chạy local
 
@@ -54,5 +57,5 @@ Danh sách file thay đổi, kết quả HTTP/trình duyệt và giới hạn hi
 [FOUNDATION_STATUS.md](../FOUNDATION_STATUS.md).
 
 Phase 2: [cấu trúc, cấu hình và kết quả kiểm tra](../PHASE_2_STATUS.md).
-Hai trang đăng nhập/đăng ký dùng chung `AuthCard`, nền kem, xanh ngọc và cam đào
+Hai trang đăng nhập/đăng ký dùng chung `AuthCard`, nền kem hồng, cam đỏ và cam đào
 theo bộ mẫu. Form giữ riêng từng trang để dễ đọc; không thêm thư viện form.

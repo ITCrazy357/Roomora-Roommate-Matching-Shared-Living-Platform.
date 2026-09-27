@@ -1,0 +1,42 @@
+/* Reference direction: coral actions and highlights, warm cream, dark text. */
+:root {
+  color-scheme: light;
+
+  --primary: #e65036;
+  --primary-action: #d3432b;
+  --primary-foreground: #b93722;
+  --secondary: #f28e6b;
+  --tertiary: #967264;
+  --neutral: #faf8f5;
+
+  --background: var(--neutral);
+  --foreground: #211f1d;
+  --surface: #ffffff;
+  --surface-muted: #f1eee9;
+  --muted: #625750;
+  --placeholder: #75685f;
+  --border: #e2d8d0;
+  --border-strong: #9d8c81;
+  --on-primary: var(--surface);
+  --primary-hover: color-mix(in srgb, var(--primary-action), black 10%);
+  --primary-soft: color-mix(in srgb, var(--primary) 10%, var(--neutral));
+  --primary-subtle: color-mix(in srgb, var(--primary) 5%, var(--neutral));
+  --secondary-foreground: #5f2d1a;
+  --secondary-soft: color-mix(in srgb, var(--secondary) 20%, var(--neutral));
+  --tertiary-soft: color-mix(in srgb, var(--tertiary) 16%, var(--neutral));
+  --selection: color-mix(in srgb, var(--secondary) 35%, var(--neutral));
+  --focus-ring: color-mix(in srgb, var(--primary) 18%, transparent);
+  --page-glow: color-mix(in srgb, var(--primary) 7%, var(--neutral));
+  --shadow-action: color-mix(in srgb, var(--primary) 24%, transparent);
+
+  /* Alerts keep a separate, recognizable error color. */
+  --danger: #b4233b;
+  --danger-soft: #fff1f2;
+  --danger-foreground: #9f1239;
+
+  --surface-overlay: color-mix(in srgb, var(--surface) 93%, transparent);
+  --surface-overlay-border: color-mix(in srgb, var(--surface) 60%, transparent);
+  --image-overlay: color-mix(in srgb, var(--foreground) 78%, transparent);
+  --shadow-card: color-mix(in srgb, var(--primary) 6%, transparent);
+  --shadow-elevated: color-mix(in srgb, var(--primary) 12%, transparent);
+}

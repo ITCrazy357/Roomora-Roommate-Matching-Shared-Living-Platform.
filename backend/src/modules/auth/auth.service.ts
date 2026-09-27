@@ -343,7 +343,7 @@ export class AuthService {
     return url.toString();
   }
 
-  private checkRateLimit(key: string, limit: number, windowMs: number): void {
+  checkRateLimit(key: string, limit: number, windowMs: number): void {
     const now = Date.now();
     // Dọn trước khi thêm key mới; nhánh return bên dưới không được bỏ qua bước này.
     if (this.rateBuckets.size > 10_000) {

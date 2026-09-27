@@ -1,69 +1,97 @@
-# Tự làm đăng nhập Google cho Roomora
+# Đăng nhập Google trong Roomora
 
-Phần Google đã được gỡ. Đây là bài thực hành để bạn tự viết lại sau khi hiểu luồng
-email/mật khẩu; không có code OAuth chạy sẵn hoặc nút chờ bật cấu hình.
+Google xác minh danh tính; Roomora vẫn quản lý đăng nhập bằng `SessionService`
+và cookie HttpOnly hiện có. Không lưu access token/refresh token Google vào DB
+hay gửi ID token về frontend.
 
-## 1. Hiểu luồng trước
+## Cấu hình và chạy
 
-Trong Roomora, đăng nhập thành công kết thúc bằng `SessionService.create()`.
-Google chỉ thay bước kiểm tra mật khẩu bằng bước xác minh danh tính do Google cấp.
-
-```text
-Nút Google → backend /auth/google → Google
-          → backend /auth/google/callback
-          → xác minh danh tính → tìm/tạo User
-          → SessionService.create() → frontend /onboarding hoặc /tai-khoan/ho-so
-```
-
-`code` là mã tạm để backend đổi token. `id_token` chứa danh tính đã được ký.
-`state` nối callback với trình duyệt đã bắt đầu đăng nhập; `nonce` chống phát lại
-ID token. `sub` là mã tài khoản Google ổn định. OAuth cấp quyền; OpenID Connect
-bổ sung xác thực danh tính. Xem [luồng OpenID Connect chính thức](https://developers.google.com/identity/openid-connect/openid-connect).
-
-## 2. Tạo thông tin ứng dụng
-
-Trong Google Cloud, tạo project, cấu hình consent/branding, đối tượng sử dụng và
-test users khi ứng dụng ở chế độ thử nghiệm. Tạo OAuth client loại Web application.
-Đăng ký chính xác callback `http://localhost:5000/api/v1/auth/google/callback`.
-Xem [thiết lập ứng dụng web](https://developers.google.com/identity/protocols/oauth2/web-server).
-
-Sau này thêm vào **backend/.env**:
+Thêm vào `backend/.env` (chỉ ở local, không commit):
 
 ```dotenv
-GOOGLE_CLIENT_ID=client_id_cua_ban
-GOOGLE_CLIENT_SECRET=client_secret_cua_ban
+GOOGLE_CLIENT_ID=client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=client_secret
 GOOGLE_REDIRECT_URI=http://localhost:5000/api/v1/auth/google/callback
+FRONTEND_ORIGIN=http://localhost:3000
 ```
 
-Giữ `FRONTEND_ORIGIN=http://localhost:3000`. Client secret chỉ ở backend; không
-đặt trong biến `NEXT_PUBLIC_*`. Hiện tại bạn chưa cần thêm ba biến Google.
+Google Cloud → Google Auth Platform → Clients: tạo client loại **Web application**,
+đăng ký chính xác callback trên. Cấu hình Branding, Audience và thêm tài khoản thử
+trong Test users. Chỉ cần scope `openid email profile`; không cần Gmail hoặc Drive.
+Ở production, callback phải dùng HTTPS. Frontend và API cần cùng site để cookie
+`SameSite=Lax` hoạt động (ví dụ `roomora.vn` và `api.roomora.vn`).
 
-## 3. Viết từng phần nhỏ
+Trong thư mục `backend`:
 
-1. **Schema:** thêm bảng liên kết có `userId`, `googleId` duy nhất. Cho phép
-   `passwordHash` rỗng với tài khoản chỉ dùng Google; sửa login để tài khoản đó
-   luôn bị từ chối ở luồng mật khẩu. Tạo migration mới, không sửa migration cũ.
-2. **Service:** tạo `google-auth.service.ts` trong `AuthModule`; dùng thư viện
-   Google để đổi code và xác minh token, tránh tự viết kiểm tra chữ ký/JWKS.
-3. **Route bắt đầu:** sinh `state`, `nonce` ngẫu nhiên, có hạn và dùng một lần.
-   Lưu phía server, gắn với cookie `HttpOnly` của trình duyệt. Redirect sang Google
-   với `response_type=code`, scope `openid email profile` và callback đã đăng ký.
-4. **Callback:** kiểm tra người dùng hủy, `state`, hạn dùng, cookie và chỉ dùng
-   trạng thái một lần. Backend đổi code; kiểm tra chữ ký, issuer, audience, expiry,
-   nonce và yêu cầu email đã xác minh. Không chỉ decode JWT rồi tin payload.
-5. **Tài khoản:** tìm bằng `googleId = sub`. Nếu email trùng tài khoản mật khẩu,
-   yêu cầu đăng nhập tài khoản đó trước khi liên kết; không tự gộp chỉ vì trùng email.
-6. **Session:** dùng lại `SessionService.create()`, redirect về một trong hai
-   đường dẫn cố định của Roomora. Nút frontend chỉ mở `/auth/google`.
+```sh
+npm install
+npm run prisma:migrate:deploy
+npm run start:dev
+```
 
-Các bước xác minh dựa trên [hướng dẫn OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect).
-Phần schema và chính sách liên kết là gợi ý riêng cho Roomora. Hãy hoàn thành
-từng bước và kiểm tra trước khi thêm bước tiếp theo.
+Migration `20260926140000_google_login` thêm hai bảng Google và cho phép tài khoản
+không có mật khẩu. Không sửa migration cũ, không reset DB.
+Nếu thiếu cả ba biến Google, đăng nhập email vẫn hoạt động và nút Google được ẩn.
+Nếu chỉ có một phần cấu hình, backend báo lỗi khi khởi động.
 
-## 4. Tự kiểm tra
+## Đọc code theo thứ tự
 
-- Lần đầu tạo đúng một tài khoản; lần sau vào đúng tài khoản cũ.
-- Hủy consent, state sai/hết hạn/dùng lại, token sai audience đều không tạo session.
-- Không liên kết tài khoản mật khẩu khi người dùng chưa chứng minh quyền sở hữu.
-- Đăng xuất thu hồi được session vừa tạo; không có secret/token trong URL frontend hay log.
-- Chạy callback thật bằng tài khoản test Google, rồi mới coi tích hợp hoàn tất.
+| File trong `backend/src/modules/auth/` | Vai trò |
+| --- | --- |
+| `google-auth.controller.ts` | Nhận request, trả config, redirect và gọi service |
+| `google-client.service.ts` | Tạo URL Google, đổi code, xác minh ID token bằng thư viện Google |
+| `google-auth.service.ts` | Quản lý state, tìm/tạo tài khoản, liên kết và tạo session Roomora |
+| `google-auth.error.ts` | Các mã lỗi cố định, không để lỗi chứa token/secret lọt ra ngoài |
+
+Frontend dùng `GoogleSignIn` ở cả đăng nhập và đăng ký; `GoogleAccountCard` nằm
+trong cài đặt. `GoogleAuthNotice` đọc mã kết quả trong URL và hiển thị tiếng Việt.
+
+## Luồng đăng nhập
+
+1. Nút Google mở `GET /api/v1/auth/google` bằng điều hướng trình duyệt.
+2. Backend tạo state, nonce và PKCE verifier; lưu bản ghi có hạn 10 phút vào DB.
+   State được hash; một cookie HttpOnly riêng ràng buộc lượt đăng nhập với trình duyệt.
+3. Google trả về `/api/v1/auth/google/callback`. Backend kiểm tra cookie, state và
+   hạn dùng, rồi xóa state bằng thao tác nguyên tử để chỉ một callback dùng được.
+4. Thư viện Google đổi code và kiểm tra chữ ký, issuer, audience, thời hạn ID token.
+   Roomora kiểm tra thêm nonce và email đã xác minh.
+5. Tìm người dùng bằng Google `sub`. Nếu chưa có, tạo User/Profile/GoogleAccount
+   trong một thao tác Prisma lồng nhau. Tài khoản Google mới không có mật khẩu.
+6. Tạo session Roomora, redirect đến `/onboarding` hoặc `/tai-khoan/ho-so`.
+
+`sub` là định danh ổn định. Nếu Google đổi email, tài khoản đã liên kết vẫn được
+nhận diện bằng `sub`; email Roomora không tự đổi theo. Tên và avatar đã chỉnh ở
+Roomora cũng không bị ghi đè mỗi lần đăng nhập Google.
+
+## Tài khoản email/mật khẩu đã tồn tại
+
+Không tự gộp tài khoản chỉ vì trùng email. Người dùng đăng nhập bằng mật khẩu,
+mở **Cài đặt tài khoản → Tài khoản Google**, xác nhận mật khẩu và chọn Google
+có cùng email. `POST /auth/google/link` yêu cầu session và Origin hợp lệ.
+Callback liên kết kiểm tra lại đúng session đã bắt đầu thao tác; đăng xuất hoặc
+thu hồi phiên trong khi chờ Google sẽ làm liên kết thất bại.
+
+Sau khi liên kết, cả mật khẩu và Google đều đăng nhập cùng tài khoản. Mỗi tài khoản
+Roomora liên kết tối đa một Google; mỗi Google chỉ thuộc một tài khoản Roomora.
+Chưa có chức năng gỡ/đổi liên kết hoặc đặt mật khẩu cho tài khoản chỉ dùng Google.
+
+## Kiểm thử và giới hạn xác nhận
+
+```sh
+npm test
+npm run test:e2e
+npm run lint
+npm run build
+```
+
+Unit test dùng token ký RSA thật với khóa kiểm thử để xác minh chữ ký và các claim.
+E2E dùng PostgreSQL thật, giả lập riêng phản hồi Google để kiểm tra callback,
+cookie, replay đồng thời, tài khoản trùng email và liên kết. Các test không gửi mail
+thật và tự dọn tài khoản kiểm thử.
+
+Kiểm tra thực tế: nhấn Google trên trình duyệt, đăng nhập tài khoản Test user, chấp
+thuận rồi xác nhận quay về Roomora. Bước này mới xác nhận cả client secret và token
+exchange với Google. Test tự động không thay thế lượt đăng nhập Google thật.
+
+Nguồn: [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect),
+[Google Auth Library cho Node.js](https://github.com/googleapis/google-auth-library-nodejs).

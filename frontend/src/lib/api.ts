@@ -19,17 +19,21 @@ export class ApiError extends Error {
 
 type ApiOptions = RequestInit & { timeoutMs?: number };
 
-/** JSON API requests. Error response bodies are never displayed to the user. */
-export async function apiFetch<T>(
-  path: string,
-  options: ApiOptions = {},
-): Promise<T> {
+export function apiUrl(path: string): string {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (!baseUrl) throw new ApiError("Chưa cấu hình địa chỉ API.", "config");
   if (!path.startsWith("/") || path.startsWith("//")) {
     throw new ApiError("Đường dẫn API không hợp lệ.", "config");
   }
+  return `${baseUrl.replace(/\/+$/, "")}${path}`;
+}
 
+/** JSON API requests. Error response bodies are never displayed to the user. */
+export async function apiFetch<T>(
+  path: string,
+  options: ApiOptions = {},
+): Promise<T> {
+  const url = apiUrl(path);
   const { timeoutMs = 8000, signal, ...init } = options;
   const controller = new AbortController();
   let timedOut = false;
@@ -44,7 +48,7 @@ export async function apiFetch<T>(
   try {
     const headers = new Headers(init.headers);
     if (!headers.has("Accept")) headers.set("Accept", "application/json");
-    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}${path}`, {
+    const response = await fetch(url, {
       ...init,
       headers,
       credentials: init.credentials ?? "include",

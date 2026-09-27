@@ -1,10 +1,27 @@
 import { ApiError } from "./api";
 
 const messages: Record<string, string> = {
+  GOOGLE_DISABLED:
+    "Đăng nhập Google chưa được bật. Bạn có thể đăng nhập bằng email.",
+  GOOGLE_CANCELLED: "Bạn đã hủy đăng nhập Google. Hãy thử lại khi sẵn sàng.",
+  GOOGLE_STATE_INVALID:
+    "Lượt đăng nhập Google đã hết hạn hoặc không hợp lệ. Vui lòng bấm nút Google để bắt đầu lại.",
+  GOOGLE_TOKEN_INVALID:
+    "Không thể xác minh tài khoản Google. Vui lòng thử lại.",
+  GOOGLE_UNAVAILABLE: "Chưa thể đăng nhập Google. Vui lòng thử lại sau.",
+  GOOGLE_ACCOUNT_EXISTS:
+    "Email này đã có tài khoản Roomora. Hãy đăng nhập bằng mật khẩu, sau đó vào Cài đặt tài khoản để liên kết Google.",
+  GOOGLE_LINK_CONFLICT:
+    "Tài khoản đã được liên kết với Google. Vui lòng tải lại trang để kiểm tra.",
+  GOOGLE_EMAIL_MISMATCH:
+    "Hãy chọn tài khoản Google có cùng email với tài khoản Roomora của bạn.",
+  GOOGLE_LINK_SESSION_EXPIRED:
+    "Phiên xác nhận đã hết hạn. Hãy đăng nhập lại rồi liên kết Google trong cài đặt.",
   AVATAR_SIZE_INVALID: "Ảnh không được lớn hơn 5 MB.",
   AVATAR_FORMAT_INVALID: "Ảnh không hợp lệ. Hãy chọn JPG, PNG hoặc WebP.",
   AVATAR_UPLOAD_UNAVAILABLE: "Chưa thể tải ảnh lên. Vui lòng thử lại sau.",
-  AVATAR_CONFIGURATION_INVALID: "Cloudinary chưa được cấu hình đúng. Ảnh cũ của bạn vẫn được giữ nguyên.",
+  AVATAR_CONFIGURATION_INVALID:
+    "Cloudinary chưa được cấu hình đúng. Ảnh cũ của bạn vẫn được giữ nguyên.",
   PROFILE_CHANGED:
     "Hồ sơ vừa thay đổi ở nơi khác. Hãy tải lại trang rồi thử lại.",
   LOCATION_INVALID:
@@ -18,6 +35,10 @@ const messages: Record<string, string> = {
   AUTH_REQUIRED: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
   ORIGIN_NOT_ALLOWED: "Yêu cầu bị từ chối do nguồn truy cập không hợp lệ.",
 };
+
+export function authCodeMessage(code: string): string {
+  return messages[code] ?? "Có lỗi xảy ra. Vui lòng thử lại.";
+}
 
 export function authErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {

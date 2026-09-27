@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./auth-provider";
 import { authErrorMessage } from "@/lib/auth-errors";
+import { ProfileIcon } from "./profile-icon";
 
 const links = [
   { href: "/", label: "Trang chủ" },
@@ -58,10 +59,11 @@ export function SiteHeader() {
           onClick={() => setOpen(false)}
         >
           <span className="brand-symbol" aria-hidden="true">
-            r<span>.</span>
+            <ProfileIcon name="home" />
           </span>
           <span>
-            Roomora<small>Hợp người, chung nhà</small>
+            Roomora<span className="brand-dot">.</span>
+            <small>Hợp người, chung nhà</small>
           </span>
         </Link>
         <nav aria-label="Điều hướng chính" className="desktop-nav">

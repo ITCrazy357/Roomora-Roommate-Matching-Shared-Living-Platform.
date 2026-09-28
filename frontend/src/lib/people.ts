@@ -36,6 +36,15 @@ export interface Person {
   quietLevel?: string | null;
   match: Match | null;
   connection: Connection | null;
+  listings?: {
+    id: string;
+    title: string;
+    rent: number | null;
+    provinceName: string | null;
+    wardName: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  }[];
 }
 export interface PeoplePage {
   items: Person[];
@@ -89,9 +98,9 @@ export function peopleError(error: unknown) {
       CONNECTION_EXISTS:
         "Hai bạn đã có lời mời đang chờ hoặc đã kết nối. Kiểm tra trang Yêu cầu kết nối.",
       CONNECTION_CHANGED:
-        "Lời mời đã thay đổi. Bấm Làm mới để cập nhật trạng thái.",
+        "Trạng thái kết nối đã thay đổi. Bấm Làm mới để cập nhật.",
       CONNECTION_COOLDOWN:
-        "Vui lòng chờ 24 giờ sau khi hủy hoặc từ chối trước khi gửi lại.",
+        "Vui lòng chờ 24 giờ sau khi hủy, từ chối hoặc ngắt kết nối trước khi gửi lại.",
       REPORT_EXISTS: "Bạn đã gửi báo cáo về người dùng này.",
       BUDGET_RANGE_INVALID: "Ngân sách tối đa cần lớn hơn hoặc bằng tối thiểu.",
       LOCATION_INVALID: "Chọn tỉnh/thành phố và phường/xã hợp lệ.",

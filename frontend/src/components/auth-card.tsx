@@ -37,6 +37,7 @@ export function AuthCard({
               alt="Không gian sống ấm áp với cây xanh và ánh nắng"
               fill
               sizes="(max-width: 767px) 1px, 45vw"
+              loading="eager"
             />
           </div>
           <p className="auth-story-note">

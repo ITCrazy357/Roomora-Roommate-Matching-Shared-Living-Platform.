@@ -11,6 +11,7 @@ import { OriginGuard } from './common/origin.guard.js';
 import { ProfileModule } from './modules/profile/profile.module.js';
 import { ListingsModule } from './modules/listings/listings.module.js';
 import { PeopleModule } from './modules/people/people.module.js';
+import { CommunicationsModule } from './modules/communications/communications.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PeopleModule } from './modules/people/people.module.js';
     ProfileModule,
     ListingsModule,
     PeopleModule,
+    CommunicationsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -166,6 +166,28 @@
   padding: 16px;
   border-radius: 12px;
 }
+.person-listings {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+.person-listings h2 {
+  font-size: 1.1rem;
+}
+.person-listings article {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.person-listings article .button {
+  justify-self: start;
+}
+.person-listings .room-map-canvas {
+  height: 240px;
+}
 .person-match {
   display: grid;
   gap: 12px;
@@ -232,6 +254,14 @@
   padding: 12px;
   background: var(--primary-subtle);
   border-radius: 10px;
+}
+.person-disconnect-confirm {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-muted);
 }
 .people-safety {
   border-top: 1px solid var(--border);

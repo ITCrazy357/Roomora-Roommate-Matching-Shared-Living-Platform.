@@ -199,6 +199,20 @@ describe('Google authentication (PostgreSQL e2e)', () => {
     expect(provider.verifyCode).not.toHaveBeenCalled();
   });
 
+  it('separates Google authorization errors from token exchange errors', async () => {
+    const agent = request.agent(app.getHttpServer());
+    const { state } = await start(agent);
+    await agent
+      .get('/api/v1/auth/google/callback')
+      .query({ state, error: 'invalid_request' })
+      .expect(302)
+      .expect(
+        'Location',
+        `${origin}/dang-nhap?google=GOOGLE_AUTHORIZATION_FAILED`,
+      );
+    expect(provider.verifyCode).not.toHaveBeenCalled();
+  });
+
   it('allows at most one concurrent callback to exchange a code', async () => {
     const agent = request.agent(app.getHttpServer());
     const { state, response } = await start(agent);
@@ -232,6 +246,20 @@ describe('Google authentication (PostgreSQL e2e)', () => {
       .query({ state, code: 'invalid-token' })
       .expect(302)
       .expect('Location', `${origin}/dang-nhap?google=GOOGLE_TOKEN_INVALID`);
+    await agent.get('/api/v1/auth/me').expect(401);
+  });
+
+  it('returns a separate safe code for unexpected callback failures', async () => {
+    provider.verifyCode.mockRejectedValueOnce(
+      new Error('private provider details must stay on the server'),
+    );
+    const agent = request.agent(app.getHttpServer());
+    const { state } = await start(agent);
+    await agent
+      .get('/api/v1/auth/google/callback')
+      .query({ code: 'callback-error', state })
+      .expect(302)
+      .expect('Location', `${origin}/dang-nhap?google=GOOGLE_CALLBACK_FAILED`);
     await agent.get('/api/v1/auth/me').expect(401);
   });
 

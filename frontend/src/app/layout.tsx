@@ -3,11 +3,13 @@ import { Be_Vietnam_Pro } from "next/font/google";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { AuthProvider } from "@/components/auth-provider";
+import { UpdatesProvider } from "@/components/communications/updates-provider";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import "./profile-editor.css";
 import "./listings.css";
 import "./people.css";
+import "./communications.css";
 
 const beVietnam = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",
@@ -36,11 +38,13 @@ export default function RootLayout({
           Đi đến nội dung chính
         </a>
         <AuthProvider>
-          <SiteHeader />
-          <main id="main-content" tabIndex={-1}>
-            {children}
-          </main>
-          <SiteFooter />
+          <UpdatesProvider>
+            <SiteHeader />
+            <main id="main-content" tabIndex={-1}>
+              {children}
+            </main>
+            <SiteFooter />
+          </UpdatesProvider>
         </AuthProvider>
       </body>
     </html>

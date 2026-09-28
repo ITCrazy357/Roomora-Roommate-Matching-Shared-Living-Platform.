@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { isEmail } from 'class-validator';
 import { CodeChallengeMethod, OAuth2Client } from 'google-auth-library';
@@ -12,6 +12,7 @@ export interface GoogleIdentity {
 
 @Injectable()
 export class GoogleClientService {
+  private readonly logger = new Logger(GoogleClientService.name);
   private readonly client: OAuth2Client;
   readonly enabled: boolean;
 
@@ -55,9 +56,49 @@ export class GoogleClientService {
     try {
       const { tokens } = await this.client.getToken({ code, codeVerifier });
       idToken = tokens.id_token;
-    } catch {
+    } catch (error) {
       // Google errors can contain credentials and tokens. Never forward or log them.
-      throw new GoogleAuthError('GOOGLE_UNAVAILABLE');
+      const failure = error as {
+        response?: { status?: number; data?: { error?: unknown } };
+        code?: unknown;
+      };
+      const providerCode = failure?.response?.data?.error;
+      const knownCodes = [
+        'invalid_grant',
+        'invalid_client',
+        'unauthorized_client',
+        'invalid_request',
+        'server_error',
+        'temporarily_unavailable',
+      ];
+      const safeCode =
+        knownCodes.find((code) => code === providerCode) ?? 'other';
+      const safeStatus = Number.isInteger(failure?.response?.status)
+        ? failure.response?.status
+        : 'none';
+      const networkCodes = [
+        'ETIMEDOUT',
+        'ECONNRESET',
+        'ENOTFOUND',
+        'EAI_AGAIN',
+      ];
+      const safeNetwork =
+        networkCodes.find((code) => code === failure?.code) ?? 'other';
+      this.logger.warn(
+        `Google token exchange failed: status=${safeStatus}, provider=${safeCode}, network=${safeNetwork}`,
+      );
+      if (providerCode === 'invalid_grant')
+        throw new GoogleAuthError('GOOGLE_CODE_INVALID');
+      if (
+        providerCode === 'invalid_client' ||
+        providerCode === 'unauthorized_client'
+      )
+        throw new GoogleAuthError('GOOGLE_CLIENT_INVALID');
+      throw new GoogleAuthError(
+        failure?.response
+          ? 'GOOGLE_TOKEN_EXCHANGE_FAILED'
+          : 'GOOGLE_NETWORK_ERROR',
+      );
     }
     if (!idToken) throw new GoogleAuthError('GOOGLE_TOKEN_INVALID');
 

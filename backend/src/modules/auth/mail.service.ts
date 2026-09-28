@@ -17,6 +17,9 @@ export class MailService {
       host,
       port: config.getOrThrow<number>('SMTP_PORT'),
       secure: config.getOrThrow<boolean>('SMTP_SECURE'),
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 30000,
       auth: user && password ? { user, pass: password } : undefined,
     });
   }
@@ -38,6 +41,20 @@ export class MailService {
       `Đặt lại mật khẩu Roomora: ${actionUrl}\n\nLiên kết hết hạn sau 1 giờ. Nếu bạn không yêu cầu, hãy bỏ qua email này.`,
       actionUrl,
       'Đặt lại mật khẩu',
+    );
+  }
+
+  async sendNotification(
+    email: string,
+    title: string,
+    actionUrl: string,
+  ): Promise<void> {
+    await this.send(
+      email,
+      title,
+      `${title}\n\nXem trong Roomora: ${actionUrl}`,
+      actionUrl,
+      'Mở Roomora',
     );
   }
 

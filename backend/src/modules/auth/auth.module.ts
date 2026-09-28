@@ -23,6 +23,6 @@ import { GoogleClientService } from './google-client.service.js';
     GoogleAuthService,
     GoogleClientService,
   ],
-  exports: [AuthGuard, OptionalAuthGuard, SessionService],
+  exports: [AuthGuard, OptionalAuthGuard, SessionService, MailService],
 })
 export class AuthModule {}

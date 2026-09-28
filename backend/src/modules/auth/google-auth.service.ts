@@ -111,22 +111,25 @@ export class GoogleAuthService {
 
   async callback(request: Request, response: Response): Promise<string> {
     let errorPath = '/dang-nhap';
+    let step = 'state';
     try {
       const savedState = await this.consumeState(request);
       response.clearCookie(this.cookieName(), this.cookieOptions());
       if (savedState.linkSessionId) errorPath = SETTINGS_PATH;
 
       if (request.query.error !== undefined) {
-        throw new GoogleAuthError(
-          request.query.error === 'access_denied'
-            ? 'GOOGLE_CANCELLED'
-            : 'GOOGLE_UNAVAILABLE',
-        );
+        this.logger.warn('Google authorization returned an error');
+        if (request.query.error === 'access_denied')
+          throw new GoogleAuthError('GOOGLE_CANCELLED');
+        if (request.query.error === 'unauthorized_client')
+          throw new GoogleAuthError('GOOGLE_CLIENT_INVALID');
+        throw new GoogleAuthError('GOOGLE_AUTHORIZATION_FAILED');
       }
       const code = request.query.code;
       if (typeof code !== 'string' || !code || code.length > 4096) {
         throw new GoogleAuthError('GOOGLE_TOKEN_INVALID');
       }
+      step = 'token';
       const identity = await this.google.verifyCode(
         code,
         savedState.codeVerifier,
@@ -134,11 +137,14 @@ export class GoogleAuthService {
       );
 
       if (savedState.linkSessionId) {
+        step = 'link';
         await this.linkAccount(identity, savedState.linkSessionId, request);
         return this.frontendUrl(SETTINGS_PATH, 'linked');
       }
 
+      step = 'account';
       const user = await this.findOrCreateUser(identity);
+      step = 'session';
       await this.sessions.create(user.id, request, response);
       return this.frontendUrl(
         user.profile?.onboardingCompletedAt
@@ -146,21 +152,21 @@ export class GoogleAuthService {
           : '/onboarding',
       );
     } catch (error) {
-      return this.errorRedirect(error, errorPath);
+      return this.errorRedirect(error, errorPath, step);
     }
   }
 
-  errorRedirect(error: unknown, path = '/dang-nhap'): string {
+  errorRedirect(error: unknown, path = '/dang-nhap', step = 'start'): string {
     if (error instanceof HttpException && error.getStatus() === 429) {
       return this.frontendUrl(path, 'RATE_LIMITED');
     }
     if (!(error instanceof GoogleAuthError)) {
       // Do not log raw provider/HTTP errors: they can include secrets.
-      this.logger.warn('Google sign-in could not be completed');
+      this.logger.warn(`Google sign-in failed at ${step}`);
     }
     return this.frontendUrl(
       path,
-      error instanceof GoogleAuthError ? error.code : 'GOOGLE_UNAVAILABLE',
+      error instanceof GoogleAuthError ? error.code : 'GOOGLE_CALLBACK_FAILED',
     );
   }
 

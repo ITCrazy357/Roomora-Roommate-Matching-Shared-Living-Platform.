@@ -8,6 +8,18 @@ const messages: Record<string, string> = {
     "Lượt đăng nhập Google đã hết hạn hoặc không hợp lệ. Vui lòng bấm nút Google để bắt đầu lại.",
   GOOGLE_TOKEN_INVALID:
     "Không thể xác minh tài khoản Google. Vui lòng thử lại.",
+  GOOGLE_CODE_INVALID:
+    "Lượt xác thực Google đã hết hạn hoặc không hợp lệ. Hãy bấm Google để bắt đầu lại.",
+  GOOGLE_CLIENT_INVALID:
+    "Cấu hình đăng nhập Google chưa đúng. Vui lòng liên hệ quản trị viên Roomora.",
+  GOOGLE_AUTHORIZATION_FAILED:
+    "Google không chấp nhận yêu cầu đăng nhập. Vui lòng kiểm tra cấu hình ứng dụng Google.",
+  GOOGLE_TOKEN_EXCHANGE_FAILED:
+    "Google từ chối bước hoàn tất đăng nhập. Vui lòng thử lại; nếu vẫn lỗi, báo quản trị viên.",
+  GOOGLE_NETWORK_ERROR:
+    "Máy chủ Roomora không kết nối được với Google. Vui lòng thử lại sau.",
+  GOOGLE_CALLBACK_FAILED:
+    "Roomora chưa hoàn tất đăng nhập Google. Vui lòng thử lại sau.",
   GOOGLE_UNAVAILABLE: "Chưa thể đăng nhập Google. Vui lòng thử lại sau.",
   GOOGLE_ACCOUNT_EXISTS:
     "Email này đã có tài khoản Roomora. Hãy đăng nhập bằng mật khẩu, sau đó vào Cài đặt tài khoản để liên kết Google.",

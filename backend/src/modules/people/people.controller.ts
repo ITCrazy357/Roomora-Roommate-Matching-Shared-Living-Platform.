@@ -81,6 +81,14 @@ export class ConnectionsController {
   ) {
     return this.people.respond(request.auth.userId, id, dto.version, 'cancel');
   }
+  @Post(':id/disconnect')
+  disconnect(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: ConnectionVersionDto,
+  ) {
+    return this.people.disconnect(request.auth.userId, id, dto.version);
+  }
 }
 
 @Controller('user-safety')

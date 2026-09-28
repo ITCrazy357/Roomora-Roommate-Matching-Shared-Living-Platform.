@@ -110,12 +110,15 @@ model User {
   blockedBy           UserBlock[]         @relation("BlockedUser")
   sentReports         UserReport[]        @relation("Reporter")
   receivedReports     UserReport[]        @relation("ReportedUser")
+  messages            Message[]
+  notifications       Notification[]
 
   @@map("users")
 }
 
 model Listing {
   id                String             @id @default(uuid()) @db.Uuid
+  appointments      Appointment[]
   ownerId           String             @map("owner_id") @db.Uuid
   status            ListingStatus      @default(DRAFT)
   version           Int                @default(1)
@@ -232,22 +235,146 @@ model Profile {
 }
 
 model Connection {
-  id         String           @id @default(uuid()) @db.Uuid
+  id           String           @id @default(uuid()) @db.Uuid
   // Sorted UUIDs identify a pair regardless of who sends the request.
-  pairKey    String           @unique @map("pair_key") @db.VarChar(73)
-  senderId   String           @map("sender_id") @db.Uuid
-  receiverId String           @map("receiver_id") @db.Uuid
-  status     ConnectionStatus @default(PENDING)
-  message    String           @default("") @db.VarChar(500)
-  version    Int              @default(1)
-  createdAt  DateTime         @default(now()) @map("created_at")
-  updatedAt  DateTime         @updatedAt @map("updated_at")
-  sender     User             @relation("ConnectionSender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver   User             @relation("ConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  pairKey      String           @unique @map("pair_key") @db.VarChar(73)
+  senderId     String           @map("sender_id") @db.Uuid
+  receiverId   String           @map("receiver_id") @db.Uuid
+  status       ConnectionStatus @default(PENDING)
+  message      String           @default("") @db.VarChar(500)
+  version      Int              @default(1)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  sender       User             @relation("ConnectionSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver     User             @relation("ConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  conversation Conversation?
 
   @@index([receiverId, status, createdAt])
   @@index([senderId, status, createdAt])
   @@map("connections")
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum NotificationType {
+  CONNECTION
+  MESSAGE
+  APPOINTMENT
+}
+
+model Conversation {
+  id           String        @id @default(uuid()) @db.Uuid
+  connectionId String        @unique @map("connection_id") @db.Uuid
+  lastNumber   Int           @default(0) @map("last_number")
+  senderRead   Int           @default(0) @map("sender_read")
+  receiverRead Int           @default(0) @map("receiver_read")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  connection   Connection    @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  messages     Message[]
+  appointments Appointment[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid()) @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  senderId       String       @map("sender_id") @db.Uuid
+  clientId       String       @map("client_id") @db.Uuid
+  number         Int
+  text           String       @db.VarChar(2000)
+  contentHash    String       @default("") @map("content_hash") @db.VarChar(64)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  attachments    MessageAttachment[]
+
+  @@unique([conversationId, number])
+  @@unique([conversationId, senderId, clientId])
+  @@index([senderId, createdAt])
+  @@map("messages")
+}
+
+enum MessageAttachmentKind {
+  IMAGE
+  AUDIO
+}
+
+model MessageAttachment {
+  id        String                @id @default(uuid()) @db.Uuid
+  messageId String                @map("message_id") @db.Uuid
+  kind      MessageAttachmentKind
+  mimeType  String                @map("mime_type") @db.VarChar(50)
+  byteSize  Int                   @map("byte_size")
+  position  Int
+  width     Int?
+  height    Int?
+  data      Bytes                 @db.ByteA
+  message   Message               @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, position])
+  @@map("message_attachments")
+}
+
+model Appointment {
+  id             String              @id @default(uuid()) @db.Uuid
+  conversationId String              @map("conversation_id") @db.Uuid
+  listingId      String?             @map("listing_id") @db.Uuid
+  proposerId     String              @map("proposer_id") @db.Uuid
+  startsAt       DateTime            @map("starts_at") @db.Timestamptz(3)
+  place          String              @db.VarChar(300)
+  note           String              @default("") @db.VarChar(1000)
+  status         AppointmentStatus   @default(PENDING)
+  version        Int                 @default(1)
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  conversation   Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  listing        Listing?            @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  changes        AppointmentChange[]
+
+  @@index([conversationId, startsAt])
+  @@index([listingId, status, startsAt])
+  @@map("appointments")
+}
+
+model AppointmentChange {
+  id            String            @id @default(uuid()) @db.Uuid
+  appointmentId String            @map("appointment_id") @db.Uuid
+  actorId       String            @map("actor_id") @db.Uuid
+  version       Int
+  status        AppointmentStatus
+  startsAt      DateTime          @map("starts_at") @db.Timestamptz(3)
+  place         String            @db.VarChar(300)
+  note          String            @db.VarChar(1000)
+  createdAt     DateTime          @default(now()) @map("created_at")
+  appointment   Appointment       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@unique([appointmentId, version])
+  @@map("appointment_changes")
+}
+
+model Notification {
+  id            String           @id @default(uuid()) @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  type          NotificationType
+  title         String           @db.VarChar(200)
+  href          String           @db.VarChar(200)
+  readAt        DateTime?        @map("read_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  emailRequired Boolean          @default(false) @map("email_required")
+  emailSentAt   DateTime?        @map("email_sent_at")
+  emailAttempts Int              @default(0) @map("email_attempts")
+  emailNextAt   DateTime         @default(now()) @map("email_next_at")
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([emailRequired, emailSentAt, emailNextAt])
+  @@map("notifications")
 }
 
 model ConnectionAttempt {

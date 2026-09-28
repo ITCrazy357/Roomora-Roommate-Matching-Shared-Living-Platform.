@@ -14,6 +14,7 @@ import type {
 import { LocationsService } from '../locations/locations.service.js';
 import { publicProfile } from '../profile/public-profile.js';
 import { matchProfiles } from './matching.js';
+import { NotificationsService } from '../communications/notifications.service.js';
 import type {
   ConnectionQuery,
   PeopleQuery,
@@ -26,6 +27,7 @@ export class PeopleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly locations: LocationsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async search(query: PeopleQuery, viewerId?: string) {
@@ -153,7 +155,7 @@ export class PeopleService {
       this.unavailable();
     if (viewerId && (await this.isBlocked(this.prisma, viewerId, targetId)))
       this.unavailable();
-    const [viewer, connection] = await Promise.all([
+    const [viewer, connection, listings] = await Promise.all([
       viewerId
         ? this.prisma.profile.findUnique({ where: { userId: viewerId } })
         : null,
@@ -162,8 +164,29 @@ export class PeopleService {
             where: { pairKey: this.getPairKey(viewerId, targetId) },
           })
         : null,
+      this.prisma.listing.findMany({
+        where: { ownerId: targetId, status: 'PUBLISHED' },
+        select: {
+          id: true,
+          title: true,
+          rent: true,
+          provinceName: true,
+          wardName: true,
+          latitude: true,
+          longitude: true,
+        },
+        orderBy: { publishedAt: 'desc' },
+        take: 8,
+      }),
     ]);
-    return this.person(profile, viewer, connection ?? undefined);
+    return {
+      ...this.person(profile, viewer, connection ?? undefined),
+      listings: listings.map((listing) => ({
+        ...listing,
+        latitude: listing.latitude === null ? null : Math.round(listing.latitude * 100) / 100,
+        longitude: listing.longitude === null ? null : Math.round(listing.longitude * 100) / 100,
+      })),
+    };
   }
 
   async send(userId: string, dto: SendConnectionDto) {
@@ -226,6 +249,19 @@ export class PeopleService {
         },
       });
       await tx.connectionAttempt.create({ data: { senderId: userId } });
+      if (existing && existing.senderId !== userId) {
+        const conversation = await tx.conversation.findUnique({
+          where: { connectionId: existing.id },
+        });
+        if (conversation)
+          await tx.conversation.update({
+            where: { id: conversation.id },
+            data: {
+              senderRead: conversation.receiverRead,
+              receiverRead: conversation.senderRead,
+            },
+          });
+      }
       const connection = existing
         ? await tx.connection.update({
             where: { id: existing.id },
@@ -246,6 +282,13 @@ export class PeopleService {
               message: dto.message,
             },
           });
+      await this.notifications.create(
+        tx,
+        targetId,
+        'CONNECTION',
+        'Bạn có lời mời kết nối mới',
+        '/ket-noi',
+      );
       return this.connectionView(connection, userId);
     });
   }
@@ -283,6 +326,61 @@ export class PeopleService {
           message:
             'Lời mời đã thay đổi hoặc bạn không thể thực hiện thao tác này',
         });
+      const updated = await tx.connection.findUniqueOrThrow({ where: { id } });
+      if (action === 'accept') {
+        const conversation = await tx.conversation.upsert({
+          where: { connectionId: id },
+          create: { connectionId: id },
+          update: {},
+        });
+        await this.notifications.create(
+          tx,
+          targetId,
+          'CONNECTION',
+          'Lời mời kết nối đã được chấp nhận',
+          `/tin-nhan/${conversation.id}`,
+          true,
+        );
+      }
+      await this.notifications.signal(tx, [userId, targetId]);
+      return this.connectionView(updated, userId);
+    });
+  }
+
+  async disconnect(userId: string, id: string, version: number) {
+    const existing = await this.prisma.connection.findUnique({ where: { id } });
+    if (
+      !existing ||
+      (existing.senderId !== userId && existing.receiverId !== userId)
+    )
+      this.unavailable();
+    const targetId =
+      existing.senderId === userId ? existing.receiverId : existing.senderId;
+    return this.withUserLocks(userId, targetId, async (tx) => {
+      if (await this.isBlocked(tx, userId, targetId)) this.unavailable();
+      const result = await tx.connection.updateMany({
+        where: { id, version, status: 'ACCEPTED' },
+        data: { status: 'CANCELLED', version: { increment: 1 } },
+      });
+      if (!result.count)
+        throw new ConflictException({
+          code: 'CONNECTION_CHANGED',
+          message: 'Kết nối đã thay đổi. Vui lòng tải lại trang.',
+        });
+
+      await this.cancelAppointments(tx, userId, existing.pairKey, new Date());
+      const profile = await tx.profile.findUnique({
+        where: { userId },
+        select: { displayName: true },
+      });
+      await this.notifications.create(
+        tx,
+        targetId,
+        'CONNECTION',
+        `${profile?.displayName ?? 'Người dùng'} đã ngắt kết nối với bạn`,
+        '/ket-noi',
+      );
+      await this.notifications.signal(tx, [userId]);
       const updated = await tx.connection.findUniqueOrThrow({ where: { id } });
       return this.connectionView(updated, userId);
     });
@@ -398,6 +496,12 @@ export class PeopleService {
         },
         data: { status: 'CANCELLED', version: { increment: 1 } },
       });
+      await this.cancelAppointments(
+        tx,
+        userId,
+        this.getPairKey(userId, targetId),
+      );
+      await this.notifications.signal(tx, [userId, targetId]);
       return { blocked: true };
     });
   }
@@ -470,6 +574,36 @@ export class PeopleService {
   private getPairKey(userId: string, targetId: string) {
     return [userId.toLowerCase(), targetId.toLowerCase()].sort().join(':');
   }
+  private async cancelAppointments(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    pairKey: string,
+    startsAfter?: Date,
+  ) {
+    const appointments = await tx.appointment.findMany({
+      where: {
+        conversation: { connection: { pairKey } },
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        startsAt: startsAfter ? { gt: startsAfter } : undefined,
+      },
+    });
+    if (!appointments.length) return;
+    await tx.appointment.updateMany({
+      where: { id: { in: appointments.map((item) => item.id) } },
+      data: { status: 'CANCELLED', version: { increment: 1 } },
+    });
+    await tx.appointmentChange.createMany({
+      data: appointments.map((item) => ({
+        appointmentId: item.id,
+        actorId: userId,
+        version: item.version + 1,
+        status: 'CANCELLED' as const,
+        startsAt: item.startsAt,
+        place: item.place,
+        note: item.note,
+      })),
+    });
+  }
   private async isBlocked(
     tx: Prisma.TransactionClient,
     userId: string,
@@ -493,7 +627,7 @@ export class PeopleService {
     work: (tx: Prisma.TransactionClient) => Promise<T>,
   ) {
     return this.prisma.$transaction(async (tx) => {
-      // Lock two indexed user rows in a stable order for send/block/accept races.
+      // Lock both users in a stable order for connection and conversation changes.
       const users = await tx.$queryRaw<
         { id: string }[]
       >`SELECT id FROM users WHERE id IN (${userId}::uuid, ${targetId}::uuid) ORDER BY id FOR UPDATE`;

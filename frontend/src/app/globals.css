@@ -1062,6 +1062,21 @@ h3 {
     transition: none !important;
   }
 }
+@media (max-width: 1199px) {
+  .desktop-nav {
+    display: none;
+  }
+  .menu-toggle {
+    display: inline-flex;
+  }
+  .mobile-nav:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-block: 8px 16px;
+  }
+}
+
 @media (max-width: 1023px) {
   .auth-welcome {
     gap: 24px;

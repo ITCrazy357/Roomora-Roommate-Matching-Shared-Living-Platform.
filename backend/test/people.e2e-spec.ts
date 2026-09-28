@@ -242,6 +242,125 @@ describe('Phase 4 people and connections (real PostgreSQL)', () => {
       (await b.get('/api/v1/connections?tab=accepted').expect(200)).body.total,
     ).toBe(1);
   });
+  it('lets either person end an accepted connection and closes future plans', async () => {
+    const first = await account('disconnect-a');
+    const second = await account('disconnect-b');
+    const invite = (await send(first.agent, second.id).expect(201)).body;
+    const url = `/api/v1/connections/${invite.id}/disconnect`;
+    await first.agent
+      .post(url)
+      .set('Origin', origin)
+      .send({ version: invite.version })
+      .expect(409);
+    const accepted = (
+      await second.agent
+        .post(`/api/v1/connections/${invite.id}/accept`)
+        .set('Origin', origin)
+        .send({ version: invite.version })
+        .expect(201)
+    ).body;
+    const conversation = await prisma.conversation.findUniqueOrThrow({
+      where: { connectionId: invite.id },
+    });
+    const chatUrl = `/api/v1/conversations/${conversation.id}`;
+    await first.agent
+      .post(chatUrl + '/messages')
+      .set('Origin', origin)
+      .send({ clientId: randomUUID(), text: 'Lịch sử cần được giữ lại.' })
+      .expect(201);
+    const meeting = (
+      await first.agent
+        .post(chatUrl + '/appointments')
+        .set('Origin', origin)
+        .send({
+          startsAt: new Date(Date.now() + 3 * 24 * 60 * 60_000).toISOString(),
+          place: 'Sảnh chung cư',
+        })
+        .expect(201)
+    ).body;
+    await second.agent
+      .post(`${chatUrl}/appointments/${meeting.id}`)
+      .set('Origin', origin)
+      .send({ action: 'confirm', version: meeting.version })
+      .expect(201);
+    await outsider
+      .post(url)
+      .set('Origin', origin)
+      .send({ version: accepted.version })
+      .expect(404);
+
+    const ended = (
+      await first.agent
+        .post(url)
+        .set('Origin', origin)
+        .send({ version: accepted.version })
+        .expect(201)
+    ).body;
+    expect(ended.status).toBe('CANCELLED');
+    expect(ended.version).toBe(accepted.version + 1);
+    await second.agent
+      .post(url)
+      .set('Origin', origin)
+      .send({ version: accepted.version })
+      .expect(409);
+    await send(first.agent, second.id).expect(409);
+    for (const agent of [first.agent, second.agent]) {
+      await agent.get(chatUrl).expect(404);
+      await agent.get(chatUrl + '/messages').expect(404);
+      await agent
+        .post(chatUrl + '/messages')
+        .set('Origin', origin)
+        .send({ clientId: randomUUID(), text: 'Không gửi được.' })
+        .expect(404);
+      expect(
+        (await agent.get('/api/v1/connections?tab=accepted').expect(200)).body
+          .total,
+      ).toBe(0);
+    }
+    const cancelled = await prisma.appointment.findUniqueOrThrow({
+      where: { id: meeting.id },
+      include: { changes: { orderBy: { version: 'desc' }, take: 1 } },
+    });
+    expect(cancelled.status).toBe('CANCELLED');
+    expect(cancelled.changes[0]).toMatchObject({
+      actorId: first.id,
+      status: 'CANCELLED',
+    });
+    expect(
+      await prisma.message.count({
+        where: { conversationId: conversation.id },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({
+        where: {
+          userId: second.id,
+          title: { contains: 'đã ngắt kết nối với bạn' },
+        },
+      }),
+    ).toBe(1);
+
+    await prisma.connection.update({
+      where: { id: invite.id },
+      data: { updatedAt: new Date(Date.now() - 25 * 60 * 60_000) },
+    });
+    const renewed = (await send(first.agent, second.id).expect(201)).body;
+    const acceptedAgain = (
+      await second.agent
+        .post(`/api/v1/connections/${renewed.id}/accept`)
+        .set('Origin', origin)
+        .send({ version: renewed.version })
+        .expect(201)
+    ).body;
+    expect(
+      (await first.agent.get(chatUrl + '/messages').expect(200)).body.items,
+    ).toHaveLength(1);
+    await second.agent
+      .post(url)
+      .set('Origin', origin)
+      .send({ version: acceptedAgain.version })
+      .expect(201);
+  });
   it('blocks both directions, cancels accepted connection, and unblocking does not restore it', async () => {
     await a
       .post('/api/v1/user-safety/' + bid + '/block')

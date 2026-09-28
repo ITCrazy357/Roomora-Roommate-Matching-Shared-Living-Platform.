@@ -140,12 +140,42 @@ describe('GoogleClientService', () => {
     );
     await expect(
       new GoogleClientService(config).verifyCode('code', 'verifier', 'nonce'),
-    ).rejects.toMatchObject({ message: 'GOOGLE_UNAVAILABLE' });
+    ).rejects.toMatchObject({ message: 'GOOGLE_NETWORK_ERROR' });
     await expect(
       new GoogleClientService(new ConfigService({})).createAuthorization(
         'state',
         'nonce',
       ),
     ).rejects.toMatchObject({ code: 'GOOGLE_DISABLED' });
+  });
+
+  it.each([
+    ['invalid_grant', 'GOOGLE_CODE_INVALID'],
+    ['invalid_client', 'GOOGLE_CLIENT_INVALID'],
+    ['unauthorized_client', 'GOOGLE_CLIENT_INVALID'],
+  ])(
+    'reports a safe code for provider %s',
+    async (providerCode, expectedCode) => {
+      vi.spyOn(OAuth2Client.prototype, 'getToken').mockRejectedValue({
+        response: {
+          data: { error: providerCode, client_secret: 'never-expose' },
+        },
+      });
+      await expect(
+        new GoogleClientService(config).verifyCode('code', 'verifier', 'nonce'),
+      ).rejects.toMatchObject({ code: expectedCode });
+    },
+  );
+
+  it('separates other provider rejections from connection failures', async () => {
+    vi.spyOn(OAuth2Client.prototype, 'getToken').mockRejectedValue({
+      response: {
+        status: 400,
+        data: { error: 'invalid_request', client_secret: 'never-expose' },
+      },
+    });
+    await expect(
+      new GoogleClientService(config).verifyCode('code', 'verifier', 'nonce'),
+    ).rejects.toMatchObject({ code: 'GOOGLE_TOKEN_EXCHANGE_FAILED' });
   });
 });

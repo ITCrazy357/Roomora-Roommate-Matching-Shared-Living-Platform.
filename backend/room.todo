@@ -109,9 +109,20 @@ Tải thêm tin nhắn cũ và xử lý kết nối lại.
 Thông báo trong ứng dụng; gửi email cho các sự kiện cần thiết.
 Kiểm tra quyền truy cập từng cuộc trò chuyện.
 
-Đơn giản hóa: làm tin nhắn văn bản trước; chưa có gọi thoại, gọi video hoặc gửi file tùy ý.
+Đơn giản hóa: làm tin nhắn văn bản trước; hiện đã bổ sung ảnh và ghi âm trong chat.
+Chưa có gọi thoại, gọi video hoặc gửi các loại file tùy ý.
 
 Hoàn thành khi: hai người có thể trao đổi và thống nhất lịch xem phòng, tải lại trang vẫn giữ nguyên dữ liệu.
+
+Trạng thái 28/09/2026: đã triển khai Phase 5 theo các mẫu hộp thư, lịch xem phòng
+và trung tâm thông báo trong design-reference, giữ theme cam đỏ/kem hiện tại.
+Chấp nhận kết nối mở hội thoại; tin nhắn văn bản dùng SSE, có lịch sử, số chưa đọc,
+tải tin cũ và đồng bộ lại sau mất mạng. Có đề xuất/xác nhận/đổi/hủy lịch, lịch sử
+thay đổi riêng tư, thông báo trong ứng dụng và hàng đợi email lưu trong PostgreSQL.
+Hai người đã kết nối có thể hẹn gặp dù chưa có tin phòng; hẹn xem phòng chọn tin đã công khai.
+Bản đồ của tin công khai chỉ hiển thị khu vực gần phòng (~1 km), không mở địa chỉ riêng.
+Đã kiểm chứng bằng API, PostgreSQL và Chrome thật. Xem PHASE_5_STATUS.md.
+SMTP nhận email thật chưa được kiểm chứng; thử nghiệm trình duyệt tắt gửi email.
 
 Mốc A — Sau Phase 5: có bản MVP để thử nghiệm luồng đăng phòng → tìm phòng/người → kết nối → nhắn tin → hẹn xem phòng.
 

@@ -14,12 +14,14 @@ import {
   type Person,
 } from "@/lib/people";
 import { lifestyleLabels } from "@/lib/profile";
+import { AreaMap } from "../listings/listing-content";
 
 const actionMessages = {
   send: "Đã gửi lời kết nối. Hãy chờ người nhận phản hồi.",
   accept: "Đã chấp nhận kết nối.",
   decline: "Đã từ chối lời kết nối.",
   cancel: "Đã hủy lời kết nối.",
+  disconnect: "Đã ngắt kết nối. Không thể nhắn tin, lịch hẹn sắp tới đã hủy. Có thể gửi lời mời mới sau 24 giờ.",
 };
 
 export function PersonAvatar({
@@ -55,8 +57,9 @@ export function ConnectionActions({
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   async function handleAction(
-    action: "send" | "accept" | "decline" | "cancel",
+    action: "send" | "accept" | "decline" | "cancel" | "disconnect",
   ) {
     if (pending) return;
     setPending(true);
@@ -77,6 +80,7 @@ export function ConnectionActions({
         },
       );
       setConnection(saved);
+      setConfirmDisconnect(false);
       onChange(actionMessages[action]);
     } catch (error) {
       setError(peopleError(error));
@@ -155,6 +159,46 @@ export function ConnectionActions({
       <Link href="/ket-noi" className="text-link">
         Quản lý yêu cầu kết nối →
       </Link>
+      {connection?.status === "ACCEPTED" && (
+        <>
+          <Link href="/tin-nhan" className="button button-primary">
+            Mở hộp thư
+          </Link>
+          {confirmDisconnect ? (
+            <div className="person-disconnect-confirm">
+              <p>
+                Ngắt kết nối với {person.displayName}? Hai bên sẽ không thể nhắn
+                tin; lịch hẹn sắp tới sẽ bị hủy. Tin nhắn cũ được giữ lại và có
+                thể xem lại nếu hai bên kết nối lần nữa. Việc này không tự chấm
+                dứt thỏa thuận thuê nhà.
+              </p>
+              <div className="people-action-row">
+                <Button
+                  disabled={pending}
+                  onClick={() => handleAction("disconnect")}
+                >
+                  {pending ? "Đang ngắt…" : "Xác nhận ngắt kết nối"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={pending}
+                  onClick={() => setConfirmDisconnect(false)}
+                >
+                  Giữ kết nối
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="secondary"
+              disabled={pending}
+              onClick={() => setConfirmDisconnect(true)}
+            >
+              Ngắt kết nối
+            </Button>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -269,6 +313,7 @@ export function PersonDetails({
   onChange: (message: string) => void;
   publicPage?: boolean;
 }) {
+  const [openMapId, setOpenMapId] = useState<string | null>(null);
   const habits = [
     person.sleepSchedule,
     person.smokingPreference,
@@ -342,6 +387,31 @@ export function PersonDetails({
               không thay thế việc trao đổi trực tiếp.
             </p>
           </details>
+        </section>
+      )}
+      {publicPage && !!person.listings?.length && (
+        <section className="person-listings">
+          <h2>Tin phòng công khai của {person.displayName}</h2>
+          <p className="text-muted text-sm">Có thể xem khu vực gần phòng trước khi kết nối. Địa chỉ chính xác không được công khai.</p>
+          {person.listings.map((listing) => (
+            <article key={listing.id}>
+              <h3>{listing.title}</h3>
+              <p className="text-muted">
+                {[listing.wardName, listing.provinceName].filter(Boolean).join(", ")}
+                {listing.rent ? ` · ${new Intl.NumberFormat("vi-VN").format(listing.rent)} đ/tháng` : ""}
+              </p>
+              <Link className="text-link" href={`/phong/${listing.id}`}>Xem tin phòng →</Link>
+              {listing.latitude !== null && listing.longitude !== null && (
+                <>
+                  <Button variant="secondary" onClick={() => setOpenMapId(openMapId === listing.id ? null : listing.id)}
+                    aria-expanded={openMapId === listing.id}>
+                    {openMapId === listing.id ? "Ẩn bản đồ khu vực" : "Xem bản đồ khu vực"}
+                  </Button>
+                  {openMapId === listing.id && <AreaMap latitude={listing.latitude} longitude={listing.longitude} />}
+                </>
+              )}
+            </article>
+          ))}
         </section>
       )}
       <ConnectionActions person={person} onChange={onChange} />

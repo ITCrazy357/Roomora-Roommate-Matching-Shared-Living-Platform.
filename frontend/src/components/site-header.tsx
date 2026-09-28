@@ -7,17 +7,20 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "./auth-provider";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { ProfileIcon } from "./profile-icon";
+import { useUpdates } from "./communications/updates-provider";
 
 const links = [
   { href: "/", label: "Trang chủ" },
   { href: "/tim-phong", label: "Tìm phòng" },
   { href: "/tim-nguoi-o-ghep", label: "Tìm người ở ghép" },
+  { href: "/tin-nhan", label: "Tin nhắn" },
 ];
 
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
+  const updates = useUpdates();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -82,6 +85,9 @@ export function SiteHeader() {
               aria-current={pathname === href ? "page" : undefined}
             >
               {label}
+              {href === "/tin-nhan" && updates.messages > 0 && (
+                <span className="nav-count">{updates.messages}</span>
+              )}
             </Link>
           ))}
           {!loading && !user && (
@@ -94,6 +100,25 @@ export function SiteHeader() {
           )}
           {!loading && user && (
             <>
+              <Link
+                href="/thong-bao"
+                aria-label={`Thông báo, ${updates.notifications} chưa đọc`}
+              >
+                <svg
+                  width="19"
+                  height="19"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  aria-hidden="true"
+                >
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+                </svg>
+                {updates.notifications > 0 && (
+                  <span className="nav-count">{updates.notifications}</span>
+                )}
+              </Link>
               <Link href="/dang-tin" className="nav-primary">
                 + Đăng tin
               </Link>
@@ -111,6 +136,8 @@ export function SiteHeader() {
                 >
                   <Link href="/tai-khoan/ho-so">Hồ sơ của tôi</Link>
                   <Link href="/ket-noi">Yêu cầu kết nối</Link>
+                  <Link href="/lich-xem-phong">Lịch hẹn</Link>
+                  <Link href="/thong-bao">Thông báo</Link>
                   <Link href="/tin-cua-toi">Tin của tôi</Link>
                   <Link href="/da-luu">Tin đã lưu</Link>
                   <Link href="/tai-khoan/cai-dat">Cài đặt</Link>
@@ -157,6 +184,9 @@ export function SiteHeader() {
             onClick={() => setOpen(false)}
           >
             {label}
+            {href === "/tin-nhan" && updates.messages > 0 && (
+              <span className="nav-count">{updates.messages}</span>
+            )}
           </Link>
         ))}
         {!loading && !user && (
@@ -171,6 +201,12 @@ export function SiteHeader() {
         )}
         {!loading && user && (
           <>
+            <Link href="/thong-bao" onClick={() => setOpen(false)}>
+              Thông báo ({updates.notifications})
+            </Link>
+            <Link href="/lich-xem-phong" onClick={() => setOpen(false)}>
+              Lịch hẹn
+            </Link>
             <Link href="/dang-tin" onClick={() => setOpen(false)}>
               + Đăng tin
             </Link>

@@ -63,6 +63,19 @@ trong cài đặt. `GoogleAuthNotice` đọc mã kết quả trong URL và hiể
 nhận diện bằng `sub`; email Roomora không tự đổi theo. Tên và avatar đã chỉnh ở
 Roomora cũng không bị ghi đè mỗi lần đăng nhập Google.
 
+Nếu callback thất bại, tham số `google` trên URL Roomora chỉ chứa mã lỗi cố định.
+`GOOGLE_CODE_INVALID` nghĩa là mã Google hết hạn hoặc không khớp; bắt đầu lượt
+đăng nhập mới. `GOOGLE_CLIENT_INVALID` nghĩa là Google từ chối cấu hình OAuth
+client; kiểm tra Client ID, secret và redirect URI. `GOOGLE_CALLBACK_FAILED` là
+lỗi bên Roomora sau khi callback bắt đầu; backend chỉ ghi bước lỗi (`state`,
+`token`, `account`, `session` hoặc `link`), không ghi code, token hay secret.
+`GOOGLE_UNAVAILABLE` được giữ để đọc các URL lỗi từ phiên backend cũ.
+Các mã mới tách rõ hơn: `GOOGLE_AUTHORIZATION_FAILED` là lỗi Google trả về trước
+khi cấp mã; `GOOGLE_TOKEN_EXCHANGE_FAILED` là lỗi Google trả về lúc đổi mã;
+`GOOGLE_NETWORK_ERROR` là lỗi kết nối từ API đến Google. Log backend của lỗi đổi
+mã chỉ chứa HTTP status và mã lỗi Google thuộc danh sách cố định, không chứa mã
+ủy quyền, token, cookie hay secret.
+
 ## Tài khoản email/mật khẩu đã tồn tại
 
 Không tự gộp tài khoản chỉ vì trùng email. Người dùng đăng nhập bằng mật khẩu,

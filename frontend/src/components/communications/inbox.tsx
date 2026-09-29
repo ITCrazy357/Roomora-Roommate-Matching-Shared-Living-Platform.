@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import {
@@ -125,14 +126,26 @@ function InboxContent({ id }: { id?: string }) {
                 aria-current={id === item.id ? "page" : undefined}
               >
                 <span className="conversation-avatar" aria-hidden="true">
-                  {item.person.displayName.charAt(0)}
+                  {item.person.avatarUrl ? (
+                    <Image
+                      src={item.person.avatarUrl}
+                      alt=""
+                      width={44}
+                      height={44}
+                      unoptimized
+                    />
+                  ) : (
+                    item.person.displayName.charAt(0)
+                  )}
                 </span>
                 <span>
                   <strong>{item.person.displayName}</strong>
                   <small>
                     {item.lastMessage
                       ? item.lastMessage.text ||
-                        (item.lastMessage.attachments.some((file) => file.kind === "AUDIO")
+                        (item.lastMessage.attachments.some(
+                          (file) => file.kind === "AUDIO",
+                        )
                           ? "Đã gửi ghi âm"
                           : "Đã gửi ảnh")
                       : "Hai bạn đã kết nối. Bắt đầu trò chuyện."}

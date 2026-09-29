@@ -55,6 +55,12 @@ export class PeopleService {
           ? {
               blockedUsers: { none: { targetId: viewerId } },
               blockedBy: { none: { blockerId: viewerId } },
+              sentConnections: {
+                none: { receiverId: viewerId, status: 'ACCEPTED' },
+              },
+              receivedConnections: {
+                none: { senderId: viewerId, status: 'ACCEPTED' },
+              },
             }
           : {}),
       },
@@ -183,8 +189,14 @@ export class PeopleService {
       ...this.person(profile, viewer, connection ?? undefined),
       listings: listings.map((listing) => ({
         ...listing,
-        latitude: listing.latitude === null ? null : Math.round(listing.latitude * 100) / 100,
-        longitude: listing.longitude === null ? null : Math.round(listing.longitude * 100) / 100,
+        latitude:
+          listing.latitude === null
+            ? null
+            : Math.round(listing.latitude * 100) / 100,
+        longitude:
+          listing.longitude === null
+            ? null
+            : Math.round(listing.longitude * 100) / 100,
       })),
     };
   }

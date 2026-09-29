@@ -55,6 +55,27 @@ enum ListingStatus {
   CLOSED
 }
 
+enum ListingType {
+  ROOMMATE
+  ROOM_RENTAL
+  ROOM_WANTED
+}
+
+enum HouseInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+enum HouseEventType {
+  CREATED
+  INVITED
+  JOINED
+  LEFT
+  OWNER_TRANSFERRED
+  INVITE_REVOKED
+}
+
 enum Amenity {
   FURNISHED
   AIR_CONDITIONER
@@ -112,6 +133,11 @@ model User {
   receivedReports     UserReport[]        @relation("ReportedUser")
   messages            Message[]
   notifications       Notification[]
+  ownedHouses         House[]             @relation("HouseOwner")
+  houseMembers        HouseMember[]
+  houseEvents         HouseEvent[]        @relation("HouseEventUser")
+  houseActions        HouseEvent[]        @relation("HouseEventActor")
+  houseAnnouncements  HouseAnnouncement[]
 
   @@map("users")
 }
@@ -121,6 +147,8 @@ model Listing {
   appointments      Appointment[]
   ownerId           String             @map("owner_id") @db.Uuid
   status            ListingStatus      @default(DRAFT)
+  type              ListingType        @default(ROOMMATE)
+  isFull            Boolean            @default(false) @map("is_full")
   version           Int                @default(1)
   title             String             @default("") @db.VarChar(150)
   description       String             @default("") @db.VarChar(5000)
@@ -160,10 +188,90 @@ model Listing {
   reviews ListingReview[]
 
   @@index([status, publishedAt, id])
+  @@index([status, type, publishedAt, id])
   @@index([status, provinceCode, wardCode, rent])
   @@index([ownerId, updatedAt])
   @@index([amenities], type: Gin)
   @@map("listings")
+}
+
+model House {
+  id          String              @id @default(uuid()) @db.Uuid
+  ownerId     String              @map("owner_id") @db.Uuid
+  name        String              @db.VarChar(120)
+  address     String              @default("") @db.VarChar(300)
+  description String              @default("") @db.VarChar(1000)
+  rules       String              @default("") @db.VarChar(3000)
+  closedAt    DateTime?           @map("closed_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+  owner       User                @relation("HouseOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members     HouseMember[]
+  invites     HouseInvite[]
+  events      HouseEvent[]
+  announcements HouseAnnouncement[]
+
+  @@index([ownerId])
+  @@map("houses")
+}
+
+model HouseMember {
+  houseId   String    @map("house_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  joinedAt  DateTime  @default(now()) @map("joined_at")
+  leftAt    DateTime? @map("left_at")
+  house     House     @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([houseId, userId])
+  // A partial unique index in 20260929010000_one_active_house_per_user
+  // allows only one row with left_at = NULL for each user.
+  @@index([userId, leftAt])
+  @@map("house_members")
+}
+
+model HouseInvite {
+  id        String            @id @default(uuid()) @db.Uuid
+  houseId   String            @map("house_id") @db.Uuid
+  email     String            @db.VarChar(320)
+  status    HouseInviteStatus @default(PENDING)
+  expiresAt DateTime          @map("expires_at")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  house     House             @relation(fields: [houseId], references: [id], onDelete: Cascade)
+
+  @@unique([houseId, email])
+  @@index([email, status, expiresAt])
+  @@map("house_invites")
+}
+
+model HouseEvent {
+  id        String         @id @default(uuid()) @db.Uuid
+  houseId   String         @map("house_id") @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  actorId   String         @map("actor_id") @db.Uuid
+  type      HouseEventType
+  createdAt DateTime       @default(now()) @map("created_at")
+  house     House          @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  user      User           @relation("HouseEventUser", fields: [userId], references: [id], onDelete: Restrict)
+  actor     User           @relation("HouseEventActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([houseId, createdAt])
+  @@map("house_events")
+}
+
+model HouseAnnouncement {
+  id        String   @id @default(uuid()) @db.Uuid
+  houseId   String   @map("house_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  text      String   @db.VarChar(2000)
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  house     House    @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([houseId, createdAt])
+  @@map("house_announcements")
 }
 
 model ListingPhoto {
@@ -264,6 +372,7 @@ enum NotificationType {
   CONNECTION
   MESSAGE
   APPOINTMENT
+  HOUSE
 }
 
 model Conversation {

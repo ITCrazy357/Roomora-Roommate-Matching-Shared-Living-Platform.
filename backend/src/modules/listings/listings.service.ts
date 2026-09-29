@@ -166,6 +166,18 @@ export class ListingsService {
     return this.getMine(ownerId, id);
   }
 
+  async setFull(ownerId: string, id: string, version: number, isFull: boolean) {
+    const listing = await this.requireOwner(ownerId, id);
+    if (listing.type !== 'ROOMMATE')
+      throw new BadRequestException({ code: 'LISTING_TYPE_INVALID' });
+    const result = await this.prisma.listing.updateMany({
+      where: { id, ownerId, version, status: 'PUBLISHED' },
+      data: { isFull, version: { increment: 1 } },
+    });
+    this.requireChange(result.count);
+    return this.getMine(ownerId, id);
+  }
+
   async review(adminId: string, id: string, input: ReviewListingDto) {
     if (input.decision === 'REJECTED' && !input.reason?.trim()) {
       throw new BadRequestException({
@@ -382,6 +394,7 @@ export class ListingsService {
         message: 'Cần chọn tỉnh/thành phố',
       });
     return {
+      type: query.type,
       provinceCode: query.provinceCode,
       wardCode: query.wardCode,
       rent: { gte: query.minRent, lte: query.maxRent },
@@ -417,6 +430,7 @@ export class ListingsService {
           wardName: null,
         };
     return {
+      type: input.type,
       title: input.title,
       description: input.description,
       rent: input.rent,
@@ -465,6 +479,20 @@ export class ListingsService {
   }
 
   private requireComplete(listing: Listing) {
+    if (listing.type === 'ROOM_WANTED') {
+      if (
+        listing.title.length < 10 ||
+        listing.description.length < 30 ||
+        !listing.rent ||
+        !listing.provinceCode ||
+        !listing.wardCode
+      )
+        throw new BadRequestException({
+          code: 'LISTING_INCOMPLETE',
+          message: 'Cần tiêu đề, mô tả, ngân sách và khu vực muốn tìm',
+        });
+      return;
+    }
     if (
       listing.title.length < 10 ||
       listing.description.length < 30 ||
@@ -489,6 +517,8 @@ export class ListingsService {
   private publicView(listing: Listing) {
     return {
       id: listing.id,
+      type: listing.type,
+      isFull: listing.isFull,
       ownerId: listing.ownerId,
       title: listing.title,
       description: listing.description,

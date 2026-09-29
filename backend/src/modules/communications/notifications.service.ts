@@ -105,6 +105,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async deliver() {
+    if (!this.config.get('SMTP_HOST')) return;
     if (this.running) return;
     this.running = true;
     try {

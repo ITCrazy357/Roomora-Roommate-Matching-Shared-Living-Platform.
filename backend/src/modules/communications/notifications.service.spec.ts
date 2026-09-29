@@ -4,7 +4,7 @@ import type { PrismaService } from '../../database/prisma.service.js';
 import type { MailService } from '../auth/mail.service.js';
 
 describe('Notification email delivery', () => {
-  function fixture() {
+  function fixture(smtpHost = 'smtp.example.test') {
     const transaction = {
       $queryRaw: vi.fn().mockResolvedValue([{ id: 'notice' }]),
       notification: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
@@ -26,7 +26,10 @@ describe('Notification email delivery', () => {
     const service = new NotificationsService(
       prisma as unknown as PrismaService,
       mail as unknown as MailService,
-      new ConfigService({ FRONTEND_ORIGIN: 'http://localhost:3000' }),
+      new ConfigService({
+        FRONTEND_ORIGIN: 'http://localhost:3000',
+        SMTP_HOST: smtpHost,
+      }),
     );
     return { service, prisma, transaction, mail };
   }
@@ -74,5 +77,10 @@ describe('Notification email delivery', () => {
     expect(prisma.$transaction).toHaveBeenCalledOnce();
     done();
     await first;
+  });
+  it('keeps queued mail untouched when SMTP is not configured', async () => {
+    const { service, prisma } = fixture('');
+    await service.deliver();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

@@ -19,6 +19,12 @@ export const listingStatuses = {
   CLOSED: "Đã đóng",
 } as const;
 export type ListingStatus = keyof typeof listingStatuses;
+export const listingTypes = {
+  ROOMMATE: "Tìm người ở ghép",
+  ROOM_WANTED: "Tìm phòng",
+  ROOM_RENTAL: "Cho thuê phòng",
+} as const;
+export type ListingType = keyof typeof listingTypes;
 
 export interface Listing {
   id: string;
@@ -26,6 +32,8 @@ export interface Listing {
   title: string;
   description: string;
   status: ListingStatus;
+  type: ListingType;
+  isFull: boolean;
   rent: number | null;
   deposit: number;
   electricityCost: number;
@@ -94,7 +102,7 @@ export function listingError(error: unknown) {
       LISTING_CHANGED:
         "Tin vừa thay đổi ở nơi khác. Tải lại trang để tiếp tục.",
       LISTING_INCOMPLETE:
-        "Chưa thể gửi duyệt. Cần tiêu đề (ít nhất 10 ký tự), mô tả (ít nhất 30 ký tự), giá thuê, diện tích, ngày dọn vào, tỉnh/thành phố và phường/xã, địa chỉ cụ thể, vị trí bản đồ và ít nhất một ảnh.",
+        "Chưa thể gửi duyệt. Cần tiêu đề, mô tả, ngân sách và khu vực. Tin có phòng cần thêm diện tích, ngày dọn vào, địa chỉ riêng, ghim khu vực và ảnh.",
       LISTING_NOT_FOUND:
         "Tin không còn hiển thị hoặc bạn không có quyền truy cập.",
       PHOTO_LIMIT_REACHED: "Mỗi tin có tối đa 8 ảnh.",

@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayUnique,
+  IsBoolean,
   IsArray,
   IsDateString,
   IsEnum,
@@ -17,6 +18,7 @@ import {
 import {
   Amenity,
   ListingStatus,
+  ListingType,
   PetPreference,
   QuietLevel,
   SmokingPreference,
@@ -27,6 +29,8 @@ const trim = ({ value }: { value: unknown }) =>
 
 // Editable fields are saved together. Workflow fields are never accepted here.
 export class ListingInputDto {
+  @IsEnum(ListingType)
+  type: ListingType = ListingType.ROOMMATE;
   @Transform(trim)
   @IsString()
   @MaxLength(150)
@@ -135,6 +139,11 @@ export class ListingVersionDto {
   version: number;
 }
 
+export class ListingFullDto extends ListingVersionDto {
+  @IsBoolean()
+  isFull: boolean;
+}
+
 export class ReviewListingDto extends ListingVersionDto {
   @IsEnum({ PUBLISHED: 'PUBLISHED', REJECTED: 'REJECTED' })
   decision: 'PUBLISHED' | 'REJECTED';
@@ -199,4 +208,7 @@ export class ListingQueryDto {
   @IsOptional()
   @IsEnum(ListingStatus)
   status?: ListingStatus;
+  @IsOptional()
+  @IsEnum(ListingType)
+  type?: ListingType;
 }

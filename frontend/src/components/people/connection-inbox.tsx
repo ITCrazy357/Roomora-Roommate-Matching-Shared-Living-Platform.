@@ -28,10 +28,14 @@ const tabs: Record<ConnectionTab, string> = {
   accepted: "Đã kết nối",
   blocked: "Đã chặn",
 };
-export function ConnectionInbox() {
+export function ConnectionInbox({
+  initialTab = "received",
+}: {
+  initialTab?: ConnectionTab;
+}) {
   const { user, loading } = useAuth();
   const panel = useRef<HTMLDivElement>(null);
-  const [tab, setTab] = useState<ConnectionTab>("received");
+  const [tab, setTab] = useState<ConnectionTab>(initialTab);
   const [page, setPage] = useState(1);
   const [refreshCount, setRefreshCount] = useState(0);
   const [notice, setNotice] = useState("");

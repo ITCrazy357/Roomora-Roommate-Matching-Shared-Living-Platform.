@@ -47,6 +47,27 @@ function ListingDetailView({ id }: { id: string }) {
       setPending(false);
     }
   }
+  async function setFull() {
+    if (!listing?.version) return;
+    setPending(true);
+    setError("");
+    try {
+      setListing(
+        await apiFetch<Listing>(`/listings/${id}/full`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            version: listing.version,
+            isFull: !listing.isFull,
+          }),
+        }),
+      );
+    } catch (error) {
+      setError(listingError(error));
+    } finally {
+      setPending(false);
+    }
+  }
   if (!listing)
     return (
       <section className="container page-section">
@@ -95,6 +116,11 @@ function ListingDetailView({ id }: { id: string }) {
               : "Chỉ bạn và quản trị viên được xem nội dung chưa công khai."}
           </p>
           <div className="listing-actions">
+            {listing.status === "PUBLISHED" && listing.type === "ROOMMATE" && (
+              <Button variant="secondary" disabled={pending} onClick={setFull}>
+                {listing.isFull ? "Mở nhận người ở ghép" : "Đánh dấu đã đủ"}
+              </Button>
+            )}
             <ButtonLink
               href={`/tin-cua-toi/${id}/chinh-sua`}
               variant="secondary"

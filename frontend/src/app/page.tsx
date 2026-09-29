@@ -1,4 +1,5 @@
 import { HomeSlideshow } from "@/components/home-slideshow";
+import { HomeListings } from "@/components/listings/home-listings";
 import { Badge, ButtonLink, Card } from "@/components/ui";
 
 export default function Home() {
@@ -87,6 +88,7 @@ export default function Home() {
           hiểu.
         </p>
       </section>
+      <HomeListings />
     </div>
   );
 }

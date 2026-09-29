@@ -17,6 +17,7 @@ import {
   ListingPage,
   listingError,
   listingStatuses,
+  listingTypes,
 } from "@/lib/listings";
 import { ListingCard } from "./listing-card";
 
@@ -103,6 +104,7 @@ export function ListingBrowser({
       "maxRent",
       "sort",
       "status",
+      "type",
     ]) {
       const value = String(form.get(key) ?? "").trim();
       if (value) params.set(key, value);
@@ -186,6 +188,14 @@ export function ListingBrowser({
                   Xóa bộ lọc
                 </button>
               </div>
+              <Select id="type" name="type" label="Loại tin">
+                <option value="">Tất cả loại tin</option>
+                {Object.entries(listingTypes).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
               <Select
                 id="provinceCode"
                 label="Tỉnh / thành phố"

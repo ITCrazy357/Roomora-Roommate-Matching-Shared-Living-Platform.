@@ -10,6 +10,7 @@ import "./profile-editor.css";
 import "./listings.css";
 import "./people.css";
 import "./communications.css";
+import "./houses.css";
 
 const beVietnam = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",

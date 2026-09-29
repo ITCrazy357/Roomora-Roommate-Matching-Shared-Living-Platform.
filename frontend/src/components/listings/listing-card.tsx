@@ -13,6 +13,7 @@ import {
   listingError,
   listingLocation,
   listingStatuses,
+  listingTypes,
   money,
 } from "@/lib/listings";
 
@@ -112,11 +113,16 @@ export function ListingCard({
         <span className="listing-cover-label">
           {manage
             ? listingStatuses[listing.status]
-            : `Còn ${listing.availableSlots} chỗ`}
+            : listing.isFull
+              ? "Đã đủ"
+              : listing.type === "ROOM_WANTED"
+                ? "Đang tìm phòng"
+                : `Còn ${listing.availableSlots} chỗ`}
         </span>
         {!manage && <SaveListing listing={listing} onChange={onSave} />}
       </div>
       <div className="listing-card-body">
+        <span className="eyebrow">{listingTypes[listing.type]}</span>
         <p className="listing-area">
           {listingLocation(listing)} · {listing.area ?? "—"} m²
         </p>
@@ -126,9 +132,23 @@ export function ListingCard({
           </Link>
         </h2>
         <p className="listing-price">
-          {money(listing.rent)} <small>/ người / tháng</small>
+          {money(listing.rent)}{" "}
+          <small>
+            {listing.type === "ROOM_WANTED"
+              ? "ngân sách / tháng"
+              : listing.type === "ROOM_RENTAL"
+                ? "/ phòng / tháng"
+                : "/ người / tháng"}
+          </small>
         </p>
         <div className="listing-tags">
+          {listing.type === "ROOMMATE" && (
+            <span>
+              {listing.currentResidents}/
+              {listing.currentResidents + listing.availableSlots} người đang ở
+            </span>
+          )}
+          {listing.isFull && <span>Đã đủ</span>}
           {listing.amenities.slice(0, 3).map((key) => (
             <span key={key}>{amenities[key]}</span>
           ))}

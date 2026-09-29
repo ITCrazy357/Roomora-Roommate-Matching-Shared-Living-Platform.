@@ -137,6 +137,12 @@ Phân quyền trưởng nhà và thành viên theo từng nhà.
 Chuyển quyền trưởng nhà, rời nhà, lưu lịch sử thành viên.
 Quản lý nội quy, thông báo chung và thông tin cơ bản.
 Hiển thị tổng quan nhà bằng dữ liệu thực tế.
+Hiển thị tin đã đăng ở trang chủ, phần chia rõ khu vực ra: tin đăng tìm ở ghép, tin đăng cho thuê phòng và đăng tin tìm phòng
+Ở phần đăng tin thêm mục option ở đầu tiên là đăng tin tìm người ghép, đăng tin tìm phòng, đăng tin cho thuê phòng
+Hiển thị được các thông tin như diện tích, tiện ích, map đã ghim địa chỉ ở,... các thông tin mà người đăng tin chia sẻ, để người dùng bên kia thấy được những thông tin đó
+Cập nhật avatar ở phần tin nhắn, hiện nó đang đại diện chữ cái đầu tiên, đó là trường hợp người dùng chưa tải avatar lên thôi, còn đã có rồi thì dùng hình ấy
+Ở tin đã đăng hiển thị số người đang có hiện tại, ví dụ: tìm 3 người ở ghép, đã có 2 người rồi thì hiển thị 2/3 đang ở hay gì đó, và hiển thị thêm thái "Đã đủ" để người khác còn biết, người đổi trạng thái là người đăng tin
+Những người đã kết nối với nhau rồi thì không hiện thị ở phần hồ sơ công khai, muốn xem thì có thể vào đã kết nối và xem hồ sơ. Thêm mục đã kết nối trong phần list option ở phần tên người dùng
 
 Đơn giản hóa: cho phép tạo nhà trực tiếp, không bắt buộc đã tìm phòng qua Roomora.
 

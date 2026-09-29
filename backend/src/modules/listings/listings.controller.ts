@@ -25,6 +25,7 @@ import { MAX_AVATAR_BYTES } from '../cloudinary/cloudinary.service.js';
 import { AdminGuard } from './admin.guard.js';
 import {
   ListingInputDto,
+  ListingFullDto,
   ListingQueryDto,
   ListingVersionDto,
   ReviewListingDto,
@@ -106,6 +107,20 @@ export class ListingsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.listings.close(request.auth.userId, id, input.version);
+  }
+  @Post(':id/full')
+  @UseGuards(AuthGuard)
+  setFull(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: ListingFullDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.listings.setFull(
+      request.auth.userId,
+      id,
+      input.version,
+      input.isFull,
+    );
   }
   @Post(':id/photos')
   @UseGuards(AuthGuard)

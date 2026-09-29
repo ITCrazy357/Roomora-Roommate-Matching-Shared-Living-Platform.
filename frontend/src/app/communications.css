@@ -139,6 +139,12 @@
   color: var(--foreground);
   font-weight: 600;
 }
+.conversation-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
 .message-loading {
   grid-column: span 2;
   padding: 2rem;
@@ -233,14 +239,29 @@
   background: var(--primary);
   animation: typing-wave 1s ease-in-out infinite;
 }
-.typing-dot:nth-child(2) { animation-delay: 0.15s; }
-.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
 @keyframes typing-wave {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-  30% { transform: translateY(-0.3rem); opacity: 1; }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-0.3rem);
+    opacity: 1;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .typing-dot { animation: none; opacity: 1; }
+  .typing-dot {
+    animation: none;
+    opacity: 1;
+  }
 }
 .message-composer {
   display: grid;

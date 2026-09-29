@@ -14,6 +14,7 @@ const links = [
   { href: "/tim-phong", label: "Tìm phòng" },
   { href: "/tim-nguoi-o-ghep", label: "Tìm người ở ghép" },
   { href: "/tin-nhan", label: "Tin nhắn" },
+  { href: "/nha-chung", label: "Nhà chung" },
 ];
 
 export function SiteHeader() {
@@ -136,6 +137,8 @@ export function SiteHeader() {
                 >
                   <Link href="/tai-khoan/ho-so">Hồ sơ của tôi</Link>
                   <Link href="/ket-noi">Yêu cầu kết nối</Link>
+                  <Link href="/ket-noi?tab=accepted">Đã kết nối</Link>
+                  <Link href="/nha-chung">Nhà chung</Link>
                   <Link href="/lich-xem-phong">Lịch hẹn</Link>
                   <Link href="/thong-bao">Thông báo</Link>
                   <Link href="/tin-cua-toi">Tin của tôi</Link>
@@ -215,6 +218,12 @@ export function SiteHeader() {
             </Link>
             <Link href="/ket-noi" onClick={() => setOpen(false)}>
               Yêu cầu kết nối
+            </Link>
+            <Link href="/ket-noi?tab=accepted" onClick={() => setOpen(false)}>
+              Đã kết nối
+            </Link>
+            <Link href="/nha-chung" onClick={() => setOpen(false)}>
+              Nhà chung
             </Link>
             <Link href="/da-luu" onClick={() => setOpen(false)}>
               Tin đã lưu

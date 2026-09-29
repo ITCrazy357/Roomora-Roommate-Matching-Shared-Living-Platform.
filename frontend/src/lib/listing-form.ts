@@ -1,6 +1,7 @@
-import type { Amenity, Listing } from "./listings";
+import type { Amenity, Listing, ListingType } from "./listings";
 
 export const emptyForm = {
+  type: "ROOMMATE" as ListingType,
   title: "",
   description: "",
   rent: "",
@@ -30,6 +31,7 @@ export type LocationUnit = { code: string; name: string };
 
 export function formFromListing(listing: Listing): ListingForm {
   return {
+    type: listing.type,
     title: listing.title,
     description: listing.description,
     rent: listing.rent?.toString() ?? "",

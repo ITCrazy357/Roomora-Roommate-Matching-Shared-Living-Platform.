@@ -34,7 +34,7 @@ const participant = (userId: string): Prisma.ConnectionWhereInput => ({
   },
 });
 const personSelect = {
-  profile: { select: { displayName: true, avatarUrl: true, visibility: true } },
+  profile: { select: { displayName: true, avatarUrl: true } },
 } as const;
 const connectionInclude = {
   sender: { select: personSelect },
@@ -504,11 +504,8 @@ export class ConversationsService {
         row.connection.senderId === userId ? row.senderRead : row.receiverRead,
       person: {
         userId: this.otherUser(row, userId),
-        displayName:
-          profile?.visibility === 'PUBLIC'
-            ? profile.displayName
-            : 'Hồ sơ riêng tư',
-        avatarUrl: profile?.visibility === 'PUBLIC' ? profile.avatarUrl : null,
+        displayName: profile?.displayName ?? 'Thành viên Roomora',
+        avatarUrl: profile?.avatarUrl ?? null,
       },
     };
   }

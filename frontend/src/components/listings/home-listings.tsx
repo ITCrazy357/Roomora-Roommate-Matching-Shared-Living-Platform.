@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { type ListingPage, listingTypes, type ListingType } from "@/lib/listings";
+import {
+  type ListingPage,
+  listingTypes,
+  type ListingType,
+} from "@/lib/listings";
 import { useAuth } from "../auth-provider";
 import { Button, LoadingState } from "../ui";
 import { ListingCard } from "./listing-card";
@@ -22,7 +26,9 @@ function ListingSection({ type }: { type: ListingType }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    apiFetch<ListingPage>(`/listings?type=${type}&limit=3`, { signal: controller.signal })
+    apiFetch<ListingPage>(`/listings?type=${type}&limit=3`, {
+      signal: controller.signal,
+    })
       .then(setResult)
       .catch(() => {
         if (!controller.signal.aborted) setError(true);
@@ -44,7 +50,13 @@ function ListingSection({ type }: { type: ListingType }) {
       {error ? (
         <div role="alert">
           <p>Chưa tải được nhóm tin này.</p>
-          <Button variant="secondary" onClick={() => { setError(false); setRetry((value) => value + 1); }}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setError(false);
+              setRetry((value) => value + 1);
+            }}
+          >
             Thử lại
           </Button>
         </div>
@@ -52,10 +64,14 @@ function ListingSection({ type }: { type: ListingType }) {
         <LoadingState />
       ) : result.items.length ? (
         <div className="listing-grid">
-          {result.items.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
+          {result.items.map((listing) => (
+            <ListingCard key={listing.id} listing={listing} />
+          ))}
         </div>
       ) : (
-        <p className="home-listing-empty">Chưa có tin {listingTypes[type].toLowerCase()} được công khai.</p>
+        <p className="home-listing-empty">
+          Chưa có tin {listingTypes[type].toLowerCase()} được công khai.
+        </p>
       )}
     </section>
   );
@@ -65,7 +81,9 @@ export function HomeListings() {
   const { user } = useAuth();
   return (
     <div className="home-listings" id="tin-moi">
-      {types.map((type) => <ListingSection key={`${type}:${user?.id ?? "guest"}`} type={type} />)}
+      {types.map((type) => (
+        <ListingSection key={`${type}:${user?.id ?? "guest"}`} type={type} />
+      ))}
     </div>
   );
 }

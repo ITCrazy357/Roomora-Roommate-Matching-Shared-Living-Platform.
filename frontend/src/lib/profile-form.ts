@@ -99,4 +99,3 @@ export function budgetText(draft: ProfileForm) {
     return `Từ ${money(draft.budgetMin)} triệu / tháng`;
   return `${money(draft.budgetMin)} – ${money(draft.budgetMax)} triệu / tháng`;
 }
-

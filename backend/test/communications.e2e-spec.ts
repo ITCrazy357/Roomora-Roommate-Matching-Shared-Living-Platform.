@@ -126,13 +126,22 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
 
   it('excludes room-wanted posts from room-viewing appointments', async () => {
     const wanted = await prisma.listing.create({
-      data: { ownerId: aid, status: 'PUBLISHED', type: 'ROOM_WANTED', title: 'Cần tìm phòng gần trường' },
+      data: {
+        ownerId: aid,
+        status: 'PUBLISHED',
+        type: 'ROOM_WANTED',
+        title: 'Cần tìm phòng gần trường',
+      },
     });
     try {
       const detail = (await a.get(path()).expect(200)).body;
-      expect(detail.listings.map((item: { id: string }) => item.id)).not.toContain(wanted.id);
+      expect(
+        detail.listings.map((item: { id: string }) => item.id),
+      ).not.toContain(wanted.id);
       await post(a, path() + '/appointments', {
-        listingId: wanted.id, startsAt: future(), place: 'Gặp ở sảnh',
+        listingId: wanted.id,
+        startsAt: future(),
+        place: 'Gặp ở sảnh',
       }).expect(400);
     } finally {
       await prisma.listing.delete({ where: { id: wanted.id } });
@@ -164,32 +173,67 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
       .expect(403);
     const result = (await a.get(path()).expect(200)).body;
     expect(result.listings[0].id).toBe(listingId);
-    expect(result.listings[0]).toMatchObject({ latitude: 10.77, longitude: 106.69 });
+    expect(result.listings[0]).toMatchObject({
+      latitude: 10.77,
+      longitude: 106.69,
+    });
     expect(JSON.stringify(result)).not.toContain('ĐỊA CHỈ RIÊNG');
     expect(JSON.stringify(result)).not.toContain('@example.test');
-    const publicListing = (await outsider.get(`/api/v1/listings/${listingId}`).expect(200)).body;
+    const publicListing = (
+      await outsider.get(`/api/v1/listings/${listingId}`).expect(200)
+    ).body;
     expect(publicListing).toMatchObject({ latitude: 10.77, longitude: 106.69 });
     expect(JSON.stringify(publicListing)).not.toContain('ĐỊA CHỈ RIÊNG');
-    const publicProfile = (await request(app.getHttpServer()).get(`/api/v1/people/${aid}`).expect(200)).body;
-    expect(publicProfile.listings[0]).toMatchObject({ id: listingId, latitude: 10.77, longitude: 106.69 });
+    const publicProfile = (
+      await request(app.getHttpServer())
+        .get(`/api/v1/people/${aid}`)
+        .expect(200)
+    ).body;
+    expect(publicProfile.listings[0]).toMatchObject({
+      id: listingId,
+      latitude: 10.77,
+      longitude: 106.69,
+    });
     expect(JSON.stringify(publicProfile)).not.toContain('ĐỊA CHỈ RIÊNG');
   });
   it('allows a confirmed meeting when neither person has a published room', async () => {
     const first = await account();
     const second = await account();
-    const invite = (await post(first.agent, '/api/v1/connections', { targetId: second.id }).expect(201)).body;
-    await post(second.agent, `/api/v1/connections/${invite.id}/accept`, { version: invite.version }).expect(201);
-    const conversation = await prisma.conversation.findUniqueOrThrow({ where: { connectionId: invite.id } });
+    const invite = (
+      await post(first.agent, '/api/v1/connections', {
+        targetId: second.id,
+      }).expect(201)
+    ).body;
+    await post(second.agent, `/api/v1/connections/${invite.id}/accept`, {
+      version: invite.version,
+    }).expect(201);
+    const conversation = await prisma.conversation.findUniqueOrThrow({
+      where: { connectionId: invite.id },
+    });
     const url = `/api/v1/conversations/${conversation.id}`;
     expect((await second.agent.get(url).expect(200)).body.listings).toEqual([]);
-    const proposal = (await post(first.agent, url + '/appointments', {
-      startsAt: future(), place: 'Quán cà phê gần ga', note: 'Gặp để trao đổi',
-    }).expect(201)).body;
+    const proposal = (
+      await post(first.agent, url + '/appointments', {
+        startsAt: future(),
+        place: 'Quán cà phê gần ga',
+        note: 'Gặp để trao đổi',
+      }).expect(201)
+    ).body;
     expect(proposal.listingId).toBeNull();
-    await post(second.agent, url + `/appointments/${proposal.id}`, { action: 'confirm', version: 1 }).expect(201);
+    await post(second.agent, url + `/appointments/${proposal.id}`, {
+      action: 'confirm',
+      version: 1,
+    }).expect(201);
     const detail = (await second.agent.get(url).expect(200)).body;
-    expect(detail.appointments[0]).toMatchObject({ id: proposal.id, listing: null, status: 'CONFIRMED' });
-    expect((await second.agent.get('/api/v1/appointments').expect(200)).body.items[0].listing).toBeNull();
+    expect(detail.appointments[0]).toMatchObject({
+      id: proposal.id,
+      listing: null,
+      status: 'CONFIRMED',
+    });
+    expect(
+      (await second.agent.get('/api/v1/appointments').expect(200)).body.items[0]
+        .listing,
+    ).toBeNull();
   });
   it('deduplicates concurrent retries and rejects conflicting bodies', async () => {
     const body = {
@@ -279,7 +323,10 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
   });
   it('shows typing only to the other participant without saving a message', async () => {
     await post(a, path() + '/typing', { typing: 'true' }).expect(400);
-    await post(a, path() + '/typing', { typing: true, userId: outsiderId }).expect(400);
+    await post(a, path() + '/typing', {
+      typing: true,
+      userId: outsiderId,
+    }).expect(400);
     const address = app.getHttpServer().address();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 7000);
@@ -299,7 +346,9 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
             const event = buffer.slice(0, end);
             buffer = buffer.slice(end + 2);
             if (event.includes('event: typing')) {
-              const data = event.split('\n').find((line) => line.startsWith('data: '));
+              const data = event
+                .split('\n')
+                .find((line) => line.startsWith('data: '));
               return JSON.parse(data!.slice(6));
             }
             continue;
@@ -310,15 +359,21 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
         }
       };
       const before = await prisma.message.count({ where: { conversationId } });
-      const notices = await prisma.notification.count({ where: { userId: bid } });
+      const notices = await prisma.notification.count({
+        where: { userId: bid },
+      });
       const started = nextTyping();
       await post(a, path() + '/typing', { typing: true }).expect(201);
       expect(await started).toEqual({ conversationId, typing: true });
       const stopped = nextTyping();
       await post(a, path() + '/typing', { typing: false }).expect(201);
       expect(await stopped).toEqual({ conversationId, typing: false });
-      expect(await prisma.message.count({ where: { conversationId } })).toBe(before);
-      expect(await prisma.notification.count({ where: { userId: bid } })).toBe(notices);
+      expect(await prisma.message.count({ where: { conversationId } })).toBe(
+        before,
+      );
+      expect(await prisma.notification.count({ where: { userId: bid } })).toBe(
+        notices,
+      );
     } finally {
       clearTimeout(timeout);
       controller.abort();
@@ -373,22 +428,49 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
       .expect(400);
   });
   it('sends private image and audio attachments with idempotent retries', async () => {
-    const first = await sharp({ create: { width: 12, height: 8, channels: 3, background: '#e65036' } }).png().toBuffer();
-    const second = await sharp({ create: { width: 10, height: 10, channels: 3, background: '#faf8f5' } }).png().toBuffer();
+    const first = await sharp({
+      create: { width: 12, height: 8, channels: 3, background: '#e65036' },
+    })
+      .png()
+      .toBuffer();
+    const second = await sharp({
+      create: { width: 10, height: 10, channels: 3, background: '#faf8f5' },
+    })
+      .png()
+      .toBuffer();
     const clientId = randomUUID();
-    const upload = () => a.post(path() + '/messages').set('Origin', origin)
-      .field('clientId', clientId).field('text', '')
-      .attach('images', first, { filename: 'one.png', contentType: 'image/png' })
-      .attach('images', second, { filename: 'two.png', contentType: 'image/png' });
+    const upload = () =>
+      a
+        .post(path() + '/messages')
+        .set('Origin', origin)
+        .field('clientId', clientId)
+        .field('text', '')
+        .attach('images', first, {
+          filename: 'one.png',
+          contentType: 'image/png',
+        })
+        .attach('images', second, {
+          filename: 'two.png',
+          contentType: 'image/png',
+        });
     const sent = (await upload().expect(201)).body;
     expect(sent.text).toBe('');
-    expect(sent.attachments.map((file) => file.kind)).toEqual(['IMAGE', 'IMAGE']);
+    expect(sent.attachments.map((file) => file.kind)).toEqual([
+      'IMAGE',
+      'IMAGE',
+    ]);
     expect(JSON.stringify(sent)).not.toContain('data');
     const repeated = (await upload().expect(201)).body;
     expect(repeated.id).toBe(sent.id);
-    await a.post(path() + '/messages').set('Origin', origin)
-      .field('clientId', clientId).field('text', '')
-      .attach('images', second, { filename: 'changed.png', contentType: 'image/png' })
+    await a
+      .post(path() + '/messages')
+      .set('Origin', origin)
+      .field('clientId', clientId)
+      .field('text', '')
+      .attach('images', second, {
+        filename: 'changed.png',
+        contentType: 'image/png',
+      })
       .expect(409);
     const fileUrl = path() + '/attachments/' + sent.attachments[0].id;
     attachmentId = sent.attachments[0].id;
@@ -398,19 +480,37 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
     expect((await sharp(file.body).metadata()).format).toBe('jpeg');
     await outsider.get(fileUrl).expect(404);
     const list = (await b.get(path() + '/messages').expect(200)).body;
-    expect(list.items.find((row) => row.id === sent.id).attachments).toHaveLength(2);
+    expect(
+      list.items.find((row) => row.id === sent.id).attachments,
+    ).toHaveLength(2);
 
     const audio = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x00]);
-    const recorded = (await a.post(path() + '/messages').set('Origin', origin)
-      .field('clientId', randomUUID()).field('text', '')
-      .attach('audio', audio, { filename: 'voice.webm', contentType: 'audio/webm' })
-      .expect(201)).body;
+    const recorded = (
+      await a
+        .post(path() + '/messages')
+        .set('Origin', origin)
+        .field('clientId', randomUUID())
+        .field('text', '')
+        .attach('audio', audio, {
+          filename: 'voice.webm',
+          contentType: 'audio/webm',
+        })
+        .expect(201)
+    ).body;
     expect(recorded.attachments[0].kind).toBe('AUDIO');
-    await b.get(path() + '/attachments/' + recorded.attachments[0].id)
-      .expect('Content-Type', /audio\/webm/).expect(200);
-    await a.post(path() + '/messages').set('Origin', origin)
-      .field('clientId', randomUUID()).field('text', '')
-      .attach('audio', Buffer.from('wrong'), { filename: 'bad.webm', contentType: 'audio/webm' })
+    await b
+      .get(path() + '/attachments/' + recorded.attachments[0].id)
+      .expect('Content-Type', /audio\/webm/)
+      .expect(200);
+    await a
+      .post(path() + '/messages')
+      .set('Origin', origin)
+      .field('clientId', randomUUID())
+      .field('text', '')
+      .attach('audio', Buffer.from('wrong'), {
+        filename: 'bad.webm',
+        contentType: 'audio/webm',
+      })
       .expect(400);
   });
   it('enforces the per-user message rate limit', async () => {

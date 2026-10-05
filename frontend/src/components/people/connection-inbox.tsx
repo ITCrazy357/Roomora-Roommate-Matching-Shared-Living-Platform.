@@ -16,10 +16,7 @@ import {
   type ConnectionTab,
   type Person,
 } from "@/lib/people";
-import {
-  ConnectionActions,
-  PersonDetails,
-} from "./person-details";
+import { ConnectionActions, PersonDetails } from "./person-details";
 
 import { PersonAvatar } from "../person-avatar";
 

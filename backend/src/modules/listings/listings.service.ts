@@ -20,7 +20,9 @@ const details = {
   owner: {
     select: {
       id: true,
-      profile: { select: { displayName: true, avatarUrl: true, visibility: true } },
+      profile: {
+        select: { displayName: true, avatarUrl: true, visibility: true },
+      },
     },
   },
 } satisfies Prisma.ListingInclude;

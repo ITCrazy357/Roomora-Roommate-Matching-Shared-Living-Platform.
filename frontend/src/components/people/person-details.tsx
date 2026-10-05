@@ -22,7 +22,8 @@ const actionMessages = {
   accept: "Đã chấp nhận kết nối.",
   decline: "Đã từ chối lời kết nối.",
   cancel: "Đã hủy lời kết nối.",
-  disconnect: "Đã ngắt kết nối. Không thể nhắn tin, lịch hẹn sắp tới đã hủy. Có thể gửi lời mời mới sau 24 giờ.",
+  disconnect:
+    "Đã ngắt kết nối. Không thể nhắn tin, lịch hẹn sắp tới đã hủy. Có thể gửi lời mời mới sau 24 giờ.",
 };
 
 export function ConnectionActions({
@@ -372,22 +373,43 @@ export function PersonDetails({
       {publicPage && !!person.listings?.length && (
         <section className="person-listings">
           <h2>Tin phòng công khai của {person.displayName}</h2>
-          <p className="text-muted text-sm">Có thể xem khu vực gần phòng trước khi kết nối. Địa chỉ chính xác không được công khai.</p>
+          <p className="text-muted text-sm">
+            Có thể xem khu vực gần phòng trước khi kết nối. Địa chỉ chính xác
+            không được công khai.
+          </p>
           {person.listings.map((listing) => (
             <article key={listing.id}>
               <h3>{listing.title}</h3>
               <p className="text-muted">
-                {[listing.wardName, listing.provinceName].filter(Boolean).join(", ")}
-                {listing.rent ? ` · ${new Intl.NumberFormat("vi-VN").format(listing.rent)} đ/tháng` : ""}
+                {[listing.wardName, listing.provinceName]
+                  .filter(Boolean)
+                  .join(", ")}
+                {listing.rent
+                  ? ` · ${new Intl.NumberFormat("vi-VN").format(listing.rent)} đ/tháng`
+                  : ""}
               </p>
-              <Link className="text-link" href={`/phong/${listing.id}`}>Xem tin phòng →</Link>
+              <Link className="text-link" href={`/phong/${listing.id}`}>
+                Xem tin phòng →
+              </Link>
               {listing.latitude !== null && listing.longitude !== null && (
                 <>
-                  <Button variant="secondary" onClick={() => setOpenMapId(openMapId === listing.id ? null : listing.id)}
-                    aria-expanded={openMapId === listing.id}>
-                    {openMapId === listing.id ? "Ẩn bản đồ khu vực" : "Xem bản đồ khu vực"}
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      setOpenMapId(openMapId === listing.id ? null : listing.id)
+                    }
+                    aria-expanded={openMapId === listing.id}
+                  >
+                    {openMapId === listing.id
+                      ? "Ẩn bản đồ khu vực"
+                      : "Xem bản đồ khu vực"}
                   </Button>
-                  {openMapId === listing.id && <AreaMap latitude={listing.latitude} longitude={listing.longitude} />}
+                  {openMapId === listing.id && (
+                    <AreaMap
+                      latitude={listing.latitude}
+                      longitude={listing.longitude}
+                    />
+                  )}
                 </>
               )}
             </article>

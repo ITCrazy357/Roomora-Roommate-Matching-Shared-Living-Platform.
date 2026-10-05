@@ -31,7 +31,7 @@ export function listingCostUnit(type: ListingType) {
 }
 
 export function listingAvailability(listing: Listing) {
-  if (listing.status === "CLOSED") return "Đã đóng tin";
+  if (listing.status !== "PUBLISHED") return listingStatuses[listing.status];
   if (listing.type === "ROOM_WANTED") return "Đang tìm phòng";
   if (listing.isFull) return "Đã đủ";
   const unit = listing.type === "ROOM_RENTAL" ? "phòng" : "chỗ";
@@ -76,7 +76,12 @@ export interface Listing {
   createdAt: string;
   updatedAt: string;
   photos: { id: string; url: string; position: number }[];
-  owner: { id: string; displayName: string; avatarUrl: string | null; profilePublic: boolean };
+  owner: {
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+    profilePublic: boolean;
+  };
   saved?: boolean;
   reviews?: {
     id: string;

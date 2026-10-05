@@ -452,7 +452,11 @@ export function ListingEditor({ id }: { id?: string }) {
             <h2>{form.title || "Tin đăng của bạn"}</h2>
             <dl className="listing-costs">
               <div>
-                <dt>{form.type === "ROOM_WANTED" ? "Ngân sách tối đa / tháng" : "Giá thuê / tháng"}</dt>
+                <dt>
+                  {form.type === "ROOM_WANTED"
+                    ? "Ngân sách tối đa / tháng"
+                    : "Giá thuê / tháng"}
+                </dt>
                 <dd>{money(form.rent ? Number(form.rent) : null)}</dd>
               </div>
               <div>

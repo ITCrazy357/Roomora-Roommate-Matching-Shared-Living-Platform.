@@ -24,4 +24,3 @@ export function AreaMap({
     </div>
   );
 }
-

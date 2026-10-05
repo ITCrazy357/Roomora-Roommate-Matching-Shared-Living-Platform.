@@ -13,7 +13,13 @@ import { apiFetch } from "@/lib/api";
 import { authErrorMessage } from "@/lib/auth-errors";
 import type { DesiredLocation, MyProfile } from "@/lib/profile";
 
-import { profileSteps, budgets, habits, budgetText, type ProfileForm } from "@/lib/profile-form";
+import {
+  profileSteps,
+  budgets,
+  habits,
+  budgetText,
+  type ProfileForm,
+} from "@/lib/profile-form";
 
 export function ProfileEditor({
   onboarding = false,
@@ -63,7 +69,10 @@ export function ProfileEditor({
     return () => controller.abort();
   }, [auth.loading, userId, router]);
 
-  function change<Key extends keyof ProfileForm>(key: Key, value: ProfileForm[Key]) {
+  function change<Key extends keyof ProfileForm>(
+    key: Key,
+    value: ProfileForm[Key],
+  ) {
     setDraft((current) => (current ? { ...current, [key]: value } : current));
     setSaved(false);
   }

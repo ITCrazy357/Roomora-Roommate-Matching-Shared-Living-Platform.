@@ -67,7 +67,12 @@ export function ListingContent({
       )}
       <div className="listing-facts">
         {[
-          [listing.type === "ROOM_WANTED" ? "Diện tích mong muốn" : "Diện tích", listing.area === null ? "Chưa cung cấp" : `${listing.area} m²`],
+          [
+            listing.type === "ROOM_WANTED"
+              ? "Diện tích mong muốn"
+              : "Diện tích",
+            listing.area === null ? "Chưa cung cấp" : `${listing.area} m²`,
+          ],
           ["Trạng thái", listingAvailability(listing)],
           ...(listing.type === "ROOMMATE"
             ? [
@@ -77,7 +82,12 @@ export function ListingContent({
                 ],
               ]
             : []),
-          ["Dọn vào", listing.availableFrom ? listingDate(listing.availableFrom) : "Trao đổi thêm"],
+          [
+            "Dọn vào",
+            listing.availableFrom
+              ? listingDate(listing.availableFrom)
+              : "Trao đổi thêm",
+          ],
         ].map(([label, value]) => (
           <div key={label}>
             <span>{label}</span>
@@ -164,7 +174,11 @@ export function ListingContent({
             </p>
           </Card>
           <Card>
-            <h2>{listing.type === "ROOM_WANTED" ? "Khu vực muốn tìm" : "Vị trí khu vực"}</h2>
+            <h2>
+              {listing.type === "ROOM_WANTED"
+                ? "Khu vực muốn tìm"
+                : "Vị trí khu vực"}
+            </h2>
             <p>{listingLocation(listing)}</p>
             <AreaMap
               latitude={listing.latitude}
@@ -177,12 +191,13 @@ export function ListingContent({
                   ? "Bản xem trước giữ đúng vị trí bạn đang chọn. Khi lưu và hiển thị công khai, vị trí được làm tròn đến khoảng 1 km. Địa chỉ cụ thể không hiển thị công khai."
                   : "Vị trí bản đồ được làm tròn đến khoảng 1 km và chỉ thể hiện khu vực gần phòng. Địa chỉ cụ thể không hiển thị công khai."}
             </p>
-            {listing.type !== "ROOM_WANTED" && listing.privateAddress !== undefined && (
-              <p className="listing-review-note">
-                Địa chỉ riêng tư (chủ tin / admin):{" "}
-                {listing.privateAddress || "Chưa nhập"}
-              </p>
-            )}
+            {listing.type !== "ROOM_WANTED" &&
+              listing.privateAddress !== undefined && (
+                <p className="listing-review-note">
+                  Địa chỉ riêng tư (chủ tin / admin):{" "}
+                  {listing.privateAddress || "Chưa nhập"}
+                </p>
+              )}
           </Card>
         </div>
         <aside className="listing-summary">
@@ -197,7 +212,11 @@ export function ListingContent({
                   : `/ người / tháng · ${listing.currentResidents}/${listing.currentResidents + listing.availableSlots} người đang ở`}
             </p>
             <hr />
-            <p>{listing.availableFrom ? `Dọn vào ${listingDate(listing.availableFrom)}` : "Ngày dọn vào: trao đổi thêm"}</p>
+            <p>
+              {listing.availableFrom
+                ? `Dọn vào ${listingDate(listing.availableFrom)}`
+                : "Ngày dọn vào: trao đổi thêm"}
+            </p>
             {listing.type !== "ROOM_WANTED" && (
               <p>Tiền cọc: {money(listing.deposit)}</p>
             )}
@@ -208,9 +227,16 @@ export function ListingContent({
               <PersonAvatar person={listing.owner} />
               <strong>{listing.owner.displayName}</strong>
             </div>
-            {!preview && (listing.owner.profilePublic
-              ? <Link className="text-link" href={`/ho-so/${listing.ownerId}`}>Xem hồ sơ và kết nối →</Link>
-              : <p className="text-muted">Người đăng chưa công khai hồ sơ để nhận kết nối.</p>)}
+            {!preview &&
+              (listing.owner.profilePublic ? (
+                <Link className="text-link" href={`/ho-so/${listing.ownerId}`}>
+                  Xem hồ sơ và kết nối →
+                </Link>
+              ) : (
+                <p className="text-muted">
+                  Người đăng chưa công khai hồ sơ để nhận kết nối.
+                </p>
+              ))}
             <p className="text-muted">
               Thông tin phòng và chi phí do người đăng cung cấp. Kiểm duyệt nội
               dung chưa thay thế việc xem phòng thực tế.

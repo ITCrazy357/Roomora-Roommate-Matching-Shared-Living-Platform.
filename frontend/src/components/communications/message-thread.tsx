@@ -40,7 +40,11 @@ function microphoneError(error: unknown) {
     return "Micro đang không khả dụng. Hãy đóng ứng dụng khác đang dùng micro rồi thử lại.";
   return "Không thể mở micro. Bạn có thể thử lại hoặc chọn tệp ghi âm có sẵn.";
 }
-function MessageMedia({ conversationId, files, openImage }: {
+function MessageMedia({
+  conversationId,
+  files,
+  openImage,
+}: {
   conversationId: string;
   files: MessageAttachment[];
   openImage: (url: string) => void;
@@ -50,14 +54,26 @@ function MessageMedia({ conversationId, files, openImage }: {
   return (
     <>
       {images.length > 0 && (
-        <div className={`message-images ${images.length === 1 ? "message-image-single" : ""}`}>
+        <div
+          className={`message-images ${images.length === 1 ? "message-image-single" : ""}`}
+        >
           {images.map((file, index) => {
             const url = attachmentUrl(conversationId, file.id);
             return (
-              <button key={file.id} type="button" className="message-image-button"
-                aria-label={`Xem ảnh ${index + 1}`} onClick={() => openImage(url)}>
-                <Image unoptimized src={url} alt={`Ảnh đã gửi ${index + 1}`}
-                  width={file.width ?? 800} height={file.height ?? 600} />
+              <button
+                key={file.id}
+                type="button"
+                className="message-image-button"
+                aria-label={`Xem ảnh ${index + 1}`}
+                onClick={() => openImage(url)}
+              >
+                <Image
+                  unoptimized
+                  src={url}
+                  alt={`Ảnh đã gửi ${index + 1}`}
+                  width={file.width ?? 800}
+                  height={file.height ?? 600}
+                />
               </button>
             );
           })}
@@ -66,7 +82,12 @@ function MessageMedia({ conversationId, files, openImage }: {
       {audio && (
         <div className="message-audio">
           <span aria-hidden="true">♪</span>
-          <audio controls preload="metadata" src={attachmentUrl(conversationId, audio.id)} aria-label="Ghi âm trong tin nhắn" />
+          <audio
+            controls
+            preload="metadata"
+            src={attachmentUrl(conversationId, audio.id)}
+            aria-label="Ghi âm trong tin nhắn"
+          />
         </div>
       )}
     </>
@@ -93,7 +114,11 @@ export function MessageThread({ id }: { id: string }) {
   const [refresh, setRefresh] = useState(0);
   const loaded = useRef(false);
   const lastNumber = useRef(0);
-  const draft = useRef<{ clientId: string; text: string; mediaVersion: number } | null>(null);
+  const draft = useRef<{
+    clientId: string;
+    text: string;
+    mediaVersion: number;
+  } | null>(null);
   const mediaVersion = useRef(0);
   const history = useRef<HTMLDivElement>(null);
   const stayAtBottom = useRef(true);
@@ -106,13 +131,16 @@ export function MessageThread({ id }: { id: string }) {
   const recordTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startingRecorder = useRef(false);
   const { updateTyping, stopTyping } = useTyping(id);
-  useEffect(() => () => {
-    if (recordTimer.current) clearTimeout(recordTimer.current);
-    if (recorder.current) recorder.current.onstop = null;
-    if (recorder.current?.state === "recording") recorder.current.stop();
-    microphone.current?.getTracks().forEach((track) => track.stop());
-    previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
-  }, []);
+  useEffect(
+    () => () => {
+      if (recordTimer.current) clearTimeout(recordTimer.current);
+      if (recorder.current) recorder.current.onstop = null;
+      if (recorder.current?.state === "recording") recorder.current.stop();
+      microphone.current?.getTracks().forEach((track) => track.stop());
+      previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
+    },
+    [],
+  );
 
   function preview(file: File) {
     const url = URL.createObjectURL(file);
@@ -130,11 +158,20 @@ export function MessageThread({ id }: { id: string }) {
       setSendError("Mỗi tin nhắn chọn tối đa 4 ảnh.");
       return;
     }
-    if (selected.some((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024)) {
+    if (
+      selected.some(
+        (file) =>
+          !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+          file.size > 5 * 1024 * 1024,
+      )
+    ) {
       setSendError("Chọn ảnh JPG, PNG hoặc WebP, mỗi ảnh tối đa 5 MB.");
       return;
     }
-    setImages((old) => [...old, ...selected.map((file) => ({ file, url: preview(file) }))]);
+    setImages((old) => [
+      ...old,
+      ...selected.map((file) => ({ file, url: preview(file) })),
+    ]);
     mediaVersion.current++;
     setSendError("");
   }
@@ -151,7 +188,11 @@ export function MessageThread({ id }: { id: string }) {
   function chooseAudio(file?: File) {
     if (!file) return;
     const type = file.type.split(";")[0];
-    if (!["audio/webm", "audio/mp4", "audio/ogg"].includes(type) || !file.size || file.size > 2 * 1024 * 1024) {
+    if (
+      !["audio/webm", "audio/mp4", "audio/ogg"].includes(type) ||
+      !file.size ||
+      file.size > 2 * 1024 * 1024
+    ) {
       setSendError("Chọn ghi âm WebM, MP4 hoặc Ogg, tối đa 2 MB.");
       return;
     }
@@ -174,7 +215,9 @@ export function MessageThread({ id }: { id: string }) {
     if (startingRecorder.current) return;
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       setMicrophoneFailed(true);
-      setSendError("Trình duyệt hoặc địa chỉ trang này không hỗ trợ ghi âm trực tiếp. Bạn có thể chọn tệp ghi âm có sẵn.");
+      setSendError(
+        "Trình duyệt hoặc địa chỉ trang này không hỗ trợ ghi âm trực tiếp. Bạn có thể chọn tệp ghi âm có sẵn.",
+      );
       return;
     }
     startingRecorder.current = true;
@@ -189,7 +232,12 @@ export function MessageThread({ id }: { id: string }) {
       }
       microphone.current = stream;
       let capture: MediaRecorder | null = null;
-      for (const mimeType of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"]) {
+      for (const mimeType of [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+        "audio/ogg",
+      ]) {
         if (!MediaRecorder.isTypeSupported(mimeType)) continue;
         try {
           const candidate = new MediaRecorder(stream, { mimeType });
@@ -203,11 +251,15 @@ export function MessageThread({ id }: { id: string }) {
       if (!capture) {
         stream.getTracks().forEach((track) => track.stop());
         setMicrophoneFailed(true);
-        setSendError("Đã mở micro nhưng trình duyệt không khởi động được ghi âm. Bạn có thể chọn tệp ghi âm có sẵn.");
+        setSendError(
+          "Đã mở micro nhưng trình duyệt không khởi động được ghi âm. Bạn có thể chọn tệp ghi âm có sẵn.",
+        );
         return;
       }
       const chunks: Blob[] = [];
-      capture.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      capture.ondataavailable = (event) => {
+        if (event.data.size) chunks.push(event.data);
+      };
       capture.onstop = () => {
         stream.getTracks().forEach((track) => track.stop());
         const blob = new Blob(chunks, { type: capture.mimeType });
@@ -217,7 +269,11 @@ export function MessageThread({ id }: { id: string }) {
           return;
         }
         const type = capture.mimeType.split(";")[0];
-        const file = new File([blob], `ghi-am.${type === "audio/mp4" ? "m4a" : type === "audio/ogg" ? "ogg" : "webm"}`, { type });
+        const file = new File(
+          [blob],
+          `ghi-am.${type === "audio/mp4" ? "m4a" : type === "audio/ogg" ? "ogg" : "webm"}`,
+          { type },
+        );
         setAudio((old) => {
           if (old) removePreview(old.url);
           return { file, url: preview(file) };
@@ -236,7 +292,9 @@ export function MessageThread({ id }: { id: string }) {
     } catch {
       microphone.current?.getTracks().forEach((track) => track.stop());
       setMicrophoneFailed(true);
-      setSendError("Không thể bắt đầu ghi âm. Bạn có thể thử lại hoặc chọn tệp ghi âm có sẵn.");
+      setSendError(
+        "Không thể bắt đầu ghi âm. Bạn có thể thử lại hoặc chọn tệp ghi âm có sẵn.",
+      );
     } finally {
       startingRecorder.current = false;
     }
@@ -338,12 +396,21 @@ export function MessageThread({ id }: { id: string }) {
   }
   async function send(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if ((!text.trim() && !images.length && !audio) || pending || recording) return;
+    if ((!text.trim() && !images.length && !audio) || pending || recording)
+      return;
     stopTyping();
     stayAtBottom.current = true;
     // Reuse the same ID on retry after a lost response; the API will not duplicate it.
-    if (!draft.current || draft.current.text !== text.trim() || draft.current.mediaVersion !== mediaVersion.current)
-      draft.current = { clientId: crypto.randomUUID(), text: text.trim(), mediaVersion: mediaVersion.current };
+    if (
+      !draft.current ||
+      draft.current.text !== text.trim() ||
+      draft.current.mediaVersion !== mediaVersion.current
+    )
+      draft.current = {
+        clientId: crypto.randomUUID(),
+        text: text.trim(),
+        mediaVersion: mediaVersion.current,
+      };
     const message = draft.current;
     setPending(true);
     setMicrophoneFailed(false);
@@ -357,11 +424,14 @@ export function MessageThread({ id }: { id: string }) {
         images.forEach((item) => body.append("images", item.file));
         if (audio) body.set("audio", audio.file);
         saved = await apiFetch<Message>(`/conversations/${id}/messages`, {
-          method: "POST", body, timeoutMs: 60000,
+          method: "POST",
+          body,
+          timeoutMs: 60000,
         });
       } else {
         saved = await post<Message>(`/conversations/${id}/messages`, {
-          clientId: message.clientId, text: message.text,
+          clientId: message.clientId,
+          text: message.text,
         });
       }
       setMessages((old) => mergeMessages(old, [saved]));
@@ -413,11 +483,16 @@ export function MessageThread({ id }: { id: string }) {
             Hồ sơ →
           </Link>
         </header>
-        <div className="message-history" ref={history} aria-label="Lịch sử tin nhắn"
+        <div
+          className="message-history"
+          ref={history}
+          aria-label="Lịch sử tin nhắn"
           onScroll={(event) => {
             const box = event.currentTarget;
-            stayAtBottom.current = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-          }}>
+            stayAtBottom.current =
+              box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+          }}
+        >
           {hasOlder && (
             <Button variant="secondary" disabled={loadingOlder} onClick={older}>
               {loadingOlder ? "Đang tải…" : "Tải tin nhắn cũ"}
@@ -435,8 +510,13 @@ export function MessageThread({ id }: { id: string }) {
               className={`message-bubble ${message.senderId === user?.id ? "message-own" : ""}`}
             >
               {message.text && <p>{message.text}</p>}
-              {!!message.attachments.length && <MessageMedia conversationId={id}
-                files={message.attachments} openImage={openImage} />}
+              {!!message.attachments.length && (
+                <MessageMedia
+                  conversationId={id}
+                  files={message.attachments}
+                  openImage={openImage}
+                />
+              )}
               <small>
                 {formatTime(message.createdAt)}
                 {message.senderId === user?.id && " · Đã gửi"}
@@ -444,7 +524,11 @@ export function MessageThread({ id }: { id: string }) {
             </article>
           ))}
           {typingByConversation[id] && (
-            <div className="typing-indicator" role="status" aria-label={`${detail.person.displayName} đang nhập tin nhắn`}>
+            <div
+              className="typing-indicator"
+              role="status"
+              aria-label={`${detail.person.displayName} đang nhập tin nhắn`}
+            >
               <span className="typing-dot" />
               <span className="typing-dot" />
               <span className="typing-dot" />
@@ -453,12 +537,19 @@ export function MessageThread({ id }: { id: string }) {
         </div>
         <form className="message-composer" onSubmit={send}>
           {error && <ErrorState message={error} />}
-          {sendError && <div className="composer-error">
-            <ErrorState message={sendError} />
-            {microphoneFailed && <Button variant="secondary" onClick={() => audioInput.current?.click()}>
-              Chọn tệp ghi âm có sẵn
-            </Button>}
-          </div>}
+          {sendError && (
+            <div className="composer-error">
+              <ErrorState message={sendError} />
+              {microphoneFailed && (
+                <Button
+                  variant="secondary"
+                  onClick={() => audioInput.current?.click()}
+                >
+                  Chọn tệp ghi âm có sẵn
+                </Button>
+              )}
+            </div>
+          )}
           <div className="composer-shortcuts">
             <Button variant="secondary" onClick={() => setProposing(true)}>
               ＋ Đề xuất lịch hẹn
@@ -469,56 +560,190 @@ export function MessageThread({ id }: { id: string }) {
             <div className="composer-previews" aria-label="Tệp đã chọn">
               {images.map((item, index) => (
                 <div className="composer-preview-image" key={item.url}>
-                  <Image unoptimized src={item.url} alt={`Ảnh đã chọn ${index + 1}`} width={88} height={88} />
-                  <button type="button" aria-label={`Bỏ ảnh ${index + 1}`} onClick={() => removeImage(item.url)} disabled={pending}>×</button>
+                  <Image
+                    unoptimized
+                    src={item.url}
+                    alt={`Ảnh đã chọn ${index + 1}`}
+                    width={88}
+                    height={88}
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Bỏ ảnh ${index + 1}`}
+                    onClick={() => removeImage(item.url)}
+                    disabled={pending}
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
-              {audio && <div className="composer-preview-audio">
-                <audio controls src={audio.url} aria-label="Nghe lại ghi âm" />
-                <button type="button" aria-label="Bỏ ghi âm" onClick={removeAudio} disabled={pending}>×</button>
-              </div>}
+              {audio && (
+                <div className="composer-preview-audio">
+                  <audio
+                    controls
+                    src={audio.url}
+                    aria-label="Nghe lại ghi âm"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Bỏ ghi âm"
+                    onClick={removeAudio}
+                    disabled={pending}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
             </div>
           )}
-          {recording && <p className="composer-recording" role="status">● Đang ghi âm… Nhấn micro để dừng (tối đa 60 giây).</p>}
+          {recording && (
+            <p className="composer-recording" role="status">
+              ● Đang ghi âm… Nhấn micro để dừng (tối đa 60 giây).
+            </p>
+          )}
           <div className="composer-row">
-            <input ref={imageInput} className="composer-file-input" type="file" accept="image/jpeg,image/png,image/webp"
-              multiple aria-label="Chọn ảnh gửi trong chat" onChange={(event) => {
-                addImages(event.target.files); event.target.value = "";
-              }} />
-            <input ref={audioInput} className="composer-file-input" type="file" accept="audio/webm,audio/mp4,audio/ogg"
-              aria-label="Chọn tệp ghi âm" onChange={(event) => {
-                chooseAudio(event.target.files?.[0]); event.target.value = "";
-              }} />
-            <button type="button" className="composer-icon" aria-label="Thêm ảnh" title="Thêm ảnh"
-              disabled={pending || recording || images.length >= 4} onClick={() => imageInput.current?.click()}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m3 17 5-5 4 4 3-3 6 6" /></svg>
+            <input
+              ref={imageInput}
+              className="composer-file-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              aria-label="Chọn ảnh gửi trong chat"
+              onChange={(event) => {
+                addImages(event.target.files);
+                event.target.value = "";
+              }}
+            />
+            <input
+              ref={audioInput}
+              className="composer-file-input"
+              type="file"
+              accept="audio/webm,audio/mp4,audio/ogg"
+              aria-label="Chọn tệp ghi âm"
+              onChange={(event) => {
+                chooseAudio(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className="composer-icon"
+              aria-label="Thêm ảnh"
+              title="Thêm ảnh"
+              disabled={pending || recording || images.length >= 4}
+              onClick={() => imageInput.current?.click()}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="m3 17 5-5 4 4 3-3 6 6" />
+              </svg>
             </button>
-            <button type="button" className={`composer-icon ${recording ? "composer-icon-active" : ""}`}
-              aria-label={recording ? "Dừng ghi âm" : "Ghi âm"} title={recording ? "Dừng ghi âm" : "Ghi âm"}
-              disabled={pending} onClick={() => void toggleRecording()}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v4m-4 0h8" /></svg>
+            <button
+              type="button"
+              className={`composer-icon ${recording ? "composer-icon-active" : ""}`}
+              aria-label={recording ? "Dừng ghi âm" : "Ghi âm"}
+              title={recording ? "Dừng ghi âm" : "Ghi âm"}
+              disabled={pending}
+              onClick={() => void toggleRecording()}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                <rect x="9" y="2" width="6" height="13" rx="3" />
+                <path d="M5 11a7 7 0 0 0 14 0M12 18v4m-4 0h8" />
+              </svg>
             </button>
-            <Textarea id="message-text" label={`Tin nhắn cho ${detail.person.displayName}`}
-              value={text} onChange={(event) => { setText(event.target.value); updateTyping(event.target.value); }}
-              onBlur={stopTyping} onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+            <Textarea
+              id="message-text"
+              label={`Tin nhắn cho ${detail.person.displayName}`}
+              value={text}
+              onChange={(event) => {
+                setText(event.target.value);
+                updateTyping(event.target.value);
+              }}
+              onBlur={stopTyping}
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
                   event.preventDefault();
-                  if (!event.repeat && (text.trim() || images.length || audio) && !pending && !recording)
+                  if (
+                    !event.repeat &&
+                    (text.trim() || images.length || audio) &&
+                    !pending &&
+                    !recording
+                  )
                     event.currentTarget.form?.requestSubmit();
                 }
-              }} maxLength={2000} rows={2} disabled={pending || recording}
-              placeholder="Viết lời nhắn…" />
-            <Button type="submit" className="composer-send" aria-label="Gửi tin nhắn"
-              disabled={pending || recording || (!text.trim() && !images.length && !audio)}>
-              {pending ? "…" : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m4 12 16-8-4 16-4-6-8-2Zm8 2 8-10" /></svg>}
+              }}
+              maxLength={2000}
+              rows={2}
+              disabled={pending || recording}
+              placeholder="Viết lời nhắn…"
+            />
+            <Button
+              type="submit"
+              className="composer-send"
+              aria-label="Gửi tin nhắn"
+              disabled={
+                pending ||
+                recording ||
+                (!text.trim() && !images.length && !audio)
+              }
+            >
+              {pending ? (
+                "…"
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
+                  <path d="m4 12 16-8-4 16-4-6-8-2Zm8 2 8-10" />
+                </svg>
+              )}
             </Button>
           </div>
         </form>
-        <dialog ref={imageDialog} className="message-image-dialog" onClick={(event) => {
-          if (event.target === event.currentTarget) imageDialog.current?.close();
-        }}>
-          <button type="button" aria-label="Đóng ảnh" onClick={() => imageDialog.current?.close()}>×</button>
-          {viewingImage && <Image unoptimized src={viewingImage} alt="Ảnh trong hội thoại" width={1400} height={1000} />}
+        <dialog
+          ref={imageDialog}
+          className="message-image-dialog"
+          onClick={(event) => {
+            if (event.target === event.currentTarget)
+              imageDialog.current?.close();
+          }}
+        >
+          <button
+            type="button"
+            aria-label="Đóng ảnh"
+            onClick={() => imageDialog.current?.close()}
+          >
+            ×
+          </button>
+          {viewingImage && (
+            <Image
+              unoptimized
+              src={viewingImage}
+              alt="Ảnh trong hội thoại"
+              width={1400}
+              height={1000}
+            />
+          )}
         </dialog>
       </Card>
       <aside className="message-sidebar">
@@ -547,7 +772,9 @@ export function MessageThread({ id }: { id: string }) {
         {detail.listings.map((room) => (
           <Card key={room.id} className="conversation-room">
             <small className="text-muted">
-              {room.ownerId === user?.id ? "Tin phòng của bạn" : `Tin phòng của ${detail.person.displayName}`}
+              {room.ownerId === user?.id
+                ? "Tin phòng của bạn"
+                : `Tin phòng của ${detail.person.displayName}`}
             </small>
             {room.photos[0] && (
               <Image
@@ -574,14 +801,27 @@ export function MessageThread({ id }: { id: string }) {
             </Link>
             {room.latitude !== null && room.longitude !== null && (
               <>
-                <Button variant="secondary" onClick={() => setOpenMapId(openMapId === room.id ? null : room.id)}
-                  aria-expanded={openMapId === room.id}>
-                  {openMapId === room.id ? "Ẩn bản đồ khu vực" : "Xem bản đồ khu vực"}
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    setOpenMapId(openMapId === room.id ? null : room.id)
+                  }
+                  aria-expanded={openMapId === room.id}
+                >
+                  {openMapId === room.id
+                    ? "Ẩn bản đồ khu vực"
+                    : "Xem bản đồ khu vực"}
                 </Button>
                 {openMapId === room.id && (
                   <>
-                    <AreaMap latitude={room.latitude} longitude={room.longitude} />
-                    <p className="text-muted">Ghim chỉ thể hiện khu vực gần phòng (khoảng 1 km), không phải địa chỉ chính xác.</p>
+                    <AreaMap
+                      latitude={room.latitude}
+                      longitude={room.longitude}
+                    />
+                    <p className="text-muted">
+                      Ghim chỉ thể hiện khu vực gần phòng (khoảng 1 km), không
+                      phải địa chỉ chính xác.
+                    </p>
                   </>
                 )}
               </>
@@ -591,7 +831,8 @@ export function MessageThread({ id }: { id: string }) {
         {!detail.listings.length && (
           <Card>
             <p className="text-muted">
-              Chưa có tin phòng công khai. Hai bạn vẫn có thể đề xuất lịch gặp để trao đổi.
+              Chưa có tin phòng công khai. Hai bạn vẫn có thể đề xuất lịch gặp
+              để trao đổi.
             </p>
           </Card>
         )}
@@ -605,7 +846,8 @@ export function MessageThread({ id }: { id: string }) {
         <Card className="viewing-safety">
           <h3>Gặp gỡ an toàn</h3>
           <p>
-            Nên hẹn ban ngày hoặc đi cùng bạn bè. Lịch hẹn không phải là đặt cọc giữ chỗ.
+            Nên hẹn ban ngày hoặc đi cùng bạn bè. Lịch hẹn không phải là đặt cọc
+            giữ chỗ.
           </p>
         </Card>
       </aside>

@@ -193,7 +193,15 @@ export function ListingBrowser({
                   Xóa bộ lọc
                 </button>
               </div>
-              <Select id="type" name="type" label="Loại tin" value={type} onChange={(event) => setType(event.target.value as ListingType | "")}>
+              <Select
+                id="type"
+                name="type"
+                label="Loại tin"
+                value={type}
+                onChange={(event) =>
+                  setType(event.target.value as ListingType | "")
+                }
+              >
                 <option value="">Tất cả loại tin</option>
                 {Object.entries(listingTypes).map(([value, label]) => (
                   <option key={value} value={value}>

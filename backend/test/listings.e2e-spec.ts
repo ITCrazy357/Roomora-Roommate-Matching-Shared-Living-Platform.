@@ -205,31 +205,64 @@ describe('Phase 3 listings (real PostgreSQL)', () => {
     async (type) => {
       const listing = await published({ ...form, type });
       const guest = request(app.getHttpServer());
-      const detail = (await guest.get(`/api/v1/listings/${listing.id}`).expect(200)).body;
+      const detail = (
+        await guest.get(`/api/v1/listings/${listing.id}`).expect(200)
+      ).body;
       expect(detail).toMatchObject({
-        type, area: form.area, rent: form.rent, deposit: form.deposit,
-        electricityCost: form.electricityCost, waterCost: form.waterCost,
-        internetCost: form.internetCost, otherCost: form.otherCost,
-        description: form.description, costNote: form.costNote,
-        amenities: form.amenities, roommateNote: form.roommateNote,
+        type,
+        area: form.area,
+        rent: form.rent,
+        deposit: form.deposit,
+        electricityCost: form.electricityCost,
+        waterCost: form.waterCost,
+        internetCost: form.internetCost,
+        otherCost: form.otherCost,
+        description: form.description,
+        costNote: form.costNote,
+        amenities: form.amenities,
+        roommateNote: form.roommateNote,
         smokingPreference: form.smokingPreference,
-        latitude: 21.03, longitude: 105.82,
+        latitude: 21.03,
+        longitude: 105.82,
       });
       expect(detail.photos).toHaveLength(1);
       expect(detail).not.toHaveProperty('privateAddress');
-      const home = (await guest.get('/api/v1/listings').query({ type, search: prefix, limit: 3 }).expect(200)).body;
-      expect(home.items.every((item: { type: string }) => item.type === type)).toBe(true);
-      expect(home.items.map((item: { id: string }) => item.id)).toContain(listing.id);
+      const home = (
+        await guest
+          .get('/api/v1/listings')
+          .query({ type, search: prefix, limit: 3 })
+          .expect(200)
+      ).body;
+      expect(
+        home.items.every((item: { type: string }) => item.type === type),
+      ).toBe(true);
+      expect(home.items.map((item: { id: string }) => item.id)).toContain(
+        listing.id,
+      );
     },
   );
 
   it('clears the full flag when changing listing type', async () => {
     const listing = await published();
-    const full = (await owner.post(`/api/v1/listings/${listing.id}/full`)
-      .set('Origin', origin).send({ version: listing.version, isFull: true }).expect(201)).body;
-    const changed = (await owner.put(`/api/v1/listings/${listing.id}`)
-      .set('Origin', origin).send({ ...form, type: 'ROOM_RENTAL', version: full.version }).expect(200)).body;
-    expect(changed).toMatchObject({ type: 'ROOM_RENTAL', isFull: false, status: 'DRAFT' });
+    const full = (
+      await owner
+        .post(`/api/v1/listings/${listing.id}/full`)
+        .set('Origin', origin)
+        .send({ version: listing.version, isFull: true })
+        .expect(201)
+    ).body;
+    const changed = (
+      await owner
+        .put(`/api/v1/listings/${listing.id}`)
+        .set('Origin', origin)
+        .send({ ...form, type: 'ROOM_RENTAL', version: full.version })
+        .expect(200)
+    ).body;
+    expect(changed).toMatchObject({
+      type: 'ROOM_RENTAL',
+      isFull: false,
+      status: 'DRAFT',
+    });
   });
 
   it('persists partial drafts but validates complete submissions and locations', async () => {

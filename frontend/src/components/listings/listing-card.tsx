@@ -26,7 +26,13 @@ export function SaveListing({
   onChange?: (saved: boolean) => void;
 }) {
   const { user } = useAuth();
-  const [saved, setSaved] = useState(Boolean(listing.saved));
+  const identity = `${user?.id ?? "guest"}:${listing.id}`;
+  const [saveState, setSaveState] = useState({
+    identity,
+    value: Boolean(listing.saved),
+  });
+  const saved =
+    saveState.identity === identity ? saveState.value : Boolean(listing.saved);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   if (!user)
@@ -47,7 +53,7 @@ export function SaveListing({
         `/listings/${listing.id}/save`,
         { method: saved ? "DELETE" : "POST" },
       );
-      setSaved(result.saved);
+      setSaveState({ identity, value: result.saved });
       onChange?.(result.saved);
     } catch (error) {
       setError(listingError(error));
@@ -90,6 +96,7 @@ export function ListingCard({
       <div className="listing-cover">
         <Link
           href={`/phong/${listing.id}`}
+          className="listing-cover-link"
           aria-label={`Xem ${listing.title || "bản nháp"}`}
         >
           {listing.photos[0] ? (
@@ -107,7 +114,11 @@ export function ListingCard({
           ) : (
             <div className="listing-no-photo">
               <span aria-hidden="true">⌂</span>
-              <span>{listing.type === "ROOM_WANTED" ? "Nhu cầu tìm phòng" : "Chưa có ảnh phòng"}</span>
+              <span>
+                {listing.type === "ROOM_WANTED"
+                  ? "Nhu cầu tìm phòng"
+                  : "Chưa có ảnh phòng"}
+              </span>
             </div>
           )}
         </Link>
@@ -121,7 +132,8 @@ export function ListingCard({
       <div className="listing-card-body">
         <span className="eyebrow">{listingTypes[listing.type]}</span>
         <p className="listing-area">
-          {listingLocation(listing)}{listing.area !== null ? ` · ${listing.area} m²` : ""}
+          {listingLocation(listing)}
+          {listing.area !== null ? ` · ${listing.area} m²` : ""}
         </p>
         <h2>
           <Link href={`/phong/${listing.id}`}>
@@ -156,7 +168,11 @@ export function ListingCard({
           </p>
         )}
         <div className="listing-card-footer">
-          <span>{listing.availableFrom ? `Dọn vào ${listingDate(listing.availableFrom)}` : "Ngày dọn vào: trao đổi thêm"}</span>
+          <span>
+            {listing.availableFrom
+              ? `Dọn vào ${listingDate(listing.availableFrom)}`
+              : "Ngày dọn vào: trao đổi thêm"}
+          </span>
           <span>{listing.owner.displayName}</span>
         </div>
         {manage && (

@@ -154,7 +154,14 @@ export function ListingEditorFields({
             10000,
           )}
           {form.type !== "ROOM_WANTED" &&
-            numberField("availableSlots", form.type === "ROOM_RENTAL" ? "Số phòng còn trống" : "Số chỗ còn trống", 1, 20)}
+            numberField(
+              "availableSlots",
+              form.type === "ROOM_RENTAL"
+                ? "Số phòng còn trống"
+                : "Số chỗ còn trống",
+              1,
+              20,
+            )}
           {form.type === "ROOMMATE" &&
             numberField("currentResidents", "Số người đang ở", 0, 20)}
           <Input
@@ -190,7 +197,10 @@ export function ListingEditorFields({
           {form.type !== "ROOM_WANTED" && (
             <>
               {numberField("deposit", `Tiền cọc ban đầu / ${costUnit}`)}
-              {numberField("electricityCost", `Tiền điện dự kiến / ${costUnit} / tháng`)}
+              {numberField(
+                "electricityCost",
+                `Tiền điện dự kiến / ${costUnit} / tháng`,
+              )}
               {numberField("waterCost", `Tiền nước / ${costUnit} / tháng`)}
               {numberField("internetCost", `Internet / ${costUnit} / tháng`)}
               {numberField("otherCost", `Chi phí khác / ${costUnit} / tháng`)}
@@ -252,28 +262,33 @@ export function ListingEditorFields({
           </p>
         )}
         {form.type !== "ROOM_WANTED" && (
-            <Input
-              id="privateAddress"
-              label="Địa chỉ cụ thể (riêng tư)"
-              value={form.privateAddress}
-              maxLength={300}
-              hint="Chỉ chủ tin và admin được xem. Không đưa địa chỉ cụ thể vào tiêu đề, mô tả hoặc ảnh."
-              onChange={(event) => change("privateAddress", event.target.value)}
-            />
+          <Input
+            id="privateAddress"
+            label="Địa chỉ cụ thể (riêng tư)"
+            value={form.privateAddress}
+            maxLength={300}
+            hint="Chỉ chủ tin và admin được xem. Không đưa địa chỉ cụ thể vào tiêu đề, mô tả hoặc ảnh."
+            onChange={(event) => change("privateAddress", event.target.value)}
+          />
         )}
-            <h3>{form.type === "ROOM_WANTED" ? "Khu vực muốn tìm trên bản đồ (tùy chọn)" : "Vị trí khu vực trên bản đồ"}</h3>
-            <p className="text-muted">
-              Kéo bản đồ để chọn khu vực dưới ghim. Vị trí công khai được làm tròn đến khoảng 1 km.
-            </p>
-            <Button variant="secondary" onClick={locate} disabled={pending}>
-              Lấy vị trí khu vực hiện tại
-            </Button>
-            <RoomMap
-              latitude={form.latitude === "" ? null : Number(form.latitude)}
-              longitude={form.longitude === "" ? null : Number(form.longitude)}
-              disabled={pending}
-              onChange={selectLocation}
-            />
+        <h3>
+          {form.type === "ROOM_WANTED"
+            ? "Khu vực muốn tìm trên bản đồ (tùy chọn)"
+            : "Vị trí khu vực trên bản đồ"}
+        </h3>
+        <p className="text-muted">
+          Kéo bản đồ để chọn khu vực dưới ghim. Vị trí công khai được làm tròn
+          đến khoảng 1 km.
+        </p>
+        <Button variant="secondary" onClick={locate} disabled={pending}>
+          Lấy vị trí khu vực hiện tại
+        </Button>
+        <RoomMap
+          latitude={form.latitude === "" ? null : Number(form.latitude)}
+          longitude={form.longitude === "" ? null : Number(form.longitude)}
+          disabled={pending}
+          onChange={selectLocation}
+        />
       </div>
     );
 

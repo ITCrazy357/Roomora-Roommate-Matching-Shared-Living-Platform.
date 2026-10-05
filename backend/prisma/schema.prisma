@@ -584,3 +584,4 @@ model GoogleLoginState {
   @@index([linkSessionId])
   @@map("google_login_states")
 }
+

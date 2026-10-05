@@ -10,7 +10,9 @@ export function useTyping(conversationId: string) {
 
   function send(typing: boolean) {
     // Typing is temporary: a failed update must not interrupt the message draft.
-    void post(`/conversations/${conversationId}/typing`, { typing }).catch(() => {});
+    void post(`/conversations/${conversationId}/typing`, { typing }).catch(
+      () => {},
+    );
   }
 
   function stopTyping() {
@@ -36,14 +38,19 @@ export function useTyping(conversationId: string) {
     idleTimer.current = setTimeout(stopTyping, 1800);
   }
 
-  useEffect(() => () => {
-    if (idleTimer.current) clearTimeout(idleTimer.current);
-    if (refreshTimer.current) clearInterval(refreshTimer.current);
-    if (active.current) {
-      void post(`/conversations/${conversationId}/typing`, { typing: false }).catch(() => {});
-    }
-    active.current = false;
-  }, [conversationId]);
+  useEffect(
+    () => () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      if (refreshTimer.current) clearInterval(refreshTimer.current);
+      if (active.current) {
+        void post(`/conversations/${conversationId}/typing`, {
+          typing: false,
+        }).catch(() => {});
+      }
+      active.current = false;
+    },
+    [conversationId],
+  );
 
   return { updateTyping, stopTyping };
 }

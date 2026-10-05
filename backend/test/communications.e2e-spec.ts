@@ -124,6 +124,21 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
     vi.restoreAllMocks();
   });
 
+  it('excludes room-wanted posts from room-viewing appointments', async () => {
+    const wanted = await prisma.listing.create({
+      data: { ownerId: aid, status: 'PUBLISHED', type: 'ROOM_WANTED', title: 'Cần tìm phòng gần trường' },
+    });
+    try {
+      const detail = (await a.get(path()).expect(200)).body;
+      expect(detail.listings.map((item: { id: string }) => item.id)).not.toContain(wanted.id);
+      await post(a, path() + '/appointments', {
+        listingId: wanted.id, startsAt: future(), place: 'Gặp ở sảnh',
+      }).expect(400);
+    } finally {
+      await prisma.listing.delete({ where: { id: wanted.id } });
+    }
+  });
+
   it('creates one conversation on acceptance and protects all endpoints', async () => {
     expect(
       await prisma.conversation.count({ where: { id: conversationId } }),

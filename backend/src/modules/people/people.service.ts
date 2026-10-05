@@ -20,7 +20,7 @@ import type {
   PeopleQuery,
   ReportUserDto,
   SendConnectionDto,
-} from './people.dto.js';
+} from '../people/dto/people.dto.js';
 
 @Injectable()
 export class PeopleService {

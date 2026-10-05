@@ -42,9 +42,11 @@ export class UpdatesService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {}
+
   async onModuleInit() {
     await this.connect();
   }
+
   private async connect() {
     const client = new Client({
       connectionString: this.config.getOrThrow<string>('DATABASE_URL'),
@@ -88,6 +90,7 @@ export class UpdatesService implements OnModuleInit, OnModuleDestroy {
       this.reconnect();
     }
   }
+
   private reconnect() {
     if (this.stopped || this.retry) return;
     this.logger.warn('Realtime listener reconnecting');
@@ -97,6 +100,7 @@ export class UpdatesService implements OnModuleInit, OnModuleDestroy {
     }, 3000);
     this.retry.unref();
   }
+
   stream(auth: AuthContext): Observable<MessageEvent> {
     // Events contain no private content; clients refresh through authorized APIs.
     // Periodic sync also repairs a missed NOTIFY after a listener restart.
@@ -110,7 +114,10 @@ export class UpdatesService implements OnModuleInit, OnModuleDestroy {
         filter((signal) => signal.userId === auth.userId),
         map((signal) => ({
           type: 'typing',
-          data: { conversationId: signal.conversationId, typing: signal.typing },
+          data: {
+            conversationId: signal.conversationId,
+            typing: signal.typing,
+          },
         })),
       ),
     ).pipe(
@@ -131,13 +138,19 @@ export class UpdatesService implements OnModuleInit, OnModuleDestroy {
       takeUntil(this.shutdown),
     );
   }
+
   async typing(
     tx: Prisma.TransactionClient,
     userId: string,
     conversationId: string,
     typing: boolean,
   ) {
-    const signal: TypingSignal = { kind: 'typing', userId, conversationId, typing };
+    const signal: TypingSignal = {
+      kind: 'typing',
+      userId,
+      conversationId,
+      typing,
+    };
     await tx.$queryRaw`SELECT pg_notify('roomora_updates', ${JSON.stringify(signal)})::text`;
   }
   async onModuleDestroy() {

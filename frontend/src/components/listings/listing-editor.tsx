@@ -10,6 +10,7 @@ import {
   listingError,
   listingLocation,
   listingStatuses,
+  listingTypes,
   money,
 } from "@/lib/listings";
 import { ListingEditorFields } from "./listing-editor-fields";
@@ -328,10 +329,10 @@ export function ListingEditor({ id }: { id?: string }) {
     <section className="container page-section listings-page">
       <div className="listing-page-heading">
         <div>
-          <span className="eyebrow">CÓ PHÒNG, TÌM NGƯỜI Ở GHÉP</span>
+          <span className="eyebrow">{listingTypes[form.type]}</span>
           <h1>{id || listing ? "Chỉnh sửa tin đăng" : "Tạo tin đăng mới"}</h1>
           <p className="text-muted">
-            Thông tin rõ ràng để tìm người cùng nhà phù hợp.
+            Điền thông tin bạn muốn chia sẻ với người xem tin.
           </p>
         </div>
         <Button
@@ -448,10 +449,10 @@ export function ListingEditor({ id }: { id?: string }) {
         <aside className="listing-editor-summary">
           <Card>
             <span className="eyebrow">TÓM TẮT TIN ĐĂNG</span>
-            <h2>{form.title || "Căn phòng của bạn"}</h2>
+            <h2>{form.title || "Tin đăng của bạn"}</h2>
             <dl className="listing-costs">
               <div>
-                <dt>Giá thuê / tháng</dt>
+                <dt>{form.type === "ROOM_WANTED" ? "Ngân sách tối đa / tháng" : "Giá thuê / tháng"}</dt>
                 <dd>{money(form.rent ? Number(form.rent) : null)}</dd>
               </div>
               <div>

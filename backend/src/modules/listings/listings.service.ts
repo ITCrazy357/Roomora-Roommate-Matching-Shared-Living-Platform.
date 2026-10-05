@@ -20,7 +20,7 @@ const details = {
   owner: {
     select: {
       id: true,
-      profile: { select: { displayName: true, avatarUrl: true } },
+      profile: { select: { displayName: true, avatarUrl: true, visibility: true } },
     },
   },
 } satisfies Prisma.ListingInclude;
@@ -44,10 +44,14 @@ export class ListingsService {
   }
 
   async update(ownerId: string, id: string, input: UpdateListingDto) {
-    await this.requireOwner(ownerId, id);
+    const listing = await this.requireOwner(ownerId, id);
     const result = await this.prisma.listing.updateMany({
       where: { id, ownerId, version: input.version },
-      data: { ...this.formData(input), ...this.draftData() },
+      data: {
+        ...this.formData(input),
+        ...this.draftData(),
+        ...(listing.type !== input.type ? { isFull: false } : {}),
+      },
     });
     this.requireChange(result.count);
     return this.getMine(ownerId, id);
@@ -557,6 +561,7 @@ export class ListingsService {
         id: listing.owner.id,
         displayName: listing.owner.profile?.displayName ?? 'Thành viên Roomora',
         avatarUrl: listing.owner.profile?.avatarUrl ?? null,
+        profilePublic: listing.owner.profile?.visibility === 'PUBLIC',
       },
     };
   }

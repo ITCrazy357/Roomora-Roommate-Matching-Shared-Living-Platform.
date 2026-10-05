@@ -1,68 +1,71 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import {
-  type ListingPage,
-  listingTypes,
-  type ListingType,
-} from "@/lib/listings";
-import { Button, ButtonLink, LoadingState } from "../ui";
+import { type ListingPage, listingTypes, type ListingType } from "@/lib/listings";
+import { useAuth } from "../auth-provider";
+import { Button, LoadingState } from "../ui";
 import { ListingCard } from "./listing-card";
 
 const types: ListingType[] = ["ROOMMATE", "ROOM_RENTAL", "ROOM_WANTED"];
+const descriptions: Record<ListingType, string> = {
+  ROOMMATE: "Có chỗ ở, cần thêm người cùng chia sẻ.",
+  ROOM_RENTAL: "Phòng cho thuê với giá, diện tích và tiện ích cụ thể.",
+  ROOM_WANTED: "Nhu cầu tìm phòng theo khu vực và ngân sách.",
+};
 
-export function HomeListings() {
-  const [sections, setSections] = useState<ListingPage[] | null>(null);
+function ListingSection({ type }: { type: ListingType }) {
+  const [result, setResult] = useState<ListingPage | null>(null);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
+
   useEffect(() => {
     const controller = new AbortController();
-    Promise.all(
-      types.map((type) =>
-        apiFetch<ListingPage>(`/listings?type=${type}&limit=3`, {
-          signal: controller.signal,
-        }),
-      ),
-    )
-      .then((data) => { setSections(data); setError(false); })
+    apiFetch<ListingPage>(`/listings?type=${type}&limit=3`, { signal: controller.signal })
+      .then(setResult)
       .catch(() => {
-        if (!controller.signal.aborted) {
-          setSections(null);
-          setError(true);
-        }
+        if (!controller.signal.aborted) setError(true);
       });
     return () => controller.abort();
-  }, [retry]);
+  }, [type, retry]);
+
   return (
-    <section className="home-listings" aria-label="Tin đăng mới nhất">
-      <div className="section-heading">
+    <section className="home-listing-section" aria-labelledby={`home-${type}`}>
+      <div className="home-listing-heading">
         <div>
-          <span className="eyebrow">KHÁM PHÁ CHỖ Ở</span>
-          <h2>Tin đăng mới trên Roomora</h2>
+          <h2 id={`home-${type}`}>{listingTypes[type]}</h2>
+          <p className="text-muted">{descriptions[type]}</p>
         </div>
-        <ButtonLink href="/tim-phong" variant="secondary">
-          Xem tất cả →
-        </ButtonLink>
+        <Link className="text-link" href={`/tim-phong?type=${type}`}>
+          Xem tất cả{result ? ` (${result.total})` : ""} →
+        </Link>
       </div>
-    {error && <p role="alert">Không tải được tin đăng. <Button variant="secondary" onClick={() => setRetry((value) => value + 1)}>Thử lại</Button></p>}
-    {!sections && !error && <LoadingState />}
-      {sections?.map((section, index) => (
-        <div className="home-listing-section" key={types[index]}>
-          <h2>{listingTypes[types[index]]}</h2>
-          {section.items.length ? (
-            <div className="listing-grid">
-              {section.items.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted">
-              Chưa có tin công khai trong khu vực này.
-            </p>
-          )}
+      {error ? (
+        <div role="alert">
+          <p>Chưa tải được nhóm tin này.</p>
+          <Button variant="secondary" onClick={() => { setError(false); setRetry((value) => value + 1); }}>
+            Thử lại
+          </Button>
         </div>
-      ))}
+      ) : !result ? (
+        <LoadingState />
+      ) : result.items.length ? (
+        <div className="listing-grid">
+          {result.items.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
+        </div>
+      ) : (
+        <p className="home-listing-empty">Chưa có tin {listingTypes[type].toLowerCase()} được công khai.</p>
+      )}
     </section>
+  );
+}
+
+export function HomeListings() {
+  const { user } = useAuth();
+  return (
+    <div className="home-listings" id="tin-moi">
+      {types.map((type) => <ListingSection key={`${type}:${user?.id ?? "guest"}`} type={type} />)}
+    </div>
   );
 }

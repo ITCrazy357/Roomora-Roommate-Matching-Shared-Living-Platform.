@@ -968,3 +968,45 @@
     grid-template-columns: 1fr;
   }
 }
+.home-listings {
+  display: grid;
+  gap: 48px;
+  padding: 24px 0 64px;
+  scroll-margin-top: 24px;
+}
+.home-listing-section {
+  display: grid;
+  gap: 20px;
+}
+.home-listing-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.home-listing-heading h2 {
+  margin: 0 0 6px;
+  font-size: 1.4rem;
+}
+.home-listing-heading p,
+.home-listing-heading a {
+  font-size: 0.85rem;
+}
+.home-listing-empty {
+  padding: 24px 0;
+  color: var(--muted);
+}
+.listing-owner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.listing-owner .person-avatar {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  font-size: 1.2rem;
+}

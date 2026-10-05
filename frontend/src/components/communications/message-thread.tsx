@@ -12,11 +12,12 @@ import {
   type MessageAttachment,
 } from "@/lib/communications";
 import { useAuth } from "../auth-provider";
+import { useTyping } from "./use-typing";
 import { useUpdates } from "./updates-provider";
 import { Button, Card, ErrorState, LoadingState, Textarea } from "../ui";
 import { AppointmentCard } from "./appointment-card";
 import { AppointmentForm } from "./appointment-form";
-import { AreaMap } from "../listings/listing-content";
+import { AreaMap } from "../listings/area-map";
 
 function mergeMessages(old: Message[], items: Message[]) {
   const rows = new Map(old.map((item) => [item.number, item]));
@@ -104,42 +105,7 @@ export function MessageThread({ id }: { id: string }) {
   const microphone = useRef<MediaStream | null>(null);
   const recordTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startingRecorder = useRef(false);
-  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const typingRefresh = useRef<ReturnType<typeof setInterval> | null>(null);
-  const typingActive = useRef(false);
-
-  function stopTyping() {
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    if (typingRefresh.current) clearInterval(typingRefresh.current);
-    typingTimer.current = null;
-    typingRefresh.current = null;
-    if (!typingActive.current) return;
-    typingActive.current = false;
-    void post(`/conversations/${id}/typing`, { typing: false }).catch(() => {});
-  }
-  function updateTyping(value: string) {
-    if (!value.trim()) {
-      stopTyping();
-      return;
-    }
-    if (!typingActive.current) {
-      typingActive.current = true;
-      void post(`/conversations/${id}/typing`, { typing: true }).catch(() => {});
-      typingRefresh.current = setInterval(() => {
-        void post(`/conversations/${id}/typing`, { typing: true }).catch(() => {});
-      }, 2000);
-    }
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    if (typingRefresh.current) clearInterval(typingRefresh.current);
-    typingTimer.current = setTimeout(stopTyping, 1800);
-  }
-  useEffect(() => () => {
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    if (typingActive.current) {
-      typingActive.current = false;
-      void post(`/conversations/${id}/typing`, { typing: false }).catch(() => {});
-    }
-  }, [id]);
+  const { updateTyping, stopTyping } = useTyping(id);
   useEffect(() => () => {
     if (recordTimer.current) clearTimeout(recordTimer.current);
     if (recorder.current) recorder.current.onstop = null;

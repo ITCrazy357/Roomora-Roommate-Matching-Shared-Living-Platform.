@@ -134,15 +134,15 @@ export class SessionService {
     });
   }
 
-  private readCookie(request: Request): string | undefined {
-    return parseCookie(request.headers.cookie, this.cookieName());
+  private isProduction(): boolean {
+    return this.config.get<string>('NODE_ENV') === 'production';
   }
 
   private cookieName(): string {
     return cookieName(SESSION_COOKIE, this.isProduction());
   }
 
-  private isProduction(): boolean {
-    return this.config.get<string>('NODE_ENV') === 'production';
+  private readCookie(request: Request): string | undefined {
+    return parseCookie(request.headers.cookie, this.cookieName());
   }
 }

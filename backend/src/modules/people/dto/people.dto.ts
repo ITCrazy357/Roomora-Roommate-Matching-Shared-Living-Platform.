@@ -18,7 +18,7 @@ import {
   SleepSchedule,
   SmokingPreference,
   UserReportReason,
-} from '../../generated/prisma/enums.js';
+} from '../../../generated/prisma/enums.js';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;

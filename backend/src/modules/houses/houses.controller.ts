@@ -17,7 +17,7 @@ import {
   HouseInfoDto,
   InviteHouseDto,
   TransferHouseDto,
-} from './houses.dto.js';
+} from './dto/houses.dto.js';
 import { HousesService } from './houses.service.js';
 
 @Controller('houses')

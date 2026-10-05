@@ -1,5 +1,5 @@
 import { LocationsService } from './locations.service.js';
-import { provinces } from './vietnam.data.js';
+import { provinces } from './data/vietnam.data.js';
 
 describe('Vietnam two-tier location catalog', () => {
   const service = new LocationsService();

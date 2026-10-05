@@ -14,6 +14,7 @@ import {
   listingLocation,
   listingStatuses,
   listingTypes,
+  listingAvailability,
   money,
 } from "@/lib/listings";
 
@@ -106,25 +107,21 @@ export function ListingCard({
           ) : (
             <div className="listing-no-photo">
               <span aria-hidden="true">⌂</span>
-              <span>Chưa có ảnh phòng</span>
+              <span>{listing.type === "ROOM_WANTED" ? "Nhu cầu tìm phòng" : "Chưa có ảnh phòng"}</span>
             </div>
           )}
         </Link>
         <span className="listing-cover-label">
           {manage
             ? listingStatuses[listing.status]
-            : listing.isFull
-              ? "Đã đủ"
-              : listing.type === "ROOM_WANTED"
-                ? "Đang tìm phòng"
-                : `Còn ${listing.availableSlots} chỗ`}
+            : listingAvailability(listing)}
         </span>
         {!manage && <SaveListing listing={listing} onChange={onSave} />}
       </div>
       <div className="listing-card-body">
         <span className="eyebrow">{listingTypes[listing.type]}</span>
         <p className="listing-area">
-          {listingLocation(listing)} · {listing.area ?? "—"} m²
+          {listingLocation(listing)}{listing.area !== null ? ` · ${listing.area} m²` : ""}
         </p>
         <h2>
           <Link href={`/phong/${listing.id}`}>
@@ -159,7 +156,7 @@ export function ListingCard({
           </p>
         )}
         <div className="listing-card-footer">
-          <span>Dọn vào {listingDate(listing.availableFrom)}</span>
+          <span>{listing.availableFrom ? `Dọn vào ${listingDate(listing.availableFrom)}` : "Ngày dọn vào: trao đổi thêm"}</span>
           <span>{listing.owner.displayName}</span>
         </div>
         {manage && (

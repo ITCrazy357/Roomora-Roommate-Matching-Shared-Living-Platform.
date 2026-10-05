@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { provinces } from './vietnam.data.js';
+import { provinces } from './data/vietnam.data.js';
 
 export interface DesiredLocation {
   provinceCode: string;

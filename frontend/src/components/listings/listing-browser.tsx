@@ -18,6 +18,7 @@ import {
   listingError,
   listingStatuses,
   listingTypes,
+  type ListingType,
 } from "@/lib/listings";
 import { ListingCard } from "./listing-card";
 
@@ -25,11 +26,14 @@ type Unit = { code: string; name: string };
 
 export function ListingBrowser({
   mode = "explore",
+  initialType = "",
 }: {
   mode?: "explore" | "mine" | "saved";
+  initialType?: ListingType | "";
 }) {
   const { user } = useAuth();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialType ? `type=${initialType}` : "");
+  const [type, setType] = useState<ListingType | "">(initialType);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [retry, setRetry] = useState(0);
@@ -117,9 +121,9 @@ export function ListingBrowser({
   }
 
   const titles = {
-    explore: "Tìm một nơi ở, gặp người hợp mình.",
+    explore: "Khám phá tin đăng",
     mine: "Tin đăng của tôi",
-    saved: "Những căn phòng bạn đã lưu",
+    saved: "Tin đã lưu",
   };
   return (
     <section className="container page-section listings-page">
@@ -131,7 +135,7 @@ export function ListingBrowser({
           <h1>{titles[mode]}</h1>
           <p className="text-muted">
             {mode === "explore"
-              ? "Khám phá phòng có chỗ trống, chi phí rõ ràng và nếp sống phù hợp."
+              ? "Tìm người ở ghép, phòng cho thuê và nhu cầu tìm phòng."
               : mode === "mine"
                 ? "Tiếp tục bản nháp, theo dõi kiểm duyệt và quản lý tin phòng của bạn."
                 : "Các tin đang công khai bạn quan tâm. Tin tạm ẩn sẽ hiển thị lại khi được duyệt."}
@@ -143,7 +147,7 @@ export function ListingBrowser({
         <div className="listing-search-bar">
           <Input
             id="search"
-            label="Tìm kiếm phòng"
+            label="Tìm kiếm tin đăng"
             name="search"
             placeholder="Tên phòng hoặc khu vực…"
             maxLength={150}
@@ -155,7 +159,7 @@ export function ListingBrowser({
             <option value="price_asc">Giá tăng dần</option>
             <option value="price_desc">Giá giảm dần</option>
           </Select>
-          <Button type="submit">Tìm phòng</Button>
+          <Button type="submit">Tìm tin</Button>
         </div>
         <div
           className={`listing-browser-grid ${mode !== "explore" ? "listing-browser-personal" : ""}`}
@@ -182,13 +186,14 @@ export function ListingBrowser({
                     setProvince("");
                     setWards([]);
                     setQuery("");
+                    setType("");
                     setPage(1);
                   }}
                 >
                   Xóa bộ lọc
                 </button>
               </div>
-              <Select id="type" name="type" label="Loại tin">
+              <Select id="type" name="type" label="Loại tin" value={type} onChange={(event) => setType(event.target.value as ListingType | "")}>
                 <option value="">Tất cả loại tin</option>
                 {Object.entries(listingTypes).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -236,7 +241,7 @@ export function ListingBrowser({
               <Input
                 id="minRent"
                 name="minRent"
-                label="Giá tối thiểu / người / tháng"
+                label="Mức tiền từ / tháng"
                 type="number"
                 min={0}
                 max={100000000}
@@ -246,7 +251,7 @@ export function ListingBrowser({
               <Input
                 id="maxRent"
                 name="maxRent"
-                label="Giá tối đa / người / tháng"
+                label="Mức tiền đến / tháng"
                 type="number"
                 min={0}
                 max={100000000}

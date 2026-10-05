@@ -19,7 +19,7 @@ import type {
   AppointmentQuery,
   ChangeAppointmentDto,
   TypingDto,
-} from './communications.dto.js';
+} from './dto/communications.dto.js';
 
 const participant = (userId: string): Prisma.ConnectionWhereInput => ({
   status: 'ACCEPTED',
@@ -76,9 +76,33 @@ export class ConversationsService {
     private readonly updates: UpdatesService,
   ) {}
 
+  private async withConversation<T>(
+    userId: string,
+    id: string,
+    work: (
+      tx: Prisma.TransactionClient,
+      row: Conversation & {
+        connection: { senderId: string; receiverId: string };
+      },
+    ) => Promise<T>,
+  ) {
+    const existing = await this.access(this.prisma, userId, id);
+    return this.prisma.$transaction(async (tx) => {
+      // Same lock order as connection/block operations. Recheck permission after locking.
+      await tx.$queryRaw`SELECT id FROM users WHERE id IN (${existing.connection.senderId}::uuid, ${existing.connection.receiverId}::uuid) ORDER BY id FOR UPDATE`;
+      const row = await this.access(tx, userId, id);
+      return work(tx, row);
+    });
+  }
+
   async typing(userId: string, id: string, dto: TypingDto) {
     return this.withConversation(userId, id, async (tx, row) => {
-      await this.updates.typing(tx, this.otherUser(row, userId), id, dto.typing);
+      await this.updates.typing(
+        tx,
+        this.otherUser(row, userId),
+        id,
+        dto.typing,
+      );
       return { typing: dto.typing };
     });
   }
@@ -90,7 +114,11 @@ export class ConversationsService {
         where,
         include: {
           connection: { include: connectionInclude },
-          messages: { orderBy: { number: 'desc' }, take: 1, select: messageSelect },
+          messages: {
+            orderBy: { number: 'desc' },
+            take: 1,
+            select: messageSelect,
+          },
         },
         orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
         skip: (query.page - 1) * query.limit,
@@ -120,6 +148,7 @@ export class ConversationsService {
       pages: Math.ceil(total / query.limit),
     };
   }
+
   async detail(userId: string, id: string) {
     const row = await this.prisma.conversation.findFirst({
       where: { id, connection: participant(userId) },
@@ -140,6 +169,7 @@ export class ConversationsService {
         where: {
           ownerId: { in: [row.connection.senderId, row.connection.receiverId] },
           status: 'PUBLISHED',
+          type: { not: 'ROOM_WANTED' },
         },
         select: {
           id: true,
@@ -168,11 +198,18 @@ export class ConversationsService {
       })),
       listings: listings.map((listing) => ({
         ...listing,
-        latitude: listing.latitude === null ? null : Math.round(listing.latitude * 100) / 100,
-        longitude: listing.longitude === null ? null : Math.round(listing.longitude * 100) / 100,
+        latitude:
+          listing.latitude === null
+            ? null
+            : Math.round(listing.latitude * 100) / 100,
+        longitude:
+          listing.longitude === null
+            ? null
+            : Math.round(listing.longitude * 100) / 100,
       })),
     };
   }
+
   async messages(userId: string, id: string, query: MessageQuery) {
     await this.access(this.prisma, userId, id);
     if (query.before !== undefined && query.after !== undefined)
@@ -192,15 +229,28 @@ export class ConversationsService {
     if (!ascending) items.reverse();
     return { items, hasMore };
   }
-  async send(userId: string, id: string, dto: SendMessageDto, files: MessageFiles = {}) {
+
+  async send(
+    userId: string,
+    id: string,
+    dto: SendMessageDto,
+    files: MessageFiles = {},
+  ) {
     const images = files?.images ?? [];
     const audio = files?.audio ?? [];
     if (!dto.text && !images.length && !audio.length)
       throw new BadRequestException({ code: 'MESSAGE_EMPTY' });
     if (images.length > 4 || audio.length > 1)
       throw new BadRequestException({ code: 'MESSAGE_MEDIA_LIMIT' });
-    if (images.length || audio.length) await this.access(this.prisma, userId, id);
-    const hash = createHash('sha256').update(JSON.stringify({ text: dto.text, images: images.length, audio: audio.length }));
+    if (images.length || audio.length)
+      await this.access(this.prisma, userId, id);
+    const hash = createHash('sha256').update(
+      JSON.stringify({
+        text: dto.text,
+        images: images.length,
+        audio: audio.length,
+      }),
+    );
     const attachments: Array<{
       kind: 'IMAGE' | 'AUDIO';
       mimeType: string;
@@ -217,7 +267,10 @@ export class ConversationsService {
       hash.update(String(file.buffer.length)).update(':').update(file.buffer);
       attachments.push(this.prepareAudio(file));
     }
-    if (attachments.reduce((total, file) => total + file.byteSize, 0) > 5 * 1024 * 1024)
+    if (
+      attachments.reduce((total, file) => total + file.byteSize, 0) >
+      5 * 1024 * 1024
+    )
       throw new BadRequestException({ code: 'MESSAGE_MEDIA_SIZE' });
     const contentHash = hash.digest('hex');
     return this.withConversation(userId, id, async (tx, row) => {
@@ -234,10 +287,17 @@ export class ConversationsService {
       if (existing) {
         if (
           existing.contentHash !== contentHash &&
-          !(existing.contentHash === '' && existing.text === dto.text && !attachments.length)
+          !(
+            existing.contentHash === '' &&
+            existing.text === dto.text &&
+            !attachments.length
+          )
         )
           throw new ConflictException({ code: 'MESSAGE_CHANGED' });
-        return tx.message.findUniqueOrThrow({ where: { id: existing.id }, select: messageSelect });
+        return tx.message.findUniqueOrThrow({
+          where: { id: existing.id },
+          select: messageSelect,
+        });
       }
       const count = await tx.message.count({
         where: {
@@ -259,7 +319,10 @@ export class ConversationsService {
           text: dto.text,
           contentHash,
           attachments: {
-            create: attachments.map((file, position) => ({ ...file, position })),
+            create: attachments.map((file, position) => ({
+              ...file,
+              position,
+            })),
           },
         },
         select: messageSelect,
@@ -288,13 +351,24 @@ export class ConversationsService {
     if (!file.buffer?.length || file.size > 5 * 1024 * 1024)
       throw new BadRequestException({ code: 'MESSAGE_IMAGE_SIZE' });
     try {
-      const source = sharp(file.buffer, { limitInputPixels: 25_000_000, failOn: 'warning' });
+      const source = sharp(file.buffer, {
+        limitInputPixels: 25_000_000,
+        failOn: 'warning',
+      });
       const metadata = await source.metadata();
-      if (!['jpeg', 'png', 'webp'].includes(metadata.format ?? '') || (metadata.pages ?? 1) > 1)
+      if (
+        !['jpeg', 'png', 'webp'].includes(metadata.format ?? '') ||
+        (metadata.pages ?? 1) > 1
+      )
         throw new Error('Invalid image');
-      const data = await source.rotate().resize(1600, 1200, {
-        fit: 'inside', withoutEnlargement: true,
-      }).jpeg({ quality: 82 }).toBuffer();
+      const data = await source
+        .rotate()
+        .resize(1600, 1200, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 82 })
+        .toBuffer();
       if (data.length > 2 * 1024 * 1024) throw new Error('Image too large');
       const size = await sharp(data).metadata();
       return {
@@ -313,12 +387,23 @@ export class ConversationsService {
     if (!file.buffer?.length || file.size > 2 * 1024 * 1024)
       throw new BadRequestException({ code: 'MESSAGE_AUDIO_SIZE' });
     const mimeType = file.mimetype.split(';')[0].toLowerCase();
-    const webm = mimeType === 'audio/webm' && file.buffer.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
-    const mp4 = mimeType === 'audio/mp4' && file.buffer.subarray(4, 8).toString() === 'ftyp';
-    const ogg = mimeType === 'audio/ogg' && file.buffer.subarray(0, 4).toString() === 'OggS';
+    const webm =
+      mimeType === 'audio/webm' &&
+      file.buffer.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
+    const mp4 =
+      mimeType === 'audio/mp4' &&
+      file.buffer.subarray(4, 8).toString() === 'ftyp';
+    const ogg =
+      mimeType === 'audio/ogg' &&
+      file.buffer.subarray(0, 4).toString() === 'OggS';
     if (!webm && !mp4 && !ogg)
       throw new BadRequestException({ code: 'MESSAGE_AUDIO_INVALID' });
-    return { kind: 'AUDIO' as const, mimeType, byteSize: file.size, data: Uint8Array.from(file.buffer) };
+    return {
+      kind: 'AUDIO' as const,
+      mimeType,
+      byteSize: file.size,
+      data: Uint8Array.from(file.buffer),
+    };
   }
   async read(userId: string, id: string, number: number) {
     return this.withConversation(userId, id, async (tx, row) => {
@@ -359,7 +444,9 @@ export class ConversationsService {
         item,
         userId,
         this.otherUser(row, userId),
-        dto.listingId ? 'Có đề xuất lịch xem phòng mới' : 'Có đề xuất lịch gặp mới',
+        dto.listingId
+          ? 'Có đề xuất lịch xem phòng mới'
+          : 'Có đề xuất lịch gặp mới',
       );
       return item;
     });
@@ -381,15 +468,20 @@ export class ConversationsService {
       let title: string;
       if (dto.action === 'cancel') {
         data = { status: 'CANCELLED' };
-        title = item.listingId ? 'Lịch xem phòng đã được hủy' : 'Lịch gặp đã được hủy';
+        title = item.listingId
+          ? 'Lịch xem phòng đã được hủy'
+          : 'Lịch gặp đã được hủy';
       } else {
-        if (item.listingId) await this.availableListing(tx, item.listingId, row);
+        if (item.listingId)
+          await this.availableListing(tx, item.listingId, row);
         if (dto.action === 'confirm') {
           if (item.status !== 'PENDING' || item.proposerId === userId)
             throw new ConflictException({ code: 'APPOINTMENT_CHANGED' });
           this.futureDate(item.startsAt.toISOString());
           data = { status: 'CONFIRMED' };
-          title = item.listingId ? 'Lịch xem phòng đã được xác nhận' : 'Lịch gặp đã được xác nhận';
+          title = item.listingId
+            ? 'Lịch xem phòng đã được xác nhận'
+            : 'Lịch gặp đã được xác nhận';
         } else {
           if (!dto.startsAt || !dto.place) throw new BadRequestException();
           if (item.startsAt < new Date())
@@ -401,7 +493,9 @@ export class ConversationsService {
             proposerId: userId,
             status: 'PENDING',
           };
-          title = item.listingId ? 'Có đề xuất đổi lịch xem phòng' : 'Có đề xuất đổi lịch gặp';
+          title = item.listingId
+            ? 'Có đề xuất đổi lịch xem phòng'
+            : 'Có đề xuất đổi lịch gặp';
         }
       }
       const updated = await tx.appointment.update({
@@ -472,24 +566,7 @@ export class ConversationsService {
     if (!row) this.unavailable();
     return row;
   }
-  private async withConversation<T>(
-    userId: string,
-    id: string,
-    work: (
-      tx: Prisma.TransactionClient,
-      row: Conversation & {
-        connection: { senderId: string; receiverId: string };
-      },
-    ) => Promise<T>,
-  ) {
-    const existing = await this.access(this.prisma, userId, id);
-    return this.prisma.$transaction(async (tx) => {
-      // Same lock order as connection/block operations. Recheck permission after locking.
-      await tx.$queryRaw`SELECT id FROM users WHERE id IN (${existing.connection.senderId}::uuid, ${existing.connection.receiverId}::uuid) ORDER BY id FOR UPDATE`;
-      const row = await this.access(tx, userId, id);
-      return work(tx, row);
-    });
-  }
+
   private view(row: ConversationRow, userId: string) {
     const profile = (
       row.connection.senderId === userId
@@ -540,6 +617,7 @@ export class ConversationsService {
       where: {
         id,
         status: 'PUBLISHED',
+        type: { not: 'ROOM_WANTED' },
         ownerId: { in: [row.connection.senderId, row.connection.receiverId] },
       },
       select: { id: true },

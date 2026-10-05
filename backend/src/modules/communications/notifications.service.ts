@@ -12,7 +12,7 @@ import type {
   NotificationType,
 } from '../../generated/prisma/client.js';
 import { MailService } from '../auth/mail.service.js';
-import type { NotificationQuery } from './communications.dto.js';
+import type { NotificationQuery } from './dto/communications.dto.js';
 
 @Injectable()
 export class NotificationsService implements OnModuleInit, OnModuleDestroy {

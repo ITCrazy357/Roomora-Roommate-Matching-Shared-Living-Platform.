@@ -7,7 +7,7 @@ import {
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { NotificationsService } from '../communications/notifications.service.js';
-import type { HouseAnnouncementDto, HouseInfoDto } from './houses.dto.js';
+import type { HouseAnnouncementDto, HouseInfoDto } from './dto/houses.dto.js';
 
 @Injectable()
 export class HousesService {

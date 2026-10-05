@@ -18,9 +18,10 @@ import {
 } from "@/lib/people";
 import {
   ConnectionActions,
-  PersonAvatar,
   PersonDetails,
 } from "./person-details";
+
+import { PersonAvatar } from "../person-avatar";
 
 const tabs: Record<ConnectionTab, string> = {
   received: "Đã nhận",

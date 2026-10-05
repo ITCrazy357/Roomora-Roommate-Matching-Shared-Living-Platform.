@@ -150,6 +150,18 @@ Hoàn thành khi: nhiều tài khoản cùng tham gia một nhà, thao tác đú
 
 8. Phase 7 — Khoản chi, chia tiền và công nợ
 
+Bổ sung: 
+1. Trong Nhà Chung mục thành viên, sửa lại: tên chính mình thì không nên để xem hồ sơ, chỉ xem hiển thị khi các thành viên khác thôi.
+2. Trong phần chat, thêm tính năng có thể chỉnh sửa tin nhắn và xóa tin nhắn/ghi âm
+3. Trong phần đăng tin, mục Tìm phòng, đây là mục đăng tin khi user muốn tìm phòng theo ý mình, 
+ví dụ phòng ở được 2 người, có bếp, có wifi, máy nóng lạnh,... 
+để ai có phòng giống điều kiện vậy sẽ liên hệ để cho thuê hoặc những user chuẩn bị chuyển phòng, 
+nhưng phòng đó cũng đúng điều kiện với người kia thì có thể liên hệ với nhau để bàn giao, sau đó liên hệ chủ phòng để chấp thuận.
+
+Lưu ý: Có các trường hợp cần chú ý để làm cho đúng logic business: 
+- Chủ phòng không dùng app này, nhưng user lại tìm người ghép hoặc bàn giao phòng trên này.
+- Các user đang ở với một người không dùng app này
+
 Màn hình: chi phí, công nợ, quyết toán.
 
 Công việc:

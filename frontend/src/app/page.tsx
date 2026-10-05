@@ -1,92 +1,21 @@
 import { HomeSlideshow } from "@/components/home-slideshow";
 import { HomeListings } from "@/components/listings/home-listings";
-import { Badge, ButtonLink, Card } from "@/components/ui";
+import { ButtonLink } from "@/components/ui";
 
 export default function Home() {
   return (
     <div className="container home">
       <section className="hero" aria-labelledby="home-title">
         <div className="hero-copy">
-          <Badge>KHỞI ĐẦU MỘT CHƯƠNG MỚI</Badge>
-          <h1 id="home-title">
-            Một nơi ở vừa ý.
-            <br />
-            Một người bạn
-            <br />
-            <span>thật hợp mình.</span>
-          </h1>
-          <p>
-            Nhà không chỉ là một địa chỉ. Đó là nơi bạn được là chính mình, cùng
-            những người có chung nhịp sống.
-          </p>
+          <span className="eyebrow">PHÒNG TRỌ & Ở GHÉP</span>
+          <h1 id="home-title">Tìm chỗ ở.<br /><span>Chọn người cùng nhà.</span></h1>
+          <p>Xem phòng cho thuê, tìm bạn ở ghép hoặc đăng nhu cầu tìm phòng của bạn. So sánh chi phí, tiện ích và khu vực trước khi kết nối.</p>
           <div className="hero-actions">
-            <ButtonLink href="/tim-phong">
-              Khám phá phòng <span aria-hidden="true">↗</span>
-            </ButtonLink>
-            <ButtonLink href="/tim-nguoi-o-ghep" variant="secondary">
-              Tìm người ở ghép
-            </ButtonLink>
-          </div>
-          <div className="hero-note">
-            <span aria-hidden="true">✳</span> Bắt đầu từ điều phù hợp với bạn.
+            <ButtonLink href="#tin-moi">Xem tin mới ↓</ButtonLink>
+            <ButtonLink href="/dang-tin" variant="secondary">Đăng tin</ButtonLink>
           </div>
         </div>
         <HomeSlideshow />
-      </section>
-      <section className="journey-section" aria-labelledby="journey-title">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">BẠN MUỐN BẮT ĐẦU TỪ ĐÂU?</span>
-            <h2 id="journey-title">Hai lối đi, cùng một mái nhà.</h2>
-          </div>
-          <p>
-            Mỗi người một nhu cầu.
-            <br />
-            Chọn hành trình của riêng bạn.
-          </p>
-        </div>
-        <div className="journey-grid">
-          <Card className="journey-card">
-            <div className="journey-icon" aria-hidden="true">
-              ⌂
-            </div>
-            <div>
-              <h3>Tìm một căn phòng</h3>
-              <p>
-                Một góc riêng để nghỉ ngơi, làm việc và tận hưởng cuộc sống theo
-                cách của bạn.
-              </p>
-              <ButtonLink href="/tim-phong" variant="secondary">
-                Khám phá hướng tìm phòng <span aria-hidden="true">→</span>
-              </ButtonLink>
-            </div>
-          </Card>
-          <Card className="journey-card">
-            <div className="journey-icon peach" aria-hidden="true">
-              ☷
-            </div>
-            <div>
-              <h3>Tìm người cùng nhà</h3>
-              <p>
-                Chia sẻ không gian với người đồng điệu về thói quen, sự riêng tư
-                và nhịp sống.
-              </p>
-              <ButtonLink href="/tim-nguoi-o-ghep" variant="secondary">
-                Khám phá hướng ở ghép <span aria-hidden="true">→</span>
-              </ButtonLink>
-            </div>
-          </Card>
-        </div>
-      </section>
-      <section className="brand-note" aria-label="Tinh thần Roomora">
-        <span aria-hidden="true">✳</span>
-        <p>
-          Ở cùng nhau, <strong>sống đúng với mình.</strong>
-        </p>
-        <p>
-          Từ một căn phòng đến cảm giác thuộc về — Roomora bắt đầu với sự thấu
-          hiểu.
-        </p>
       </section>
       <HomeListings />
     </div>

@@ -6,9 +6,13 @@ import {
   listingLocation,
   money,
   listingTypes,
+  listingCostUnit,
+  listingAvailability,
 } from "@/lib/listings";
 import { Card } from "../ui";
-import { RoomMap } from "./room-map";
+import { AreaMap } from "./area-map";
+import { PersonAvatar } from "../person-avatar";
+import Link from "next/link";
 
 const lifestyle: Record<string, string> = {
   NO_SMOKING: "Không hút thuốc",
@@ -22,31 +26,6 @@ const lifestyle: Record<string, string> = {
   SOCIAL: "Thích giao lưu",
 };
 
-export function AreaMap({
-  latitude,
-  longitude,
-}: {
-  latitude: number | null;
-  longitude: number | null;
-}) {
-  if (latitude === null || longitude === null)
-    return <p className="text-muted">Chưa chọn vị trí khu vực.</p>;
-  const center = `${latitude},${longitude}`;
-  return (
-    <div className="area-map">
-      <RoomMap latitude={latitude} longitude={longitude} />
-      <a
-        className="text-link"
-        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(center)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Mở bản đồ khu vực ↗
-      </a>
-    </div>
-  );
-}
-
 export function ListingContent({
   listing,
   preview = false,
@@ -54,17 +33,13 @@ export function ListingContent({
   listing: Listing;
   preview?: boolean;
 }) {
+  const costUnit = listingCostUnit(listing.type);
   const costs = [
-    [
-      listing.type === "ROOM_RENTAL"
-        ? "Tiền thuê / phòng / tháng"
-        : "Tiền thuê / người / tháng",
-      listing.rent,
-    ],
-    ["Điện dự kiến / người / tháng", listing.electricityCost],
-    ["Nước / người / tháng", listing.waterCost],
-    ["Internet / người / tháng", listing.internetCost],
-    ["Chi phí khác / người / tháng", listing.otherCost],
+    [`Tiền thuê / ${costUnit} / tháng`, listing.rent],
+    [`Điện dự kiến / ${costUnit} / tháng`, listing.electricityCost],
+    [`Nước / ${costUnit} / tháng`, listing.waterCost],
+    [`Internet / ${costUnit} / tháng`, listing.internetCost],
+    [`Chi phí khác / ${costUnit} / tháng`, listing.otherCost],
   ] as const;
   const total =
     (listing.rent ?? 0) +
@@ -92,8 +67,8 @@ export function ListingContent({
       )}
       <div className="listing-facts">
         {[
-          ["Diện tích", `${listing.area ?? "—"} m²`],
-          ["Trạng thái", listing.isFull ? "Đã đủ" : "Đang nhận liên hệ"],
+          [listing.type === "ROOM_WANTED" ? "Diện tích mong muốn" : "Diện tích", listing.area === null ? "Chưa cung cấp" : `${listing.area} m²`],
+          ["Trạng thái", listingAvailability(listing)],
           ...(listing.type === "ROOMMATE"
             ? [
                 [
@@ -102,7 +77,7 @@ export function ListingContent({
                 ],
               ]
             : []),
-          ["Dọn vào", listingDate(listing.availableFrom)],
+          ["Dọn vào", listing.availableFrom ? listingDate(listing.availableFrom) : "Trao đổi thêm"],
         ].map(([label, value]) => (
           <div key={label}>
             <span>{label}</span>
@@ -133,11 +108,11 @@ export function ListingContent({
                   </div>
                 ))}
                 <div className="listing-total">
-                  <dt>Tổng dự kiến / người / tháng</dt>
+                  <dt>Tổng dự kiến / {costUnit} / tháng</dt>
                   <dd>{money(total)}</dd>
                 </div>
                 <div>
-                  <dt>Tiền cọc ban đầu / người</dt>
+                  <dt>Tiền cọc ban đầu / {costUnit}</dt>
                   <dd>{money(listing.deposit)}</dd>
                 </div>
               </dl>
@@ -189,7 +164,7 @@ export function ListingContent({
             </p>
           </Card>
           <Card>
-            <h2>Vị trí khu vực</h2>
+            <h2>{listing.type === "ROOM_WANTED" ? "Khu vực muốn tìm" : "Vị trí khu vực"}</h2>
             <p>{listingLocation(listing)}</p>
             <AreaMap
               latitude={listing.latitude}
@@ -202,7 +177,7 @@ export function ListingContent({
                   ? "Bản xem trước giữ đúng vị trí bạn đang chọn. Khi lưu và hiển thị công khai, vị trí được làm tròn đến khoảng 1 km. Địa chỉ cụ thể không hiển thị công khai."
                   : "Vị trí bản đồ được làm tròn đến khoảng 1 km và chỉ thể hiện khu vực gần phòng. Địa chỉ cụ thể không hiển thị công khai."}
             </p>
-            {listing.privateAddress !== undefined && (
+            {listing.type !== "ROOM_WANTED" && listing.privateAddress !== undefined && (
               <p className="listing-review-note">
                 Địa chỉ riêng tư (chủ tin / admin):{" "}
                 {listing.privateAddress || "Chưa nhập"}
@@ -218,18 +193,24 @@ export function ListingContent({
               {listing.type === "ROOM_WANTED"
                 ? "Ngân sách tối đa / tháng"
                 : listing.type === "ROOM_RENTAL"
-                  ? `/ phòng / tháng · Còn ${listing.availableSlots} phòng`
+                  ? `/ phòng / tháng · ${listingAvailability(listing)}`
                   : `/ người / tháng · ${listing.currentResidents}/${listing.currentResidents + listing.availableSlots} người đang ở`}
             </p>
             <hr />
-            <p>Dọn vào {listingDate(listing.availableFrom)}</p>
+            <p>{listing.availableFrom ? `Dọn vào ${listingDate(listing.availableFrom)}` : "Ngày dọn vào: trao đổi thêm"}</p>
             {listing.type !== "ROOM_WANTED" && (
               <p>Tiền cọc: {money(listing.deposit)}</p>
             )}
           </Card>
           <Card>
             <h2>Người đăng tin</h2>
-            <p>{listing.owner.displayName}</p>
+            <div className="listing-owner">
+              <PersonAvatar person={listing.owner} />
+              <strong>{listing.owner.displayName}</strong>
+            </div>
+            {!preview && (listing.owner.profilePublic
+              ? <Link className="text-link" href={`/ho-so/${listing.ownerId}`}>Xem hồ sơ và kết nối →</Link>
+              : <p className="text-muted">Người đăng chưa công khai hồ sơ để nhận kết nối.</p>)}
             <p className="text-muted">
               Thông tin phòng và chi phí do người đăng cung cấp. Kiểm duyệt nội
               dung chưa thay thế việc xem phòng thực tế.

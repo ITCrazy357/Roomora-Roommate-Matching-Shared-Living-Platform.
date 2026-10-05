@@ -23,7 +23,7 @@ function ListingDetailView({ id }: { id: string }) {
     if (loading) return;
     const controller = new AbortController();
     apiFetch<Listing>(`/listings/${id}`, { signal: controller.signal })
-      .then(setListing)
+      .then((data) => { setListing(data); setError(""); })
       .catch((error) => {
         if (!controller.signal.aborted) setError(listingError(error));
       });

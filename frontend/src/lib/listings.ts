@@ -26,6 +26,18 @@ export const listingTypes = {
 } as const;
 export type ListingType = keyof typeof listingTypes;
 
+export function listingCostUnit(type: ListingType) {
+  return type === "ROOM_RENTAL" ? "phòng" : "người";
+}
+
+export function listingAvailability(listing: Listing) {
+  if (listing.status === "CLOSED") return "Đã đóng tin";
+  if (listing.type === "ROOM_WANTED") return "Đang tìm phòng";
+  if (listing.isFull) return "Đã đủ";
+  const unit = listing.type === "ROOM_RENTAL" ? "phòng" : "chỗ";
+  return `Còn ${listing.availableSlots} ${unit}`;
+}
+
 export interface Listing {
   id: string;
   ownerId: string;
@@ -64,7 +76,7 @@ export interface Listing {
   createdAt: string;
   updatedAt: string;
   photos: { id: string; url: string; position: number }[];
-  owner: { id: string; displayName: string; avatarUrl: string | null };
+  owner: { id: string; displayName: string; avatarUrl: string | null; profilePublic: boolean };
   saved?: boolean;
   reviews?: {
     id: string;

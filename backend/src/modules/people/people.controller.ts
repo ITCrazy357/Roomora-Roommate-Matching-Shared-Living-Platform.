@@ -22,7 +22,7 @@ import {
   PeopleQuery,
   ReportUserDto,
   SendConnectionDto,
-} from './people.dto.js';
+} from './dto/people.dto.js';
 
 @Controller('people')
 export class PeopleController {

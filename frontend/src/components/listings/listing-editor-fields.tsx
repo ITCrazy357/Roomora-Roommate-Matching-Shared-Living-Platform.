@@ -4,6 +4,7 @@ import { Button, Input, Select, Textarea } from "../ui";
 import {
   amenities,
   listingTypes,
+  listingCostUnit,
   type Amenity,
   type Listing,
 } from "@/lib/listings";
@@ -47,6 +48,7 @@ export function ListingEditorFields({
   upload,
   removePhoto,
 }: Props) {
+  const costUnit = listingCostUnit(form.type);
   const numberField = (
     key:
       | "rent"
@@ -152,7 +154,7 @@ export function ListingEditorFields({
             10000,
           )}
           {form.type !== "ROOM_WANTED" &&
-            numberField("availableSlots", "Số chỗ còn trống", 1, 20)}
+            numberField("availableSlots", form.type === "ROOM_RENTAL" ? "Số phòng còn trống" : "Số chỗ còn trống", 1, 20)}
           {form.type === "ROOMMATE" &&
             numberField("currentResidents", "Số người đang ở", 0, 20)}
           <Input
@@ -173,7 +175,7 @@ export function ListingEditorFields({
         <p className="text-muted">
           {form.type === "ROOM_WANTED"
             ? "Nhập ngân sách tối đa mỗi tháng và khu vực bạn muốn tìm."
-            : "Các khoản tiền tính bằng VNĐ mỗi tháng. Ghi rõ mức cho một người hay cả phòng trong mô tả."}
+            : `Các khoản tiền tính bằng VNĐ cho một ${costUnit}. Chi phí điện, nước và dịch vụ tính theo tháng.`}
         </p>
         <div className="form-grid">
           {numberField(
@@ -187,11 +189,11 @@ export function ListingEditorFields({
           )}
           {form.type !== "ROOM_WANTED" && (
             <>
-              {numberField("deposit", "Tiền cọc ban đầu")}
-              {numberField("electricityCost", "Tiền điện dự kiến / tháng")}
-              {numberField("waterCost", "Tiền nước / tháng")}
-              {numberField("internetCost", "Internet / tháng")}
-              {numberField("otherCost", "Chi phí khác / tháng")}
+              {numberField("deposit", `Tiền cọc ban đầu / ${costUnit}`)}
+              {numberField("electricityCost", `Tiền điện dự kiến / ${costUnit} / tháng`)}
+              {numberField("waterCost", `Tiền nước / ${costUnit} / tháng`)}
+              {numberField("internetCost", `Internet / ${costUnit} / tháng`)}
+              {numberField("otherCost", `Chi phí khác / ${costUnit} / tháng`)}
             </>
           )}
         </div>
@@ -250,7 +252,6 @@ export function ListingEditorFields({
           </p>
         )}
         {form.type !== "ROOM_WANTED" && (
-          <>
             <Input
               id="privateAddress"
               label="Địa chỉ cụ thể (riêng tư)"
@@ -259,11 +260,10 @@ export function ListingEditorFields({
               hint="Chỉ chủ tin và admin được xem. Không đưa địa chỉ cụ thể vào tiêu đề, mô tả hoặc ảnh."
               onChange={(event) => change("privateAddress", event.target.value)}
             />
-            <h3>Vị trí khu vực trên bản đồ</h3>
+        )}
+            <h3>{form.type === "ROOM_WANTED" ? "Khu vực muốn tìm trên bản đồ (tùy chọn)" : "Vị trí khu vực trên bản đồ"}</h3>
             <p className="text-muted">
-              Ghim nằm cố định ở giữa. Kéo bản đồ để đưa vị trí phòng đến dưới
-              ghim. Vị trí được làm tròn đến khoảng 1 km khi lưu và hiển thị
-              công khai.
+              Kéo bản đồ để chọn khu vực dưới ghim. Vị trí công khai được làm tròn đến khoảng 1 km.
             </p>
             <Button variant="secondary" onClick={locate} disabled={pending}>
               Lấy vị trí khu vực hiện tại
@@ -274,8 +274,6 @@ export function ListingEditorFields({
               disabled={pending}
               onChange={selectLocation}
             />
-          </>
-        )}
       </div>
     );
 

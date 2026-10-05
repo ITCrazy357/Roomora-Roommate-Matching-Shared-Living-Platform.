@@ -109,6 +109,7 @@ export class GoogleAuthService {
     return { url: await this.start(request, response, request.auth.sessionId) };
   }
 
+  //tiếp nhận kết quả → kiểm tra mọi thứ → nếu hợp lệ thì đăng nhập hoặc liên kết Google → cuối cùng đưa người dùng về frontend.
   async callback(request: Request, response: Response): Promise<string> {
     let errorPath = '/dang-nhap';
     let step = 'state';
@@ -170,6 +171,7 @@ export class GoogleAuthService {
     );
   }
 
+  //Kiểm tra xem lần callback từ Google có đúng là lần OAuth mà Roomora đã tạo trước đó hay không, sau đó “tiêu thụ” state để nó chỉ được dùng 1 lần.
   private async consumeState(request: Request) {
     const state = request.query.state;
     const browserToken = parseCookie(request.headers.cookie, this.cookieName());
@@ -201,6 +203,7 @@ export class GoogleAuthService {
     return saved;
   }
 
+  //Sau khi Google xác thực thành công, tìm xem Google account này đã có tài khoản Roomora chưa. Nếu có thì lấy User cũ, nếu chưa thì tạo User mới.
   private async findOrCreateUser(identity: GoogleIdentity) {
     const account = await this.prisma.googleAccount.findUnique({
       where: { googleId: identity.googleId },

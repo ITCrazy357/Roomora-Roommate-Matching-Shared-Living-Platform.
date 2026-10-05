@@ -14,7 +14,8 @@ import {
 import { apiFetch } from "@/lib/api";
 import { formatBudget, peopleError, type PeoplePage } from "@/lib/people";
 import { lifestyleLabels, type MyProfile } from "@/lib/profile";
-import { PersonAvatar, PersonDetails } from "./person-details";
+import { PersonDetails } from "./person-details";
+import { PersonAvatar } from "../person-avatar";
 
 type Unit = { code: string; name: string };
 

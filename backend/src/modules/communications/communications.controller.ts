@@ -30,7 +30,7 @@ import {
   ReadMessagesDto,
   SendMessageDto,
   TypingDto,
-} from './communications.dto.js';
+} from './dto/communications.dto.js';
 
 @Controller()
 @UseGuards(AuthGuard)
@@ -63,15 +63,21 @@ export class CommunicationsController {
     return this.conversations.messages(req.auth.userId, id, query);
   }
   @Post('conversations/:id/messages')
-  @UseInterceptors(FileFieldsInterceptor(
-    [{ name: 'images', maxCount: 4 }, { name: 'audio', maxCount: 1 }],
-    { limits: { fileSize: 5 * 1024 * 1024, files: 5, fields: 2 } },
-  ))
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'images', maxCount: 4 },
+        { name: 'audio', maxCount: 1 },
+      ],
+      { limits: { fileSize: 5 * 1024 * 1024, files: 5, fields: 2 } },
+    ),
+  )
   send(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SendMessageDto,
-    @UploadedFiles() files?: { images?: Express.Multer.File[]; audio?: Express.Multer.File[] },
+    @UploadedFiles()
+    files?: { images?: Express.Multer.File[]; audio?: Express.Multer.File[] },
   ) {
     return this.conversations.send(req.auth.userId, id, dto, files);
   }
@@ -81,7 +87,11 @@ export class CommunicationsController {
     @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
     @Res() response: Response,
   ) {
-    const file = await this.conversations.attachment(req.auth.userId, id, attachmentId);
+    const file = await this.conversations.attachment(
+      req.auth.userId,
+      id,
+      attachmentId,
+    );
     response.set({
       'Content-Type': file.mimeType,
       'Content-Length': String(file.data.length),

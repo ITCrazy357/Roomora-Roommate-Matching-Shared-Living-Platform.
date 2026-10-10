@@ -14,6 +14,10 @@ export interface Participant {
   isGuest: boolean;
 }
 export interface Expense {
+  sharingPeriodId: string | null;
+  sharingSnapshot: import("./cost-sharing").SharingSnapshot | null;
+  category: import("./household").ExpenseCategory;
+  spentOn: string;
   id: string;
   clientId: string;
   createdById: string;

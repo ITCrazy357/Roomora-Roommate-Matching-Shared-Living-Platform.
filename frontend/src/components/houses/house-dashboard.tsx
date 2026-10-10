@@ -3,8 +3,15 @@ import { useAuth } from "../auth-provider";
 import { ButtonLink, EmptyState, LoadingState } from "../ui";
 import { HouseList } from "./house-list";
 import { HouseDetail } from "./house-detail";
+import type { HouseholdMode } from "./household-panel";
 
-export function HouseDashboard({ id }: { id?: string }) {
+export function HouseDashboard({
+  id,
+  initialTab,
+}: {
+  id?: string;
+  initialTab?: HouseholdMode | "sharing";
+}) {
   const { user, loading } = useAuth();
   if (loading)
     return (
@@ -24,7 +31,12 @@ export function HouseDashboard({ id }: { id?: string }) {
       </section>
     );
   return id ? (
-    <HouseDetail key={`${id}:${user.id}`} id={id} userId={user.id} />
+    <HouseDetail
+      key={`${id}:${user.id}`}
+      id={id}
+      userId={user.id}
+      initialTab={initialTab}
+    />
   ) : (
     <HouseList key={user.id} />
   );

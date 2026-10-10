@@ -133,6 +133,33 @@ enum ExpenseSplitMode {
   CUSTOM
 }
 
+enum ExpenseCategory {
+  RENT
+  ELECTRICITY
+  WATER
+  INTERNET
+  GROCERIES
+  HOUSEHOLD
+  OTHER
+}
+
+enum HouseActivityKind {
+  CHORE
+  SHOPPING
+}
+
+enum HouseActivityStatus {
+  OPEN
+  DONE
+  CANCELLED
+}
+
+enum RecurringDraftStatus {
+  PENDING
+  CONFIRMED
+  SKIPPED
+}
+
 model User {
   id              String    @id @default(uuid()) @db.Uuid
   role            UserRole  @default(USER)
@@ -164,13 +191,16 @@ model User {
   houseActions        HouseEvent[]        @relation("HouseEventActor")
   houseAnnouncements  HouseAnnouncement[]
 
-  createdExpenses    Expense[]           @relation("ExpenseCreator")
-  expenseAdjustments ExpenseAdjustment[] @relation("ExpenseAdjustmentCreator")
-  houseParticipants  HouseParticipant[]
-  houseMessages      HouseMessage[]
-  housePollVotes     HousePollVote[]
-  recordedPayments   DebtPayment[]       @relation("PaymentRecorder")
-  confirmedPayments  DebtPayment[]       @relation("PaymentConfirmer")
+  createdExpenses     Expense[]           @relation("ExpenseCreator")
+  expenseAdjustments  ExpenseAdjustment[] @relation("ExpenseAdjustmentCreator")
+  houseParticipants   HouseParticipant[]
+  houseMessages       HouseMessage[]
+  housePollVotes      HousePollVote[]
+  recordedPayments    DebtPayment[]       @relation("PaymentRecorder")
+  confirmedPayments   DebtPayment[]       @relation("PaymentConfirmer")
+  houseActivities     HouseActivity[]     @relation("ActivityCreator")
+  completedActivities HouseActivity[]     @relation("ActivityCompleter")
+  recurringExpenses   RecurringExpense[]
 
   @@map("users")
 }
@@ -245,11 +275,15 @@ model House {
   events        HouseEvent[]
   announcements HouseAnnouncement[]
 
-  expenses          Expense[]
-  debtPayments      DebtPayment[]
-  participants      HouseParticipant[]
-  messages          HouseMessage[]
-  lastMessageNumber Int                @default(0) @map("last_message_number")
+  expenses            Expense[]
+  debtPayments        DebtPayment[]
+  participants        HouseParticipant[]
+  messages            HouseMessage[]
+  lastMessageNumber   Int                  @default(0) @map("last_message_number")
+  activities          HouseActivity[]
+  recurringExpenses   RecurringExpense[]
+  costSharingSettings CostSharingSetting[]
+  costSharingPeriods  CostSharingPeriod[]
 
   @@index([ownerId])
   @@map("houses")
@@ -651,7 +685,9 @@ model Expense {
   amount     Int
   receiptUrl String? @map("receipt_url") @db.VarChar(2048)
 
-  status ExpenseStatus @default(ACTIVE)
+  status   ExpenseStatus   @default(ACTIVE)
+  category ExpenseCategory @default(OTHER)
+  spentOn  DateTime        @default(now()) @map("spent_on") @db.Date
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -660,12 +696,17 @@ model Expense {
   payer     HouseParticipant @relation("ExpensePayer", fields: [houseId, payerId], references: [houseId, id], onDelete: Restrict)
   createdBy User             @relation("ExpenseCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
-  splits      ExpenseSplit[]
-  adjustments ExpenseAdjustment[]
-  receipt     ExpenseReceipt?
+  splits          ExpenseSplit[]
+  adjustments     ExpenseAdjustment[]
+  receipt         ExpenseReceipt?
+  recurringDraft  RecurringExpenseDraft?
+  sharingPeriodId String?                @map("sharing_period_id") @db.Uuid
+  sharingSnapshot Json?                  @map("sharing_snapshot")
+  sharingPeriod   CostSharingPeriod?     @relation(fields: [houseId, sharingPeriodId], references: [houseId, id], onDelete: Restrict)
 
   @@unique([houseId, createdById, clientId])
   @@index([houseId, createdAt])
+  @@index([houseId, spentOn, category])
   @@index([payerId])
   @@index([createdById])
   @@map("expenses")
@@ -812,10 +853,206 @@ model HouseParticipant {
   debtReminder          DebtReminder?
   repaymentPromises     RepaymentPromise[] @relation("RepaymentPromiser")
   repaymentAppointments RepaymentPromise[] @relation("RepaymentPromiseRecipient")
+  activities            HouseActivity[]
+  recurringExpenses     RecurringExpense[]
 
   @@id([houseId, id])
   @@unique([houseId, userId])
   @@map("house_participants")
+}
+
+enum CostSharingMode {
+  EQUAL
+  WEIGHTED
+}
+
+enum CostSharingKind {
+  MONTHLY
+  DEFAULT
+}
+
+enum CostSharingStatus {
+  OPEN
+  AGREED
+  FALLBACK
+  UNRESOLVED
+  NEEDS_REVIEW
+}
+
+enum CostSharingPhase {
+  PREFERENCE
+  PROPOSAL
+}
+
+enum CostSharingChoice {
+  EQUAL
+  WEIGHTED
+  AGREE
+  REJECT
+}
+
+model CostSharingSetting {
+  houseId     String          @map("house_id") @db.Uuid
+  category    ExpenseCategory
+  deadlineDay Int             @default(7) @map("deadline_day")
+  enabled     Boolean         @default(true)
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  house       House           @relation(fields: [houseId], references: [id], onDelete: Cascade)
+
+  @@id([houseId, category])
+  @@map("cost_sharing_settings")
+}
+
+model CostSharingPeriod {
+  id               String             @id @default(uuid()) @db.Uuid
+  houseId          String             @map("house_id") @db.Uuid
+  category         ExpenseCategory
+  month            String             @db.VarChar(7)
+  kind             CostSharingKind
+  status           CostSharingStatus  @default(OPEN)
+  deadlineAt       DateTime           @map("deadline_at") @db.Timestamptz(3)
+  currentRound     Int                @default(1) @map("current_round")
+  resultMode       CostSharingMode?   @map("result_mode")
+  resultShares     Json?              @map("result_shares")
+  resultMemberHash String?            @map("result_member_hash") @db.Char(64)
+  fallbackSnapshot Json?              @map("fallback_snapshot")
+  decidedAt        DateTime?          @map("decided_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  house            House              @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  rounds           CostSharingRound[]
+  expenses         Expense[]
+
+  @@unique([houseId, id])
+  // A partial unique index in the migration allows multiple DEFAULT discussions.
+  @@index([houseId, month, category, kind])
+  @@index([kind, status, deadlineAt])
+  @@map("cost_sharing_periods")
+}
+
+model CostSharingRound {
+  id          String                 @id @default(uuid()) @db.Uuid
+  periodId    String                 @map("period_id") @db.Uuid
+  number      Int
+  phase       CostSharingPhase
+  status      String                 @default("OPEN") @db.VarChar(16)
+  resolvedAt  DateTime?              @map("resolved_at")
+  memberHash  String                 @map("member_hash") @db.Char(64)
+  members     Json
+  mode        CostSharingMode?
+  shares      Json?
+  reason      String                 @default("") @db.VarChar(1000)
+  createdById String?                @map("created_by_id") @db.Uuid
+  createdAt   DateTime               @default(now()) @map("created_at")
+  period      CostSharingPeriod      @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  votes       CostSharingVote[]
+  events      CostSharingVoteEvent[]
+
+  @@unique([periodId, number])
+  @@map("cost_sharing_rounds")
+}
+
+model CostSharingVote {
+  roundId   String            @map("round_id") @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  choice    CostSharingChoice
+  version   Int               @default(1)
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  round     CostSharingRound  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@id([roundId, userId])
+  @@map("cost_sharing_votes")
+}
+
+model CostSharingVoteEvent {
+  id        String            @id @default(uuid()) @db.Uuid
+  roundId   String            @map("round_id") @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  choice    CostSharingChoice
+  version   Int
+  createdAt DateTime          @default(now()) @map("created_at")
+  round     CostSharingRound  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, userId, version])
+  @@map("cost_sharing_vote_events")
+}
+
+model HouseActivity {
+  id            String              @id @default(uuid()) @db.Uuid
+  houseId       String              @map("house_id") @db.Uuid
+  kind          HouseActivityKind
+  title         String              @db.VarChar(150)
+  note          String              @default("") @db.VarChar(2000)
+  quantity      String              @default("") @db.VarChar(100)
+  dueOn         DateTime?           @map("due_on") @db.Date
+  assigneeId    String?             @map("assignee_id") @db.Uuid
+  createdById   String              @map("created_by_id") @db.Uuid
+  completedById String?             @map("completed_by_id") @db.Uuid
+  completedAt   DateTime?           @map("completed_at")
+  status        HouseActivityStatus @default(OPEN)
+  version       Int                 @default(1)
+  clientId      String              @map("client_id") @db.Uuid
+  contentHash   String              @map("content_hash") @db.VarChar(64)
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  house         House               @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  assignee      HouseParticipant?   @relation(fields: [houseId, assigneeId], references: [houseId, id], onDelete: Restrict)
+  createdBy     User                @relation("ActivityCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  completedBy   User?               @relation("ActivityCompleter", fields: [completedById], references: [id], onDelete: Restrict)
+
+  @@unique([houseId, createdById, clientId])
+  @@index([houseId, kind, status, dueOn])
+  @@map("house_activities")
+}
+
+model RecurringExpense {
+  id             String                  @id @default(uuid()) @db.Uuid
+  houseId        String                  @map("house_id") @db.Uuid
+  createdById    String                  @map("created_by_id") @db.Uuid
+  clientId       String                  @map("client_id") @db.Uuid
+  contentHash    String                  @map("content_hash") @db.VarChar(64)
+  title          String                  @db.VarChar(150)
+  description    String                  @default("") @db.VarChar(2000)
+  category       ExpenseCategory         @default(OTHER)
+  amount         Int?
+  payerId        String                  @map("payer_id") @db.Uuid
+  participantIds String[]                @map("participant_ids") @db.Uuid
+  dayOfMonth     Int                     @map("day_of_month")
+  nextOn         DateTime                @map("next_on") @db.Date
+  enabled        Boolean                 @default(true)
+  version        Int                     @default(1)
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+  house          House                   @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  createdBy      User                    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  payer          HouseParticipant        @relation(fields: [houseId, payerId], references: [houseId, id], onDelete: Restrict)
+  drafts         RecurringExpenseDraft[]
+
+  @@unique([houseId, createdById, clientId])
+  @@index([enabled, nextOn])
+  @@map("recurring_expenses")
+}
+
+// A snapshot stays outside the ledger until an explicit, atomic confirmation.
+model RecurringExpenseDraft {
+  id             String               @id @default(uuid()) @db.Uuid
+  ruleId         String               @map("rule_id") @db.Uuid
+  dueOn          DateTime             @map("due_on") @db.Date
+  title          String               @db.VarChar(150)
+  description    String               @db.VarChar(2000)
+  category       ExpenseCategory
+  amount         Int?
+  payerId        String               @map("payer_id") @db.Uuid
+  participantIds String[]             @map("participant_ids") @db.Uuid
+  status         RecurringDraftStatus @default(PENDING)
+  version        Int                  @default(1)
+  expenseId      String?              @unique @map("expense_id") @db.Uuid
+  createdAt      DateTime             @default(now()) @map("created_at")
+  rule           RecurringExpense     @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  expense        Expense?             @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+
+  @@unique([ruleId, dueOn])
+  @@index([ruleId, status, dueOn])
+  @@map("recurring_expense_drafts")
 }
 
 model ExpenseReceipt {

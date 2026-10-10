@@ -1,5 +1,7 @@
 # Chi phí và công nợ
 
+Danh mục bật bình chọn áp dụng kết quả của `CostSharingRulesService` theo category + tháng spentOn, bao gồm xác nhận nháp định kỳ. Backend tính phần chia và lưu `sharingPeriodId/sharingSnapshot` cùng `ExpenseSplit`; chưa thống nhất hoặc thành viên thay đổi thì chặn tạo khoản mới cho kỳ đó. Khoản đã ghi giữ snapshot; sửa cùng kỳ tính theo snapshot cũ, chủ động đổi tháng/danh mục kiểm tra chính sách tương ứng. Khoản thủ công cũ không tự chuyển chính sách khi chỉnh cùng kỳ. Xem [cost-sharing/README.md](../cost-sharing/README.md).
+
 Các route vẫn được khai báo trong `expenses.controller.ts`. Cả `ExpensesController` và `FinanceHistoryController` chỉ inject `ExpensesService`. Service chính inject các service phụ và chuyển lời gọi đến đúng nhiệm vụ; module đăng ký các provider trong `expenses.module.ts`.
 
 | File                              | Trách nhiệm                                                                                           |

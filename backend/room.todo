@@ -271,6 +271,30 @@ Xuất bảng quyết toán PDF hoặc bảng tính.
 
 Hoàn thành khi: nhóm có thể dùng Roomora cho sinh hoạt hằng tuần và chốt chi phí hằng tháng.
 
+Trạng thái 11/10/2026: Đã triển khai Phase 8 gồm việc nhà, mua chung, quy tắc chi phí hằng tháng,
+nháp đến hạn và nhắc trong ứng dụng, xác nhận thủ công vào sổ, báo cáo tháng/danh mục/thành viên,
+xuất bảng quyết toán PDF A4 tiếng Việt hoặc CSV mở bằng Excel. Giữ theme cam đỏ/kem và cấu trúc service theo nhiệm vụ.
+Đã làm lại bốn màn sinh hoạt với thẻ chia cột, màu trạng thái, thông tin người phụ trách/hạn, biểu đồ vòng đa màu và thẻ công nợ.
+Nháp/đánh dấu đã mua không tự ghi chi phí hoặc thanh toán; kiểm tra lại người chia khi có người rời nhà.
+Người ngoài app được phân công/ghi nhận thủ công, nhắc khoản định kỳ qua trưởng nhà.
+Migration household_reports đã deploy lên PostgreSQL local; 29 kiểm thử Phase 8 và 28 hồi quy qua,
+4 unit test, build backend/frontend, TypeScript và lint không lỗi. Edge kiểm tra thao tác thật, SSE,
+xác nhận khoản cố định/biến động, tải CSV/PDF đúng tổng và responsive 320–1920 px không tràn toàn trang.
+PDF kiểm tra 45 khoản nhiều trang, tiếng Việt, đủ dòng và số trang; font kèm giấy phép được đóng gói trong backend build.
+Chi tiết phạm vi và kiểm chứng: PHASE_8_STATUS.md; backend/src/modules/household/README.md.
+
+Bổ sung 11/10/2026: Avatar sinh hoạt/báo cáo/bình chọn dùng ảnh hồ sơ thật; fallback chữ khi chưa có ảnh.
+Thêm tab Thống nhất chia phí: bật riêng từng danh mục, tự mở kỳ hằng tháng, mặc định hết ngày 7 (UTC+7).
+Tất cả thành viên House có tài khoản chọn EQUAL/WEIGHTED; đề xuất tỷ lệ + lý do cần tất cả đồng ý.
+Từ chối cho sửa bằng đề xuất/vòng mới; lưu lịch sử vòng, phiếu hiện hành có phiên bản và mọi thay đổi phiếu.
+Chọn thành viên đại diện chỉ giúp tính nhanh tỷ lệ, không thay thế quyền bỏ phiếu của các thành viên.
+Hết hạn chỉ dùng dự phòng đã đồng ý trước khi mở kỳ và còn phù hợp thành viên; chưa có thì không tự chốt.
+Ghi khoản mới/xác nhận nháp áp dụng đúng danh mục và tháng, khóa nhà xử lý request đồng thời.
+Khoản cũ giữ snapshot, không tự thay đổi; đổi thành viên cần thống nhất lại cho các khoản mới.
+Migration monthly_cost_sharing đã deploy, DB khớp schema. 24 kiểm thử HTTP/PostgreSQL mới qua;
+cùng 57 hồi quy đã qua và 6 unit test. Build/lint qua; Edge kiểm tra luồng từ chối/sửa/đồng thuận,
+ghi đúng phần tiền, avatar hồ sơ và responsive 320–1920 px. Thiết kế/API: backend/src/modules/cost-sharing/README.md.
+
 Mốc B — Sau Phase 8: Roomora có giá trị sử dụng thường xuyên sau khi người dùng đã tìm được chỗ ở.
 
 10. Phase 9 — Dịch vụ trả phí và chứng từ

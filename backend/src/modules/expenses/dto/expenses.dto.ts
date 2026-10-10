@@ -22,6 +22,7 @@ import {
 } from 'class-validator';
 import {
   ExpenseSplitMode,
+  ExpenseCategory,
   PaymentMethod,
 } from '../../../generated/prisma/enums.js';
 const trim = ({ value }: { value: unknown }) =>
@@ -41,6 +42,11 @@ export class ExpenseSplitDto {
   @IsInt() @Min(0) @Max(2_000_000_000) amount!: number;
 }
 export class CreateExpenseDto {
+  @IsOptional() @IsEnum(ExpenseCategory) category?: ExpenseCategory;
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  spentOn?: string;
   @Transform(trim) @IsString() @Length(1, 150) title!: string;
   @Transform(trim) @IsString() @Length(0, 2000) description = '';
   @IsUUID() payerId!: string;

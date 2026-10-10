@@ -14,11 +14,15 @@ export class ExpenseEventsService {
   private snapshot(row: ExpenseRow): Prisma.InputJsonObject {
     return {
       title: row.title,
+      category: row.category,
+      spentOn: row.spentOn.toISOString().slice(0, 10),
       description: row.description,
       payerId: row.payerId,
       amount: row.amount,
       status: row.status,
       splitMode: row.splitMode,
+      sharingPeriodId: row.sharingPeriodId,
+      sharingSnapshot: row.sharingSnapshot,
       receiptUrl: row.receiptUrl,
       hasReceipt: !!row.receipt,
       splits: row.splits.map((split) => ({

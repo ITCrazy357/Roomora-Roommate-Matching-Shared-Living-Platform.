@@ -1,0 +1,32 @@
+"use client";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
+import { householdError } from "@/lib/household";
+import { useUpdates } from "../communications/updates-provider";
+
+export function useHouseholdData<T>(path: string) {
+  const { revision } = useUpdates();
+  const [result, setResult] = useState<{ path: string; data: T } | null>(null);
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    apiFetch<T>(path, { signal: controller.signal })
+      .then((value) => {
+        setResult({ path, data: value });
+        setError("");
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setResult(null);
+          setError(householdError(error));
+        }
+      });
+    return () => controller.abort();
+  }, [path, revision, refresh]);
+  return {
+    data: result?.path === path ? result.data : null,
+    error,
+    reload: () => setRefresh((value) => value + 1),
+  };
+}

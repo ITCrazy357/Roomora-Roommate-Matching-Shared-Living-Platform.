@@ -23,14 +23,31 @@ import { HouseForm } from "./house-form";
 import { HouseChat } from "./house-chat";
 import { HouseFinances } from "./house-finances";
 import { useUpdates } from "../communications/updates-provider";
+import { HouseholdPanel, type HouseholdMode } from "./household-panel";
+import { HouseCostSharing } from "./house-cost-sharing";
 
-export function HouseDetail({ id, userId }: { id: string; userId: string }) {
+export function HouseDetail({
+  id,
+  userId,
+  initialTab = "overview",
+}: {
+  id: string;
+  userId: string;
+  initialTab?: "overview" | "sharing" | HouseholdMode;
+}) {
   const router = useRouter();
   const { revision } = useUpdates();
   const [house, setHouse] = useState<House | null>(null);
   const [tab, setTab] = useState<
-    "overview" | "members" | "info" | "chat" | "expenses" | "balances"
-  >("overview");
+    | "overview"
+    | "members"
+    | "info"
+    | "chat"
+    | "expenses"
+    | "balances"
+    | "sharing"
+    | HouseholdMode
+  >(initialTab);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
@@ -172,6 +189,11 @@ export function HouseDetail({ id, userId }: { id: string; userId: string }) {
             ["chat", "Chat chung"],
             ["expenses", "Chi phí"],
             ["balances", "Công nợ & Quyết toán"],
+            ["chores", "Việc nhà"],
+            ["shopping", "Mua chung"],
+            ["recurring", "Chi phí định kỳ"],
+            ["sharing", "Thống nhất chia phí"],
+            ["reports", "Báo cáo"],
             ["info", "Thông tin nhà"],
           ] as const
         ).map(([key, label]) => (
@@ -192,6 +214,13 @@ export function HouseDetail({ id, userId }: { id: string; userId: string }) {
         </p>
       )}
       {tab === "chat" && <HouseChat houseId={id} userId={userId} />}
+      {tab === "sharing" && <HouseCostSharing house={house} userId={userId} />}
+      {(tab === "chores" ||
+        tab === "shopping" ||
+        tab === "recurring" ||
+        tab === "reports") && (
+        <HouseholdPanel key={tab} house={house} userId={userId} mode={tab} />
+      )}
       {(tab === "expenses" || tab === "balances") && (
         <HouseFinances key={tab} houseId={id} userId={userId} mode={tab} />
       )}

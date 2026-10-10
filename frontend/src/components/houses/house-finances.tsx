@@ -2,6 +2,8 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { apiFetch, apiUrl } from "@/lib/api";
+import { categories } from "@/lib/household";
+import { houseDate } from "@/lib/houses";
 import {
   expenseError,
   expenseLabels,
@@ -469,6 +471,10 @@ export function HouseFinances({
                       {expense.payer.displayName} đã trả ·{" "}
                       {formatTime(expense.createdAt)}
                     </p>
+                    <p className="text-muted">
+                      {categories[expense.category]} · Phát sinh{" "}
+                      {houseDate(expense.spentOn)}
+                    </p>
                   </div>
                   <strong className="expense-amount">
                     {money(expense.amount)}
@@ -480,9 +486,19 @@ export function HouseFinances({
                 <p className="text-muted">
                   {expense.splitMode === "EQUAL"
                     ? "Chia đều"
-                    : "Chia số tiền cụ thể"}{" "}
+                    : expense.sharingSnapshot?.mode === "WEIGHTED"
+                      ? "Chia theo tỷ lệ đã thống nhất"
+                      : "Chia số tiền cụ thể"}{" "}
                   · Ghi bởi {expense.createdByName}
                 </p>
+                {expense.sharingSnapshot && (
+                  <p className="text-muted">
+                    Quy tắc tháng {expense.sharingSnapshot.month}
+                    {expense.sharingSnapshot.source === "FALLBACK"
+                      ? " · Phương án dự phòng"
+                      : ""}
+                  </p>
+                )}
                 <div className="expense-split-list">
                   {expense.splits.map((split) => (
                     <span key={split.participantId}>

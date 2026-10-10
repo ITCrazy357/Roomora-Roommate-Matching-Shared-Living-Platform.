@@ -42,6 +42,15 @@
   --info-foreground: #1d4ed8;
   --info-soft: #eff6ff;
 
+  /* Distinct series for financial charts; labels accompany every color. */
+  --chart-coral: var(--primary);
+  --chart-amber: #b97714;
+  --chart-blue: #467fc3;
+  --chart-violet: #8764b5;
+  --chart-green: #428363;
+  --chart-peach: var(--secondary);
+  --chart-brown: var(--tertiary);
+
   --surface-overlay: color-mix(in srgb, var(--surface) 93%, transparent);
   --surface-overlay-border: color-mix(in srgb, var(--surface) 60%, transparent);
   --image-overlay: color-mix(in srgb, var(--foreground) 78%, transparent);

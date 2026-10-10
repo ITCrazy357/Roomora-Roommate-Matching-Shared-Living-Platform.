@@ -32,33 +32,21 @@ import {
   ExpenseVersionDto,
 } from './dto/expenses.dto.js';
 import { ExpensesService } from './expenses.service.js';
-import { ExpenseParticipantsService } from './expense-participants.service.js';
-import { ExpenseBalancesService } from './expense-balances.service.js';
-import { ExpensePaymentsService } from './expense-payments.service.js';
-import { ExpenseReceiptsService } from './expense-receipts.service.js';
 import { PaymentProofUploadFilter } from './payment-proof-upload.filter.js';
-import { ExpensePromisesService } from './expense-promises.service.js';
 
 @Controller('expenses')
 @UseGuards(AuthGuard)
 export class FinanceHistoryController {
-  constructor(private readonly participants: ExpenseParticipantsService) {}
+  constructor(private readonly expenses: ExpensesService) {}
   @Get('houses') houses(@Req() request: AuthenticatedRequest) {
-    return this.participants.historyHouses(request.auth.userId);
+    return this.expenses.historyHouses(request.auth.userId);
   }
 }
 
 @Controller('houses/:houseId/expenses')
 @UseGuards(AuthGuard)
 export class ExpensesController {
-  constructor(
-    private readonly expenses: ExpensesService,
-    private readonly balancesService: ExpenseBalancesService,
-    private readonly participantsService: ExpenseParticipantsService,
-    private readonly paymentsService: ExpensePaymentsService,
-    private readonly receipts: ExpenseReceiptsService,
-    private readonly promises: ExpensePromisesService,
-  ) {}
+  constructor(private readonly expenses: ExpensesService) {}
   @Get() list(
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
@@ -77,26 +65,26 @@ export class ExpensesController {
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
   ) {
-    return this.balancesService.get(req.auth.userId, houseId);
+    return this.expenses.balances(req.auth.userId, houseId);
   }
   @Get('settlements') settlements(
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
   ) {
-    return this.balancesService.settlements(req.auth.userId, houseId);
+    return this.expenses.settlements(req.auth.userId, houseId);
   }
   @Post('settle') settle(
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
   ) {
-    return this.balancesService.settle(req.auth.userId, houseId);
+    return this.expenses.settle(req.auth.userId, houseId);
   }
   @Post('repayment-promises') promise(
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
     @Body() dto: RepaymentPromiseDto,
   ) {
-    return this.promises.save(req.auth.userId, houseId, dto);
+    return this.expenses.savePromise(req.auth.userId, houseId, dto);
   }
   @Delete('repayment-promises/:recipientId') cancelPromise(
     @Req() req: AuthenticatedRequest,
@@ -104,42 +92,39 @@ export class ExpensesController {
     @Param('recipientId', ParseUUIDPipe) recipientId: string,
     @Body() dto: ExpenseVersionDto,
   ) {
-    return this.promises.cancel(req.auth.userId, houseId, recipientId, dto);
+    return this.expenses.cancelPromise(
+      req.auth.userId,
+      houseId,
+      recipientId,
+      dto,
+    );
   }
   @Get('participants') participants(
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
   ) {
-    return this.participantsService.list(req.auth.userId, houseId);
+    return this.expenses.participants(req.auth.userId, houseId);
   }
   @Post('participants') addGuest(
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
     @Body() dto: GuestParticipantDto,
   ) {
-    return this.participantsService.addGuest(
-      req.auth.userId,
-      houseId,
-      dto.displayName,
-    );
+    return this.expenses.addGuest(req.auth.userId, houseId, dto.displayName);
   }
   @Delete('participants/:participantId') removeGuest(
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
     @Param('participantId', ParseUUIDPipe) participantId: string,
   ) {
-    return this.participantsService.removeGuest(
-      req.auth.userId,
-      houseId,
-      participantId,
-    );
+    return this.expenses.removeGuest(req.auth.userId, houseId, participantId);
   }
   @Get('payments') payments(
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
     @Query() query: ExpenseQueryDto,
   ) {
-    return this.paymentsService.list(req.auth.userId, houseId, query);
+    return this.expenses.payments(req.auth.userId, houseId, query);
   }
   @Post('payments')
   @UseFilters(PaymentProofUploadFilter)
@@ -154,7 +139,7 @@ export class ExpensesController {
     @Body() dto: CreateDebtPaymentDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.paymentsService.create(req.auth.userId, houseId, dto, file);
+    return this.expenses.createPayment(req.auth.userId, houseId, dto, file);
   }
   @Get('payments/:paymentId/proof') async paymentProof(
     @Req() req: AuthenticatedRequest,
@@ -162,7 +147,7 @@ export class ExpensesController {
     @Param('paymentId', ParseUUIDPipe) paymentId: string,
     @Res() response: Response,
   ) {
-    const proof = await this.paymentsService.getProof(
+    const proof = await this.expenses.paymentProof(
       req.auth.userId,
       houseId,
       paymentId,
@@ -181,7 +166,7 @@ export class ExpensesController {
     @Param('paymentId', ParseUUIDPipe) paymentId: string,
     @Body() dto: PaymentActionDto,
   ) {
-    return this.paymentsService.change(
+    return this.expenses.changePayment(
       req.auth.userId,
       houseId,
       paymentId,
@@ -224,7 +209,13 @@ export class ExpensesController {
     @Body() dto: UploadReceiptDto,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.receipts.upload(req.auth.userId, houseId, expenseId, dto, file);
+    return this.expenses.uploadReceipt(
+      req.auth.userId,
+      houseId,
+      expenseId,
+      dto,
+      file,
+    );
   }
   @Get(':expenseId/receipt') async receipt(
     @Req() req: AuthenticatedRequest,
@@ -232,7 +223,7 @@ export class ExpensesController {
     @Param('expenseId', ParseUUIDPipe) expenseId: string,
     @Res() response: Response,
   ) {
-    const receipt = await this.receipts.get(
+    const receipt = await this.expenses.receipt(
       req.auth.userId,
       houseId,
       expenseId,

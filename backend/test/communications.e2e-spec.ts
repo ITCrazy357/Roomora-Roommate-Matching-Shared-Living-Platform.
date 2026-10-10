@@ -26,7 +26,7 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
   const password = `Roomora-${randomUUID()}`;
   const future = () => new Date(Date.now() + 3 * 24 * 3600000).toISOString();
   const path = () => `/api/v1/conversations/${conversationId}`;
-  function post(agent: typeof a, url: string, data: unknown = {}) {
+  function post(agent: typeof a, url: string, data: object = {}) {
     return agent.post(url).set('Origin', origin).send(data);
   }
   async function account() {
@@ -455,10 +455,9 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
         });
     const sent = (await upload().expect(201)).body;
     expect(sent.text).toBe('');
-    expect(sent.attachments.map((file) => file.kind)).toEqual([
-      'IMAGE',
-      'IMAGE',
-    ]);
+    expect(sent.attachments.map((file: { kind: string }) => file.kind)).toEqual(
+      ['IMAGE', 'IMAGE'],
+    );
     expect(JSON.stringify(sent)).not.toContain('data');
     const repeated = (await upload().expect(201)).body;
     expect(repeated.id).toBe(sent.id);
@@ -481,7 +480,7 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
     await outsider.get(fileUrl).expect(404);
     const list = (await b.get(path() + '/messages').expect(200)).body;
     expect(
-      list.items.find((row) => row.id === sent.id).attachments,
+      list.items.find((row: { id: string }) => row.id === sent.id).attachments,
     ).toHaveLength(2);
 
     const audio = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0x00]);
@@ -586,8 +585,8 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
     const detail = (await a.get(path()).expect(200)).body;
     expect(
       detail.appointments
-        .find((row) => row.id === item.id)
-        .changes.map((row) => row.status),
+        .find((row: { id: string }) => row.id === item.id)
+        .changes.map((row: { status: string }) => row.status),
     ).toEqual(['PENDING', 'CONFIRMED', 'PENDING', 'CONFIRMED']);
     expect(
       (await a.get('/api/v1/appointments?tab=upcoming').expect(200)).body.total,
@@ -712,11 +711,14 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
     ).toBe(1);
     const detail = (await a.get(path()).expect(200)).body;
     expect(
-      detail.appointments.every((item) => item.status === 'CANCELLED'),
+      detail.appointments.every(
+        (item: { status: string }) => item.status === 'CANCELLED',
+      ),
     ).toBe(true);
     expect(
       detail.appointments.every(
-        (item) => item.changes.at(-1).status === 'CANCELLED',
+        (item: { changes: { status: string }[] }) =>
+          item.changes.at(-1)!.status === 'CANCELLED',
       ),
     ).toBe(true);
   });

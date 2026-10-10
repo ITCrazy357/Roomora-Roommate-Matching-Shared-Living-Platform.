@@ -3,6 +3,10 @@ import { PrismaModule } from '../../database/prisma.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module.js';
 import { LocationsModule } from '../locations/locations.module.js';
+import { ListingQueriesService } from './listing-queries.service.js';
+import { ListingManagementService } from './listing-management.service.js';
+import { ListingPhotosService } from './listing-photos.service.js';
+import { ListingRulesService } from './listing-rules.service.js';
 import { AdminGuard } from './admin.guard.js';
 import {
   ListingsController,
@@ -13,6 +17,13 @@ import { ListingsService } from './listings.service.js';
 @Module({
   imports: [PrismaModule, AuthModule, CloudinaryModule, LocationsModule],
   controllers: [ListingsController, ListingModerationController],
-  providers: [ListingsService, AdminGuard],
+  providers: [
+    ListingsService,
+    ListingQueriesService,
+    ListingManagementService,
+    ListingPhotosService,
+    ListingRulesService,
+    AdminGuard,
+  ],
 })
 export class ListingsModule {}

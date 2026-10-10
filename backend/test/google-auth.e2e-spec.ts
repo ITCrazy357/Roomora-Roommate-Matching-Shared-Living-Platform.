@@ -1,7 +1,7 @@
 import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import type { App } from 'supertest/types';
+import type { App } from 'supertest/types.js';
 import { randomUUID } from 'node:crypto';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
@@ -96,8 +96,11 @@ describe('Google authentication (PostgreSQL e2e)', () => {
       .query({ code: 'test-code', state })
       .expect(302);
     expect(callback.headers.location).toBe(`${origin}/onboarding`);
+    const sessionCookies = Array.isArray(callback.headers['set-cookie'])
+      ? callback.headers['set-cookie']
+      : [callback.headers['set-cookie']];
     expect(
-      callback.headers['set-cookie'].some(
+      sessionCookies.some(
         (cookie: string) =>
           cookie.startsWith('roomora_session=') && cookie.includes('HttpOnly'),
       ),

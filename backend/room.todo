@@ -190,8 +190,12 @@ Trạng thái bổ sung 10/10/2026:
 - Nút thêm tệp hiện có chữ "Thêm tệp" trên thanh công cụ chat cá nhân/chung,
   dễ nhận ra hơn biểu tượng kẹp giấy đơn lẻ; đã kiểm tra mở trình chọn và gửi/tải thực tế.
 - Service chi phí đã tách theo khoản chi, người tham gia, số dư/quyết toán,
-  thanh toán và biên nhận; quyền và lịch sử/SSE dùng chung, giữ nguyên API/nghiệp vụ.
+  thanh toán, biên nhận và ngày hẹn trả. Controller gọi ExpensesService làm đầu mối;
+  service chính inject các service phụ, quyền và lịch sử/SSE dùng chung.
+  Áp dụng tương tự cho auth, nhà chung, chat chung, hội thoại, people và listings;
+  giữ nguyên API/nghiệp vụ, transaction và thứ tự khóa. Service nhỏ không tách thêm.
   Cấu trúc chi tiết: backend/src/modules/expenses/README.md.
+  Tổng quan các đầu mối: backend/src/modules/README.md.
 - Đã hoàn thành backend và frontend khoản chi, chia đều/chia cụ thể, ảnh biên nhận riêng tư,
   số dư, gợi ý bù trừ, thanh toán chờ người nhận xác nhận và chốt quyết toán.
 - Sau quyết toán có thông báo cho thành viên; nút chuyển "Đã chốt" và bị khóa,

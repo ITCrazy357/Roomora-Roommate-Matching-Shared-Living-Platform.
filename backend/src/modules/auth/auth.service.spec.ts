@@ -1,5 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service.js';
+import { AuthAccountsService } from './auth-accounts.service.js';
+import { AuthVerificationService } from './auth-verification.service.js';
+import { AuthRecoveryService } from './auth-recovery.service.js';
+import { AuthSupportService } from './auth-support.service.js';
 import { PasswordService } from './password.service.js';
 import type { PrismaService } from '../../database/prisma.service.js';
 import type { MailService } from './mail.service.js';
@@ -10,12 +14,16 @@ describe('AuthService rate limits', () => {
   const createService = () => {
     const findUnique = vi.fn().mockResolvedValue(null);
     const prisma = { user: { findUnique } } as unknown as PrismaService;
+    const passwords = new PasswordService();
+    const sessions = {} as SessionService;
+    const mail = {} as MailService;
+    const support = new AuthSupportService(prisma, new ConfigService());
     const auth = new AuthService(
-      prisma,
-      new PasswordService(),
-      {} as SessionService,
-      {} as MailService,
-      new ConfigService(),
+      new AuthAccountsService(prisma, passwords, sessions, mail, support),
+      new AuthVerificationService(prisma, sessions, mail, support),
+      new AuthRecoveryService(prisma, passwords, mail, support),
+      support,
+      sessions,
     );
     return { auth, findUnique };
   };

@@ -1,5 +1,9 @@
 import { ConfigService } from '@nestjs/config';
-import { v2 as cloudinary } from 'cloudinary';
+import {
+  v2 as cloudinary,
+  type UploadApiOptions,
+  type UploadResponseCallback,
+} from 'cloudinary';
 import { Writable } from 'node:stream';
 import sharp from 'sharp';
 import { CloudinaryService, MAX_AVATAR_BYTES } from './cloudinary.service.js';
@@ -21,7 +25,10 @@ describe('Cloudinary avatar adapter', () => {
     service = new CloudinaryService(config);
     vi.mocked(cloudinary.uploader.destroy).mockResolvedValue({ result: 'ok' });
     vi.mocked(cloudinary.uploader.upload_stream).mockImplementation(
-      (options, callback) => {
+      (
+        options?: UploadApiOptions | UploadResponseCallback,
+        callback?: UploadResponseCallback,
+      ) => {
         const chunks: Buffer[] = [];
         const stream = new Writable({
           write(chunk: Buffer, _, done) {
@@ -32,7 +39,8 @@ describe('Cloudinary avatar adapter', () => {
         stream.on('finish', () => {
           encoded = Buffer.concat(chunks);
           callback?.(undefined, {
-            public_id: options.public_id,
+            public_id:
+              typeof options === 'object' ? options.public_id : undefined,
             resource_type: 'image',
             secure_url:
               'https://res.cloudinary.com/demo/image/upload/avatar.jpg',
@@ -110,7 +118,10 @@ describe('Cloudinary avatar adapter', () => {
 
   it('sanitizes provider errors and compensates a failed upload', async () => {
     vi.mocked(cloudinary.uploader.upload_stream).mockImplementation(
-      (_, callback) => {
+      (
+        _options?: UploadApiOptions | UploadResponseCallback,
+        callback?: UploadResponseCallback,
+      ) => {
         const stream = new Writable({
           write(_chunk, _encoding, done) {
             done();
@@ -143,7 +154,10 @@ describe('Cloudinary avatar adapter', () => {
 
   it('reports rejected provider credentials without exposing the secret', async () => {
     vi.mocked(cloudinary.uploader.upload_stream).mockImplementation(
-      (_, callback) => {
+      (
+        _options?: UploadApiOptions | UploadResponseCallback,
+        callback?: UploadResponseCallback,
+      ) => {
         const stream = new Writable({
           write(_chunk, _encoding, done) {
             done();

@@ -77,7 +77,9 @@ describe('GoogleClientService', () => {
   it('verifies a signed token and normalizes the account email', async () => {
     const exchange = vi
       .spyOn(OAuth2Client.prototype, 'getToken')
-      .mockResolvedValue({ tokens: { id_token: signedToken() } });
+      .mockImplementation(async () => ({
+        tokens: { id_token: signedToken() },
+      }));
     const identity = await new GoogleClientService(config).verifyCode(
       'code',
       'verifier',
@@ -103,9 +105,11 @@ describe('GoogleClientService', () => {
     ['unverified email', { email_verified: false }],
     ['missing subject', { sub: '' }],
   ])('rejects an invalid %s', async (_label, changes) => {
-    vi.spyOn(OAuth2Client.prototype, 'getToken').mockResolvedValue({
-      tokens: { id_token: signedToken(changes) },
-    });
+    vi.spyOn(OAuth2Client.prototype, 'getToken').mockImplementation(
+      async () => ({
+        tokens: { id_token: signedToken(changes) },
+      }),
+    );
     await expect(
       new GoogleClientService(config).verifyCode(
         'code',
@@ -122,9 +126,11 @@ describe('GoogleClientService', () => {
       token.slice(0, signatureStart) +
       (token[signatureStart] === 'A' ? 'B' : 'A') +
       token.slice(signatureStart + 1);
-    vi.spyOn(OAuth2Client.prototype, 'getToken').mockResolvedValue({
-      tokens: { id_token: forged },
-    });
+    vi.spyOn(OAuth2Client.prototype, 'getToken').mockImplementation(
+      async () => ({
+        tokens: { id_token: forged },
+      }),
+    );
     await expect(
       new GoogleClientService(config).verifyCode(
         'code',

@@ -1,253 +1,130 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-} from '@nestjs/common';
-import { createHash } from 'node:crypto';
-import { PrismaService } from '../../database/prisma.service.js';
-import type { Prisma } from '../../generated/prisma/client.js';
-import { HouseAccessService } from '../houses/house-access.service.js';
-import { ExpenseEventsService } from './expense-events.service.js';
-import { ExpenseAccessService } from './expense-access.service.js';
+import { Injectable } from '@nestjs/common';
 import type {
   CreateExpenseDto,
   UpdateExpenseDto,
   CancelExpenseDto,
   ExpenseQueryDto,
+  CreateDebtPaymentDto,
+  PaymentActionDto,
+  ExpenseVersionDto,
+  RepaymentPromiseDto,
 } from './dto/expenses.dto.js';
-import { expenseSplits } from './expense-calculations.js';
-import {
-  expenseInclude,
-  expenseView,
-  type ExpenseRow,
-} from './expense-views.js';
+import { ExpenseBalancesService } from './expense-balances.service.js';
+import { ExpenseRecordsService } from './expense-records.service.js';
+import { ExpenseParticipantsService } from './expense-participants.service.js';
+import { ExpensePaymentsService } from './expense-payments.service.js';
+import { ExpenseReceiptsService } from './expense-receipts.service.js';
+import { ExpensePromisesService } from './expense-promises.service.js';
 
 @Injectable()
 export class ExpensesService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly access: HouseAccessService,
-    private readonly events: ExpenseEventsService,
-    private readonly expenseAccess: ExpenseAccessService,
+    private readonly records: ExpenseRecordsService,
+    private readonly balancesService: ExpenseBalancesService,
+    private readonly participantsService: ExpenseParticipantsService,
+    private readonly paymentsService: ExpensePaymentsService,
+    private readonly receipts: ExpenseReceiptsService,
+    private readonly promises: ExpensePromisesService,
   ) {}
 
-  private async validatePeople(
-    tx: Prisma.TransactionClient,
+  create(userId: string, houseId: string, dto: CreateExpenseDto) {
+    return this.records.create(userId, houseId, dto);
+  }
+
+  update(userId: string, houseId: string, id: string, dto: UpdateExpenseDto) {
+    return this.records.update(userId, houseId, id, dto);
+  }
+
+  cancel(userId: string, houseId: string, id: string, dto: CancelExpenseDto) {
+    return this.records.cancel(userId, houseId, id, dto);
+  }
+
+  list(userId: string, houseId: string, query: ExpenseQueryDto) {
+    return this.records.list(userId, houseId, query);
+  }
+
+  adjustments(userId: string, houseId: string, id: string) {
+    return this.records.adjustments(userId, houseId, id);
+  }
+
+  balances(userId: string, houseId: string) {
+    return this.balancesService.get(userId, houseId);
+  }
+
+  settlements(userId: string, houseId: string) {
+    return this.balancesService.settlements(userId, houseId);
+  }
+
+  settle(userId: string, houseId: string) {
+    return this.balancesService.settle(userId, houseId);
+  }
+
+  participants(userId: string, houseId: string) {
+    return this.participantsService.list(userId, houseId);
+  }
+
+  addGuest(userId: string, houseId: string, displayName: string) {
+    return this.participantsService.addGuest(userId, houseId, displayName);
+  }
+
+  removeGuest(userId: string, houseId: string, id: string) {
+    return this.participantsService.removeGuest(userId, houseId, id);
+  }
+
+  historyHouses(userId: string) {
+    return this.participantsService.historyHouses(userId);
+  }
+
+  payments(userId: string, houseId: string, query: ExpenseQueryDto) {
+    return this.paymentsService.list(userId, houseId, query);
+  }
+
+  createPayment(
+    userId: string,
     houseId: string,
-    payerId: string,
-    splits: { participantId: string; amount: number }[],
-    previous?: ExpenseRow,
+    dto: CreateDebtPaymentDto,
+    file?: Express.Multer.File,
   ) {
-    const ids = [
-      ...new Set([payerId, ...splits.map((split) => split.participantId)]),
-    ];
-    const people = await tx.houseParticipant.findMany({
-      where: { houseId, id: { in: ids } },
-      select: { id: true, leftAt: true },
-    });
-    const historical = new Set(
-      previous
-        ? [
-            previous.payerId,
-            ...previous.splits.map((split) => split.participantId),
-          ]
-        : [],
-    );
-    if (
-      people.length !== ids.length ||
-      people.some((person) => person.leftAt && !historical.has(person.id))
-    )
-      throw new BadRequestException({ code: 'EXPENSE_MEMBER_NOT_ACTIVE' });
+    return this.paymentsService.create(userId, houseId, dto, file);
   }
 
-  async create(userId: string, houseId: string, dto: CreateExpenseDto) {
-    const splits = expenseSplits(dto);
-    const data = {
-      title: dto.title,
-      description: dto.description,
-      payerId: dto.payerId,
-      amount: dto.amount,
-      receiptUrl: dto.receiptUrl ?? null,
-      splitMode: dto.splitMode,
-    };
-    const contentHash = createHash('sha256')
-      .update(JSON.stringify({ ...data, splits }))
-      .digest('hex');
-    return this.prisma.$transaction(async (tx) => {
-      await this.access.lock(tx, houseId);
-      await this.access.active(tx, userId, houseId);
-      const existing = await tx.expense.findUnique({
-        where: {
-          houseId_createdById_clientId: {
-            houseId,
-            createdById: userId,
-            clientId: dto.clientId,
-          },
-        },
-        include: expenseInclude,
-      });
-      if (existing) {
-        if (existing.contentHash !== contentHash)
-          throw new ConflictException({ code: 'EXPENSE_RETRY_CHANGED' });
-        return expenseView(existing);
-      }
-      await this.expenseAccess.noPending(tx, houseId);
-      await this.validatePeople(tx, houseId, dto.payerId, splits);
-      const row = await tx.expense.create({
-        data: {
-          ...data,
-          houseId,
-          createdById: userId,
-          clientId: dto.clientId,
-          contentHash,
-          splits: { create: splits.map((split) => ({ ...split, houseId })) },
-        },
-        include: expenseInclude,
-      });
-      await this.events.record(
-        tx,
-        userId,
-        null,
-        row,
-        'CREATE',
-        'Ghi khoản chi',
-      );
-      await this.events.signal(tx, houseId);
-      return expenseView(row);
-    });
-  }
-
-  async update(
+  changePayment(
     userId: string,
     houseId: string,
     id: string,
-    dto: UpdateExpenseDto,
+    dto: PaymentActionDto,
   ) {
-    const splits = expenseSplits(dto);
-    return this.prisma.$transaction(async (tx) => {
-      await this.access.lock(tx, houseId);
-      const house = await this.access.active(tx, userId, houseId);
-      const previous = await this.expenseAccess.expense(
-        tx,
-        userId,
-        houseId,
-        id,
-      );
-      this.expenseAccess.editable(userId, house.ownerId, previous, dto.version);
-      await this.expenseAccess.noPending(tx, houseId);
-      await this.validatePeople(tx, houseId, dto.payerId, splits, previous);
-      await tx.expenseSplit.deleteMany({ where: { expenseId: id } });
-      const updated = await tx.expense.update({
-        where: { id },
-        data: {
-          title: dto.title,
-          description: dto.description,
-          payerId: dto.payerId,
-          amount: dto.amount,
-          receiptUrl: dto.receiptUrl ?? previous.receiptUrl,
-          splitMode: dto.splitMode,
-          status: 'ACTIVE',
-          version: { increment: 1 },
-          splits: { create: splits.map((split) => ({ ...split, houseId })) },
-        },
-        include: expenseInclude,
-      });
-      await this.events.record(
-        tx,
-        userId,
-        previous,
-        updated,
-        previous.status === 'SETTLED' ? 'ADJUST_SETTLED' : 'EDIT',
-        dto.reason,
-      );
-      await this.events.signal(tx, houseId);
-      return expenseView(updated);
-    });
+    return this.paymentsService.change(userId, houseId, id, dto);
   }
 
-  async cancel(
+  paymentProof(userId: string, houseId: string, paymentId: string) {
+    return this.paymentsService.getProof(userId, houseId, paymentId);
+  }
+
+  uploadReceipt(
     userId: string,
     houseId: string,
     id: string,
-    dto: CancelExpenseDto,
+    dto: ExpenseVersionDto,
+    file: Express.Multer.File,
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      await this.access.lock(tx, houseId);
-      const house = await this.access.active(tx, userId, houseId);
-      const previous = await this.expenseAccess.expense(
-        tx,
-        userId,
-        houseId,
-        id,
-      );
-      this.expenseAccess.editable(userId, house.ownerId, previous, dto.version);
-      await this.expenseAccess.noPending(tx, houseId);
-      const updated = await tx.expense.update({
-        where: { id },
-        data: { status: 'CANCELLED', version: { increment: 1 } },
-        include: expenseInclude,
-      });
-      await this.events.record(
-        tx,
-        userId,
-        previous,
-        updated,
-        previous.status === 'SETTLED' ? 'CANCEL_SETTLED' : 'CANCEL',
-        dto.reason,
-      );
-      await this.events.signal(tx, houseId);
-      return expenseView(updated);
-    });
+    return this.receipts.upload(userId, houseId, id, dto, file);
   }
 
-  async list(userId: string, houseId: string, query: ExpenseQueryDto) {
-    return this.prisma.$transaction(
-      async (tx) => {
-        const house = await this.access.finance(tx, userId, houseId);
-        const where: Prisma.ExpenseWhereInput = {
-          houseId,
-          ...(!house.active
-            ? {
-                OR: [
-                  { payer: { userId } },
-                  { createdById: userId },
-                  { splits: { some: { participant: { userId } } } },
-                ],
-              }
-            : {}),
-        };
-        const items = await tx.expense.findMany({
-          where,
-          include: expenseInclude,
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          skip: (query.page - 1) * query.limit,
-          take: query.limit,
-        });
-        const total = await tx.expense.count({ where });
-        return {
-          items: items.map((row) => expenseView(row)),
-          total,
-          page: query.page,
-          pages: Math.ceil(total / query.limit),
-          active: house.active,
-          ownerId: house.ownerId,
-          houseName: house.name,
-        };
-      },
-      { isolationLevel: 'RepeatableRead' },
-    );
+  receipt(userId: string, houseId: string, id: string) {
+    return this.receipts.get(userId, houseId, id);
   }
 
-  async adjustments(userId: string, houseId: string, id: string) {
-    return this.prisma.$transaction(async (tx) => {
-      await this.expenseAccess.expense(tx, userId, houseId, id);
-      return tx.expenseAdjustment.findMany({
-        where: { expenseId: id },
-        orderBy: [{ version: 'asc' }, { createdAt: 'asc' }],
-        include: {
-          createdBy: { select: { profile: { select: { displayName: true } } } },
-        },
-      });
-    });
+  savePromise(userId: string, houseId: string, dto: RepaymentPromiseDto) {
+    return this.promises.save(userId, houseId, dto);
+  }
+
+  cancelPromise(
+    userId: string,
+    houseId: string,
+    recipientId: string,
+    dto: ExpenseVersionDto,
+  ) {
+    return this.promises.cancel(userId, houseId, recipientId, dto);
   }
 }

@@ -22,14 +22,10 @@ import {
   ResetPasswordDto,
   TokenDto,
 } from './dto/auth.dto.js';
-import { SessionService } from './session.service.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly auth: AuthService,
-    private readonly sessions: SessionService,
-  ) {}
+  constructor(private readonly auth: AuthService) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto, @Req() request: Request) {
@@ -87,7 +83,7 @@ export class AuthController {
     @Req() request: AuthenticatedRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
-    await this.sessions.revokeCurrent(request.auth.sessionId, response);
+    await this.auth.revokeCurrent(request.auth.sessionId, response);
   }
 
   @Post('logout-all')
@@ -97,14 +93,14 @@ export class AuthController {
     @Req() request: AuthenticatedRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
-    await this.sessions.revokeAll(request.auth.userId, response);
+    await this.auth.revokeAll(request.auth.userId, response);
   }
 
   @Get('sessions')
   @UseGuards(AuthGuard)
   async sessionsList(@Req() request: AuthenticatedRequest) {
     return {
-      sessions: await this.sessions.list(
+      sessions: await this.auth.listSessions(
         request.auth.userId,
         request.auth.sessionId,
       ),
@@ -118,6 +114,6 @@ export class AuthController {
     @Req() request: AuthenticatedRequest,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
   ) {
-    await this.sessions.revokeOne(request.auth.userId, sessionId);
+    await this.auth.revokeOne(request.auth.userId, sessionId);
   }
 }

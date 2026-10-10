@@ -194,6 +194,12 @@ Trạng thái bổ sung 10/10/2026:
   Cấu trúc chi tiết: backend/src/modules/expenses/README.md.
 - Đã hoàn thành backend và frontend khoản chi, chia đều/chia cụ thể, ảnh biên nhận riêng tư,
   số dư, gợi ý bù trừ, thanh toán chờ người nhận xác nhận và chốt quyết toán.
+- Ghi nhận đã trả: chọn Chuyển khoản hiện tải ảnh minh chứng tùy chọn (JPG/PNG/WebP, tối đa 5 MB),
+  xem trước/bỏ ảnh; chọn Tiền mặt ẩn và xóa ảnh đang chọn. Người có quyền xem thanh toán
+  mở ảnh đã lưu để đối chiếu. Ảnh lưu riêng tư cùng thanh toán, không tự xác nhận đã nhận tiền,
+  giữ sau xác nhận/từ chối/hủy/quyết toán; retry kiểm tra ảnh để tránh ghi thanh toán trùng.
+  Migration payment_transfer_proofs đã deploy; 17 kiểm thử chi phí HTTP/PostgreSQL qua.
+  Edge kiểm tra chọn/bỏ/tải/xem ảnh, xác nhận/quyết toán và bố cục 320–1920 px không tràn ngang.
 - Chia tiền theo VNĐ nguyên, phần dư phân bổ nhất quán; gửi lại khoản chi/thanh toán
   cùng clientId không tạo bản ghi trùng. Sửa/hủy cần lý do và lưu lịch sử trước/sau.
   Điều chỉnh khoản đã quyết toán giữ nguyên các thanh toán đã xác nhận và tính lại nợ.

@@ -42,6 +42,21 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
     amount,
     method: 'BANK_TRANSFER',
   });
+  function uploadPayment(index: number, body: object, photo: Buffer) {
+    const upload = agents[index]
+      .post(base() + '/payments')
+      .set('Origin', origin);
+    for (const [key, value] of Object.entries(body))
+      upload.field(key, String(value));
+    return upload.attach('proof', photo, 'transfer.png');
+  }
+  const proofImage = (background = '#e65036') =>
+    sharp({
+      create: { width: 1800, height: 1000, channels: 3, background },
+    })
+      .png()
+      .withMetadata()
+      .toBuffer();
   const balances = async () =>
     (await agents[0].get(base() + '/balances').expect(200)).body.balances as {
       id: string;
@@ -532,6 +547,143 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       true,
     );
   });
+  it('stores transfer proof atomically without confirming payment, sanitizes it and protects access', async () => {
+    await create();
+    const payment = (
+      await uploadPayment(1, paymentBody(), await proofImage()).expect(201)
+    ).body;
+    expect(payment).toMatchObject({
+      hasProof: true,
+      status: 'PENDING',
+      confirmedAt: null,
+    });
+    expect(payment).not.toHaveProperty('proof');
+    expect(payment).not.toHaveProperty('contentHash');
+    expect(
+      (await balances()).find((person) => person.id === ids[1]),
+    ).toMatchObject({ balance: -500, pendingSent: 500 });
+    expect(
+      await prisma.debtPaymentProof.count({ where: { paymentId: payment.id } }),
+    ).toBe(1);
+    const endpoint = base() + `/payments/${payment.id}/proof`;
+    for (const index of [0, 1, 2]) {
+      const file = await agents[index].get(endpoint).expect(200);
+      expect(file.headers['content-type']).toContain('image/jpeg');
+      expect(file.headers['cache-control']).toBe('private, no-store');
+      expect(file.headers['x-content-type-options']).toBe('nosniff');
+      const metadata = await sharp(file.body).metadata();
+      expect(metadata.format).toBe('jpeg');
+      expect(metadata.width).toBe(1600);
+      expect(metadata.exif).toBeUndefined();
+    }
+    await request(app.getHttpServer()).get(endpoint).expect(401);
+    await agents[3].get(endpoint).expect(404);
+    await agents[0].get(base() + `/payments/${randomUUID()}/proof`).expect(404);
+    const listed = (await agents[0].get(base() + '/payments').expect(200)).body
+      .items[0];
+    expect(listed.hasProof).toBe(true);
+    expect(listed).not.toHaveProperty('proof');
+  });
+  it('deduplicates concurrent multipart payments and rejects changed or omitted proof on retry', async () => {
+    await create();
+    const body = paymentBody(),
+      photo = await proofImage();
+    const retries = await Promise.all([
+      uploadPayment(1, body, photo).expect(201),
+      uploadPayment(1, body, photo).expect(201),
+    ]);
+    expect(retries[0].body.id).toBe(retries[1].body.id);
+    expect(await prisma.debtPayment.count({ where: { houseId } })).toBe(1);
+    expect(
+      await prisma.debtPaymentProof.count({ where: { payment: { houseId } } }),
+    ).toBe(1);
+    const changed = await uploadPayment(
+      1,
+      body,
+      await proofImage('#ffffff'),
+    ).expect(409);
+    expect(changed.body.code).toBe('PAYMENT_RETRY_CHANGED');
+    await post(1, base() + '/payments', body).expect(409);
+    await uploadPayment(1, { ...body, clientId: randomUUID() }, photo).expect(
+      409,
+    );
+  });
+  it('rejects invalid, oversized, duplicate and cash proofs without creating payments or reservations', async () => {
+    await create();
+    const photo = await proofImage();
+    const cash = await uploadPayment(
+      1,
+      { ...paymentBody(), method: 'CASH' },
+      photo,
+    ).expect(400);
+    expect(cash.body.code).toBe('PAYMENT_PROOF_METHOD');
+    const invalid = await uploadPayment(
+      1,
+      paymentBody(),
+      Buffer.from('not an image'),
+    ).expect(400);
+    expect(invalid.body.code).toBe('PAYMENT_PROOF_INVALID');
+    await uploadPayment(
+      1,
+      paymentBody(),
+      Buffer.from(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>',
+      ),
+    ).expect(400);
+    await uploadPayment(
+      1,
+      paymentBody(),
+      Buffer.alloc(5 * 1024 * 1024 + 1),
+    ).expect(413);
+    await uploadPayment(1, paymentBody(), photo)
+      .attach('proof', photo, 'second.png')
+      .expect(400);
+    await uploadPayment(
+      1,
+      { ...paymentBody(), unexpected: 'field' },
+      photo,
+    ).expect(400);
+    await post(1, base() + '/payments', {
+      ...paymentBody(),
+      amount: true,
+    }).expect(400);
+    await uploadPayment(3, paymentBody(), photo).expect(404);
+    await uploadPayment(2, { ...paymentBody(), payerId: ids[1] }, photo).expect(
+      403,
+    );
+    expect(await prisma.debtPayment.count({ where: { houseId } })).toBe(0);
+    expect(
+      await prisma.debtPaymentProof.count({ where: { payment: { houseId } } }),
+    ).toBe(0);
+    expect((await balances()).every((person) => person.pendingSent === 0)).toBe(
+      true,
+    );
+  });
+  it('retains proofs after rejection, cancellation and receiver confirmation', async () => {
+    await create();
+    const photo = await proofImage();
+    for (const [index, action, status] of [
+      [0, 'reject', 'REJECTED'],
+      [1, 'cancel', 'CANCELLED'],
+      [0, 'confirm', 'CONFIRMED'],
+    ] as const) {
+      const payment = (await uploadPayment(1, paymentBody(), photo).expect(201))
+        .body;
+      const updated = (
+        await post(index, base() + `/payments/${payment.id}`, {
+          version: 1,
+          action,
+        }).expect(201)
+      ).body;
+      expect(updated).toMatchObject({ status, hasProof: true });
+      await agents[0].get(base() + `/payments/${payment.id}/proof`).expect(200);
+      if (action === 'confirm')
+        expect(updated.confirmationType).toBe('RECEIVER');
+    }
+    expect((await balances()).every((person) => person.balance === 0)).toBe(
+      true,
+    );
+  });
   it('retains personal debt history after leaving, permits settling it and denies other house data', async () => {
     const row = await create();
     const unrelated = await create({
@@ -539,6 +691,16 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       title: 'Chỉ trưởng nhà',
       splits: [{ userId: ids[0], amount: 1000 }],
     });
+    await create({
+      ...expenseBody(),
+      splits: [
+        { userId: ids[0], amount: 500 },
+        { userId: ids[2], amount: 500 },
+      ],
+    });
+    const otherPayment = (
+      await uploadPayment(2, paymentBody(250), await proofImage()).expect(201)
+    ).body;
     await post(1, `/api/v1/houses/${houseId}/leave`).expect(201);
     await agents[1].get(`/api/v1/houses/${houseId}`).expect(404);
     await agents[1].get(base() + '/participants').expect(404);
@@ -548,12 +710,16 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       row.id,
     ]);
     await agents[1].get(base() + `/${unrelated.id}/history`).expect(404);
+    await agents[1]
+      .get(base() + `/payments/${otherPayment.id}/proof`)
+      .expect(404);
     expect(
       (await agents[1].get(base() + '/balances').expect(200)).body.balances,
     ).toHaveLength(1);
     const payment = (
-      await post(1, base() + '/payments', paymentBody()).expect(201)
+      await uploadPayment(1, paymentBody(), await proofImage()).expect(201)
     ).body;
+    await agents[1].get(base() + `/payments/${payment.id}/proof`).expect(200);
     await post(0, base() + `/payments/${payment.id}`, {
       version: 1,
       action: 'confirm',

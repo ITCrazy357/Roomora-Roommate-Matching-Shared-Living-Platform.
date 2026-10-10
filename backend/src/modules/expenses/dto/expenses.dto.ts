@@ -87,7 +87,13 @@ export class CreateDebtPaymentDto {
   @IsOptional() @IsUUID() payerId?: string;
   @IsUUID() recipientId!: string;
   @Transform(trim) @IsString() @Length(1, 100) clientId!: string;
-  @IsInt() @Min(1) @Max(2_000_000_000) amount!: number;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' && value.trim() ? Number(value) : value,
+  )
+  @IsInt()
+  @Min(1)
+  @Max(2_000_000_000)
+  amount!: number;
   @IsEnum(PaymentMethod) method!: PaymentMethod;
   @Transform(trim) @IsString() @Length(0, 1000) note = '';
 }

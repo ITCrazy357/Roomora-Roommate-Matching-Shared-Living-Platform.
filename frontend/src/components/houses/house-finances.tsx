@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch, apiUrl } from "@/lib/api";
 import {
   expenseError,
@@ -57,6 +57,7 @@ export function HouseFinances({
   const [receipt, setReceipt] = useState<{ title: string; url: string } | null>(
     null,
   );
+  const imageTitle = useRef<HTMLHeadingElement>(null);
   const [guestName, setGuestName] = useState("");
   const path = `/houses/${houseId}/expenses`;
   useEffect(() => {
@@ -104,12 +105,18 @@ export function HouseFinances({
     void load();
     return () => controller.abort();
   }, [path, page, paymentPage, refresh, revision]);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    if (receipt) {
+      imageTitle.current?.focus({ preventScroll: true });
+      imageTitle.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+    return () => {
       if (receipt) URL.revokeObjectURL(receipt.url);
-    },
-    [receipt],
-  );
+    };
+  }, [receipt]);
 
   function changed() {
     setForm(null);
@@ -156,18 +163,24 @@ export function HouseFinances({
     }
   }
   async function showReceipt(expense: Expense) {
+    await showImage(
+      `${path}/${expense.id}/receipt`,
+      `Biên nhận · ${expense.title}`,
+    );
+  }
+  async function showImage(endpoint: string, title: string) {
     setError("");
     try {
-      const response = await fetch(apiUrl(`${path}/${expense.id}/receipt`), {
+      const response = await fetch(apiUrl(endpoint), {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Receipt failed");
       setReceipt({
-        title: expense.title,
+        title,
         url: URL.createObjectURL(await response.blob()),
       });
     } catch {
-      setError("Không thể tải biên nhận. Hãy tải lại sổ chi phí và thử lại.");
+      setError("Không thể tải ảnh. Hãy tải lại sổ chi phí và thử lại.");
     }
   }
   if (!data)
@@ -370,14 +383,16 @@ export function HouseFinances({
       {receipt && (
         <Card className="house-panel receipt-preview">
           <div className="house-row">
-            <h2>Biên nhận · {receipt.title}</h2>
+            <h2 ref={imageTitle} tabIndex={-1}>
+              {receipt.title}
+            </h2>
             <Button variant="secondary" onClick={() => setReceipt(null)}>
               Đóng
             </Button>
           </div>
           <Image
             src={receipt.url}
-            alt={`Biên nhận ${receipt.title}`}
+            alt={receipt.title}
             width={1000}
             height={1000}
             unoptimized
@@ -666,6 +681,21 @@ export function HouseFinances({
                   </span>
                 </div>
                 {payment.note && <p>{payment.note}</p>}
+                {payment.hasProof && (
+                  <div className="finance-actions">
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        void showImage(
+                          `${path}/payments/${payment.id}/proof`,
+                          `Minh chứng chuyển khoản · ${payment.payer.displayName} → ${payment.recipient.displayName}`,
+                        )
+                      }
+                    >
+                      Xem minh chứng chuyển khoản
+                    </Button>
+                  </div>
+                )}
                 {payment.confirmationType === "OWNER_RECORDED" && (
                   <p className="text-muted">
                     Trưởng nhà đã ghi nhận thủ công sau khi kiểm tra với người

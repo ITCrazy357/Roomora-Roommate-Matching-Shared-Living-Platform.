@@ -11,6 +11,7 @@ import {
   Req,
   UseGuards,
   UseInterceptors,
+  UseFilters,
   UploadedFile,
   Res,
 } from '@nestjs/common';
@@ -33,6 +34,7 @@ import { ExpenseParticipantsService } from './expense-participants.service.js';
 import { ExpenseBalancesService } from './expense-balances.service.js';
 import { ExpensePaymentsService } from './expense-payments.service.js';
 import { ExpenseReceiptsService } from './expense-receipts.service.js';
+import { PaymentProofUploadFilter } from './payment-proof-upload.filter.js';
 
 @Controller('expenses')
 @UseGuards(AuthGuard)
@@ -120,12 +122,39 @@ export class ExpensesController {
   ) {
     return this.paymentsService.list(req.auth.userId, houseId, query);
   }
-  @Post('payments') createPayment(
+  @Post('payments')
+  @UseFilters(PaymentProofUploadFilter)
+  @UseInterceptors(
+    FileInterceptor('proof', {
+      limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 6 },
+    }),
+  )
+  createPayment(
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
     @Body() dto: CreateDebtPaymentDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.paymentsService.create(req.auth.userId, houseId, dto);
+    return this.paymentsService.create(req.auth.userId, houseId, dto, file);
+  }
+  @Get('payments/:paymentId/proof') async paymentProof(
+    @Req() req: AuthenticatedRequest,
+    @Param('houseId', ParseUUIDPipe) houseId: string,
+    @Param('paymentId', ParseUUIDPipe) paymentId: string,
+    @Res() response: Response,
+  ) {
+    const proof = await this.paymentsService.getProof(
+      req.auth.userId,
+      houseId,
+      paymentId,
+    );
+    response.set({
+      'Content-Type': proof.mimeType,
+      'Content-Length': String(proof.data.length),
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    response.send(Buffer.from(proof.data));
   }
   @Post('payments/:paymentId') changePayment(
     @Req() req: AuthenticatedRequest,

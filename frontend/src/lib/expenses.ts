@@ -61,6 +61,7 @@ export interface Payment {
   recipient: Participant;
   amount: number;
   method: "CASH" | "BANK_TRANSFER";
+  hasProof: boolean;
   status: "PENDING" | "CONFIRMED" | "REJECTED" | "CANCELLED";
   version: number;
   createdById: string;
@@ -134,6 +135,9 @@ export function expenseError(error: unknown) {
       PAYMENT_FORBIDDEN:
         "Bạn không có quyền ghi nhận hoặc xác nhận thanh toán này.",
       PAYMENT_INVALID: "Chọn người trả và người nhận có công nợ phù hợp.",
+      PAYMENT_PROOF_INVALID:
+        "Chọn ảnh minh chứng JPG, PNG hoặc WebP hợp lệ, tối đa 5 MB.",
+      PAYMENT_PROOF_METHOD: "Chỉ đính kèm minh chứng khi chọn Chuyển khoản.",
       HOUSE_HAS_DEBT:
         "Chỉ quyết toán khi mọi số dư bằng 0 và không còn thanh toán chờ xác nhận.",
       RECEIPT_INVALID:
@@ -142,6 +146,7 @@ export function expenseError(error: unknown) {
     };
     if (error.code && labels[error.code]) return labels[error.code];
     if (error.status === 401) return "Phiên đăng nhập đã hết hạn.";
+    if (error.status === 413) return "Ảnh quá lớn. Chọn ảnh tối đa 5 MB.";
     if (error.status === 400)
       return "Kiểm tra các trường đã nhập. Tiền phải là số nguyên VNĐ.";
   }

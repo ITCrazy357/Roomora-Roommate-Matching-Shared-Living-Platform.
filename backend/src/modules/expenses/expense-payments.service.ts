@@ -17,6 +17,7 @@ import type {
 } from './dto/expenses.dto.js';
 import { paymentInclude, paymentView } from './expense-views.js';
 import { ExpenseBalancesService } from './expense-balances.service.js';
+import { prepareImage } from '../communications/message-media.js';
 
 @Injectable()
 export class ExpensePaymentsService {
@@ -27,7 +28,24 @@ export class ExpensePaymentsService {
     private readonly balances: ExpenseBalancesService,
   ) {}
 
-  async create(userId: string, houseId: string, dto: CreateDebtPaymentDto) {
+  async create(
+    userId: string,
+    houseId: string,
+    dto: CreateDebtPaymentDto,
+    file?: Express.Multer.File,
+  ) {
+    let proof: { data: Uint8Array<ArrayBuffer>; mimeType: string } | undefined;
+    if (file) {
+      await this.access.finance(this.prisma, userId, houseId);
+      if (dto.method !== 'BANK_TRANSFER')
+        throw new BadRequestException({ code: 'PAYMENT_PROOF_METHOD' });
+      try {
+        const image = await prepareImage(file);
+        proof = { data: image.data, mimeType: image.mimeType };
+      } catch {
+        throw new BadRequestException({ code: 'PAYMENT_PROOF_INVALID' });
+      }
+    }
     return this.prisma.$transaction(async (tx) => {
       await this.access.lock(tx, houseId);
       const house = await this.access.finance(tx, userId, houseId);
@@ -39,9 +57,10 @@ export class ExpensePaymentsService {
         method: dto.method,
         note: dto.note,
       };
-      const contentHash = createHash('sha256')
-        .update(JSON.stringify(body))
-        .digest('hex');
+      const hash = createHash('sha256').update(JSON.stringify(body));
+      // Keep existing JSON retries compatible; include original image bytes.
+      if (file) hash.update('\0proof:').update(file.buffer);
+      const contentHash = hash.digest('hex');
       const existing = await tx.debtPayment.findUnique({
         where: {
           houseId_payerId_clientId: {
@@ -85,6 +104,7 @@ export class ExpensePaymentsService {
           clientId: dto.clientId,
           contentHash,
           createdById: userId,
+          ...(proof ? { proof: { create: proof } } : {}),
         },
         include: paymentInclude,
       });
@@ -98,20 +118,7 @@ export class ExpensePaymentsService {
 
   async list(userId: string, houseId: string, query: ExpenseQueryDto) {
     const house = await this.access.finance(this.prisma, userId, houseId);
-    const where: Prisma.DebtPaymentWhereInput = {
-      houseId,
-      ...(!house.active
-        ? {
-            OR: [
-              { payer: { userId } },
-              { recipient: { userId } },
-              ...(house.ownerId === userId
-                ? [{ payer: { userId: null } }, { recipient: { userId: null } }]
-                : []),
-            ],
-          }
-        : {}),
-    };
+    const where = this.visiblePayments(userId, houseId, house);
     const [items, total] = await Promise.all([
       this.prisma.debtPayment.findMany({
         where,
@@ -127,6 +134,43 @@ export class ExpensePaymentsService {
       total,
       page: query.page,
       pages: Math.ceil(total / query.limit),
+    };
+  }
+
+  async getProof(userId: string, houseId: string, paymentId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const house = await this.access.finance(tx, userId, houseId);
+      const payment = await tx.debtPayment.findFirst({
+        where: {
+          ...this.visiblePayments(userId, houseId, house),
+          id: paymentId,
+        },
+        select: { proof: true },
+      });
+      if (!payment?.proof)
+        throw new NotFoundException({ code: 'PAYMENT_PROOF_NOT_FOUND' });
+      return payment.proof;
+    });
+  }
+
+  private visiblePayments(
+    userId: string,
+    houseId: string,
+    house: { active: boolean; ownerId: string },
+  ): Prisma.DebtPaymentWhereInput {
+    return {
+      houseId,
+      ...(!house.active
+        ? {
+            OR: [
+              { payer: { userId } },
+              { recipient: { userId } },
+              ...(house.ownerId === userId
+                ? [{ payer: { userId: null } }, { recipient: { userId: null } }]
+                : []),
+            ],
+          }
+        : {}),
     };
   }
 

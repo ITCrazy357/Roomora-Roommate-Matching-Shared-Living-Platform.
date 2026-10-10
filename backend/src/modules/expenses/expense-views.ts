@@ -23,6 +23,7 @@ export const expenseInclude = {
 export const paymentInclude = {
   payer: { select: personSelect },
   recipient: { select: personSelect },
+  proof: { select: { paymentId: true } },
 } as const;
 
 export type ExpenseRow = Prisma.ExpenseGetPayload<{
@@ -71,11 +72,12 @@ export function expenseView(row: ExpenseRow) {
 export function paymentView(
   row: Prisma.DebtPaymentGetPayload<{ include: typeof paymentInclude }>,
 ) {
-  const { contentHash: _hash, payer, recipient, ...payment } = row;
+  const { contentHash: _hash, payer, recipient, proof, ...payment } = row;
   return {
     ...payment,
     payer: participantView(payer),
     recipient: participantView(recipient),
+    hasProof: !!proof,
     confirmationType: row.confirmedAt
       ? recipient.userId
         ? 'RECEIVER'

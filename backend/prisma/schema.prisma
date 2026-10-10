@@ -708,17 +708,28 @@ model DebtPayment {
   confirmedById String?   @map("confirmed_by_id") @db.Uuid
   contentHash   String    @default("") @map("content_hash") @db.VarChar(64)
 
-  house       House            @relation(fields: [houseId], references: [id], onDelete: Cascade)
-  payer       HouseParticipant @relation("DebtPaymentsMade", fields: [houseId, payerId], references: [houseId, id], onDelete: Restrict)
-  recipient   HouseParticipant @relation("DebtPaymentsReceived", fields: [houseId, recipientId], references: [houseId, id], onDelete: Restrict)
-  createdBy   User             @relation("PaymentRecorder", fields: [createdById], references: [id], onDelete: Restrict)
-  confirmedBy User?            @relation("PaymentConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
+  house       House             @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  payer       HouseParticipant  @relation("DebtPaymentsMade", fields: [houseId, payerId], references: [houseId, id], onDelete: Restrict)
+  recipient   HouseParticipant  @relation("DebtPaymentsReceived", fields: [houseId, recipientId], references: [houseId, id], onDelete: Restrict)
+  createdBy   User              @relation("PaymentRecorder", fields: [createdById], references: [id], onDelete: Restrict)
+  confirmedBy User?             @relation("PaymentConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
+  proof       DebtPaymentProof?
 
   @@unique([houseId, payerId, clientId])
   @@index([houseId, createdAt])
   @@index([payerId, status])
   @@index([recipientId, status])
   @@map("debt_payments")
+}
+
+// Ảnh minh chứng riêng tư, lưu cùng lần ghi nhận thanh toán.
+model DebtPaymentProof {
+  paymentId String      @id @map("payment_id") @db.Uuid
+  data      Bytes       @db.ByteA
+  mimeType  String      @default("image/jpeg") @map("mime_type") @db.VarChar(30)
+  payment   DebtPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("debt_payment_proofs")
 }
 
 // Lịch sử chỉnh sửa khoản chi.

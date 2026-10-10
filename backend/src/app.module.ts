@@ -13,7 +13,7 @@ import { ListingsModule } from './modules/listings/listings.module.js';
 import { PeopleModule } from './modules/people/people.module.js';
 import { CommunicationsModule } from './modules/communications/communications.module.js';
 import { HousesModule } from './modules/houses/houses.module.js';
-
+import { ExpensesModule } from './modules/expenses/expenses.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,6 +29,7 @@ import { HousesModule } from './modules/houses/houses.module.js';
     PeopleModule,
     CommunicationsModule,
     HousesModule,
+    ExpensesModule,
   ],
   controllers: [AppController],
   providers: [

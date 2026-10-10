@@ -108,6 +108,25 @@ enum UserReportStatus {
   DISMISSED
 }
 
+enum ExpenseStatus {
+  ACTIVE
+  SETTLED
+  ADJUSTMENT_REQUIRED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  CANCELLED
+}
+
 model User {
   id              String    @id @default(uuid()) @db.Uuid
   role            UserRole  @default(USER)
@@ -138,6 +157,13 @@ model User {
   houseEvents         HouseEvent[]        @relation("HouseEventUser")
   houseActions        HouseEvent[]        @relation("HouseEventActor")
   houseAnnouncements  HouseAnnouncement[]
+
+  paidExpenses         Expense[]            @relation("ExpensePayer")
+  createdExpenses      Expense[]            @relation("ExpenseCreator")
+  expenseSplits        ExpenseSplit[]
+  debtPaymentsMade     DebtPayment[]        @relation("DebtPaymentsMade")
+  debtPaymentsReceived DebtPayment[]        @relation("DebtPaymentsReceived")
+  expenseAdjustments   ExpenseAdjustment[] @relation("ExpenseAdjustmentCreator")
 
   @@map("users")
 }
@@ -210,6 +236,9 @@ model House {
   invites     HouseInvite[]
   events      HouseEvent[]
   announcements HouseAnnouncement[]
+
+  expenses      Expense[]
+  debtPayments  DebtPayment[]
 
   @@index([ownerId])
   @@map("houses")
@@ -585,3 +614,102 @@ model GoogleLoginState {
   @@map("google_login_states")
 }
 
+// Khoản chi gốc.
+model Expense {
+  id          String        @id @default(uuid()) @db.Uuid
+  houseId     String        @map("house_id") @db.Uuid
+
+  payerId     String        @map("payer_id") @db.Uuid
+  createdById String        @map("created_by_id") @db.Uuid
+
+  title       String        @db.VarChar(150)
+  description String?       @db.VarChar(2000)
+
+  amount      Int
+  receiptUrl  String?       @map("receipt_url") @db.VarChar(2048)
+
+  status      ExpenseStatus @default(ACTIVE)
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  house       House               @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  payer       User                @relation("ExpensePayer", fields: [payerId], references: [id], onDelete: Restrict)
+  createdBy   User                @relation("ExpenseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  splits      ExpenseSplit[]
+  adjustments ExpenseAdjustment[]
+
+  @@index([houseId, createdAt])
+  @@index([payerId])
+  @@index([createdById])
+  @@map("expenses")
+}
+
+// Phần tiền mỗi thành viên chịu cho khoản chi.
+model ExpenseSplit {
+  id        String  @id @default(uuid()) @db.Uuid
+  expenseId String  @map("expense_id") @db.Uuid
+  userId    String  @map("user_id") @db.Uuid
+
+  amount    Int
+
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([expenseId, userId])
+  @@index([userId])
+  @@map("expense_splits")
+}
+
+// Một lần thành viên trả tiền bù trừ công nợ trong nhà.
+model DebtPayment {
+  id          String        @id @default(uuid()) @db.Uuid
+
+  houseId     String        @map("house_id") @db.Uuid
+  payerId     String        @map("payer_id") @db.Uuid
+  recipientId String        @map("recipient_id") @db.Uuid
+
+  clientId    String        @map("client_id") @db.VarChar(100)
+
+  amount      Int
+  method      PaymentMethod
+  status      PaymentStatus @default(PENDING)
+
+  note        String?       @db.VarChar(1000)
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+  confirmedAt DateTime?     @map("confirmed_at")
+
+  house     House @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  payer     User  @relation("DebtPaymentsMade", fields: [payerId], references: [id], onDelete: Restrict)
+  recipient User  @relation("DebtPaymentsReceived", fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@unique([houseId, payerId, clientId])
+  @@index([houseId, createdAt])
+  @@index([payerId, status])
+  @@index([recipientId, status])
+  @@map("debt_payments")
+}
+
+// Lịch sử chỉnh sửa khoản chi.
+model ExpenseAdjustment {
+  id          String   @id @default(uuid()) @db.Uuid
+
+  expenseId   String   @map("expense_id") @db.Uuid
+  createdById String   @map("created_by_id") @db.Uuid
+
+  oldAmount   Int      @map("old_amount")
+  newAmount   Int      @map("new_amount")
+
+  reason      String   @db.VarChar(1000)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+
+  createdBy User      @relation("ExpenseAdjustmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([expenseId, createdAt])
+  @@map("expense_adjustments")
+}

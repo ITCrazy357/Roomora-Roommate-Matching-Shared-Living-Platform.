@@ -138,6 +138,14 @@ export function ListingContent({
               <p className="listing-price">
                 Tối đa {money(listing.rent)} / tháng
               </p>
+              {listing.desiredResidents !== null && (
+                <p>Phòng cho {listing.desiredResidents} người ở.</p>
+              )}
+              <p className="text-muted">
+                Người có phòng phù hợp hoặc sắp chuyển đi có thể kết nối để trao
+                đổi. Việc thuê hoặc bàn giao cần được chủ phòng chấp thuận, kể
+                cả khi chủ phòng không dùng Roomora.
+              </p>
             </Card>
           )}
           <Card>
@@ -238,8 +246,9 @@ export function ListingContent({
                 </p>
               ))}
             <p className="text-muted">
-              Thông tin phòng và chi phí do người đăng cung cấp. Kiểm duyệt nội
-              dung chưa thay thế việc xem phòng thực tế.
+              {listing.type === "ROOM_WANTED"
+                ? "Đây là nhu cầu tìm phòng do người đăng cung cấp."
+                : "Thông tin phòng, số người đang ở và chi phí do người đăng cung cấp. Khi ở ghép hoặc nhận bàn giao, cần trao đổi với chủ phòng để được chấp thuận."}
             </p>
           </Card>
         </aside>

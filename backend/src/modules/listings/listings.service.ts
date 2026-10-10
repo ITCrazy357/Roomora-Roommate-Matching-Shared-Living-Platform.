@@ -449,6 +449,8 @@ export class ListingsService {
       area: input.area,
       availableSlots: input.availableSlots,
       currentResidents: input.currentResidents,
+      desiredResidents:
+        input.type === 'ROOM_WANTED' ? input.desiredResidents : null,
       availableFrom: availableFrom
         ? new Date(`${availableFrom}T00:00:00Z`)
         : null,
@@ -539,6 +541,7 @@ export class ListingsService {
       area: listing.area,
       availableSlots: listing.availableSlots,
       currentResidents: listing.currentResidents,
+      desiredResidents: listing.desiredResidents,
       availableFrom: listing.availableFrom,
       provinceCode: listing.provinceCode,
       provinceName: listing.provinceName,

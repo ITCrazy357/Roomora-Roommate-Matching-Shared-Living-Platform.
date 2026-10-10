@@ -85,6 +85,7 @@ enum Amenity {
   KITCHEN
   BALCONY
   PRIVATE_BATHROOM
+  HOT_WATER
 }
 
 enum ConnectionStatus {
@@ -127,6 +128,11 @@ enum PaymentStatus {
   CANCELLED
 }
 
+enum ExpenseSplitMode {
+  EQUAL
+  CUSTOM
+}
+
 model User {
   id              String    @id @default(uuid()) @db.Uuid
   role            UserRole  @default(USER)
@@ -158,12 +164,13 @@ model User {
   houseActions        HouseEvent[]        @relation("HouseEventActor")
   houseAnnouncements  HouseAnnouncement[]
 
-  paidExpenses         Expense[]            @relation("ExpensePayer")
-  createdExpenses      Expense[]            @relation("ExpenseCreator")
-  expenseSplits        ExpenseSplit[]
-  debtPaymentsMade     DebtPayment[]        @relation("DebtPaymentsMade")
-  debtPaymentsReceived DebtPayment[]        @relation("DebtPaymentsReceived")
-  expenseAdjustments   ExpenseAdjustment[] @relation("ExpenseAdjustmentCreator")
+  createdExpenses    Expense[]           @relation("ExpenseCreator")
+  expenseAdjustments ExpenseAdjustment[] @relation("ExpenseAdjustmentCreator")
+  houseParticipants  HouseParticipant[]
+  houseMessages      HouseMessage[]
+  housePollVotes     HousePollVote[]
+  recordedPayments   DebtPayment[]       @relation("PaymentRecorder")
+  confirmedPayments  DebtPayment[]       @relation("PaymentConfirmer")
 
   @@map("users")
 }
@@ -188,6 +195,7 @@ model Listing {
   area              Int?
   availableSlots    Int                @default(1) @map("available_slots")
   currentResidents  Int                @default(0) @map("current_residents")
+  desiredResidents  Int?               @map("desired_residents")
   availableFrom     DateTime?          @map("available_from") @db.Date
   provinceCode      String?            @map("province_code") @db.VarChar(2)
   provinceName      String?            @map("province_name") @db.VarChar(100)
@@ -222,35 +230,38 @@ model Listing {
 }
 
 model House {
-  id          String              @id @default(uuid()) @db.Uuid
-  ownerId     String              @map("owner_id") @db.Uuid
-  name        String              @db.VarChar(120)
-  address     String              @default("") @db.VarChar(300)
-  description String              @default("") @db.VarChar(1000)
-  rules       String              @default("") @db.VarChar(3000)
-  closedAt    DateTime?           @map("closed_at")
-  createdAt   DateTime            @default(now()) @map("created_at")
-  updatedAt   DateTime            @updatedAt @map("updated_at")
-  owner       User                @relation("HouseOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  members     HouseMember[]
-  invites     HouseInvite[]
-  events      HouseEvent[]
+  id            String              @id @default(uuid()) @db.Uuid
+  ownerId       String              @map("owner_id") @db.Uuid
+  name          String              @db.VarChar(120)
+  address       String              @default("") @db.VarChar(300)
+  description   String              @default("") @db.VarChar(1000)
+  rules         String              @default("") @db.VarChar(3000)
+  closedAt      DateTime?           @map("closed_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  owner         User                @relation("HouseOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members       HouseMember[]
+  invites       HouseInvite[]
+  events        HouseEvent[]
   announcements HouseAnnouncement[]
 
-  expenses      Expense[]
-  debtPayments  DebtPayment[]
+  expenses          Expense[]
+  debtPayments      DebtPayment[]
+  participants      HouseParticipant[]
+  messages          HouseMessage[]
+  lastMessageNumber Int                @default(0) @map("last_message_number")
 
   @@index([ownerId])
   @@map("houses")
 }
 
 model HouseMember {
-  houseId   String    @map("house_id") @db.Uuid
-  userId    String    @map("user_id") @db.Uuid
-  joinedAt  DateTime  @default(now()) @map("joined_at")
-  leftAt    DateTime? @map("left_at")
-  house     House     @relation(fields: [houseId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  houseId  String    @map("house_id") @db.Uuid
+  userId   String    @map("user_id") @db.Uuid
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  leftAt   DateTime? @map("left_at")
+  house    House     @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@id([houseId, userId])
   // A partial unique index in 20260929010000_one_active_house_per_user
@@ -420,16 +431,19 @@ model Conversation {
 }
 
 model Message {
-  id             String       @id @default(uuid()) @db.Uuid
-  conversationId String       @map("conversation_id") @db.Uuid
-  senderId       String       @map("sender_id") @db.Uuid
-  clientId       String       @map("client_id") @db.Uuid
+  id             String              @id @default(uuid()) @db.Uuid
+  conversationId String              @map("conversation_id") @db.Uuid
+  senderId       String              @map("sender_id") @db.Uuid
+  clientId       String              @map("client_id") @db.Uuid
   number         Int
-  text           String       @db.VarChar(2000)
-  contentHash    String       @default("") @map("content_hash") @db.VarChar(64)
-  createdAt      DateTime     @default(now()) @map("created_at")
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  text           String              @db.VarChar(2000)
+  contentHash    String              @default("") @map("content_hash") @db.VarChar(64)
+  version        Int                 @default(1)
+  editedAt       DateTime?           @map("edited_at")
+  deletedAt      DateTime?           @map("deleted_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  conversation   Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
   attachments    MessageAttachment[]
 
   @@unique([conversationId, number])
@@ -441,6 +455,7 @@ model Message {
 enum MessageAttachmentKind {
   IMAGE
   AUDIO
+  FILE
 }
 
 model MessageAttachment {
@@ -449,6 +464,7 @@ model MessageAttachment {
   kind      MessageAttachmentKind
   mimeType  String                @map("mime_type") @db.VarChar(50)
   byteSize  Int                   @map("byte_size")
+  fileName  String?               @map("file_name") @db.VarChar(255)
   position  Int
   width     Int?
   height    Int?
@@ -616,30 +632,36 @@ model GoogleLoginState {
 
 // Khoản chi gốc.
 model Expense {
-  id          String        @id @default(uuid()) @db.Uuid
-  houseId     String        @map("house_id") @db.Uuid
+  id      String @id @default(uuid()) @db.Uuid
+  houseId String @map("house_id") @db.Uuid
 
-  payerId     String        @map("payer_id") @db.Uuid
-  createdById String        @map("created_by_id") @db.Uuid
+  payerId     String @map("payer_id") @db.Uuid
+  createdById String @map("created_by_id") @db.Uuid
 
-  title       String        @db.VarChar(150)
-  description String?       @db.VarChar(2000)
+  clientId    String           @default(uuid()) @map("client_id") @db.VarChar(100)
+  contentHash String           @default("") @map("content_hash") @db.VarChar(64)
+  version     Int              @default(1)
+  splitMode   ExpenseSplitMode @default(CUSTOM) @map("split_mode")
+  title       String           @db.VarChar(150)
+  description String?          @db.VarChar(2000)
 
-  amount      Int
-  receiptUrl  String?       @map("receipt_url") @db.VarChar(2048)
+  amount     Int
+  receiptUrl String? @map("receipt_url") @db.VarChar(2048)
 
-  status      ExpenseStatus @default(ACTIVE)
+  status ExpenseStatus @default(ACTIVE)
 
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  house       House               @relation(fields: [houseId], references: [id], onDelete: Cascade)
-  payer       User                @relation("ExpensePayer", fields: [payerId], references: [id], onDelete: Restrict)
-  createdBy   User                @relation("ExpenseCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  house     House            @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  payer     HouseParticipant @relation("ExpensePayer", fields: [houseId, payerId], references: [houseId, id], onDelete: Restrict)
+  createdBy User             @relation("ExpenseCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
   splits      ExpenseSplit[]
   adjustments ExpenseAdjustment[]
+  receipt     ExpenseReceipt?
 
+  @@unique([houseId, createdById, clientId])
   @@index([houseId, createdAt])
   @@index([payerId])
   @@index([createdById])
@@ -648,42 +670,49 @@ model Expense {
 
 // Phần tiền mỗi thành viên chịu cho khoản chi.
 model ExpenseSplit {
-  id        String  @id @default(uuid()) @db.Uuid
-  expenseId String  @map("expense_id") @db.Uuid
-  userId    String  @map("user_id") @db.Uuid
+  id            String @id @default(uuid()) @db.Uuid
+  expenseId     String @map("expense_id") @db.Uuid
+  houseId       String @map("house_id") @db.Uuid
+  participantId String @map("user_id") @db.Uuid
 
-  amount    Int
+  amount Int
 
-  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  user      User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  expense     Expense          @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  participant HouseParticipant @relation(fields: [houseId, participantId], references: [houseId, id], onDelete: Restrict)
 
-  @@unique([expenseId, userId])
-  @@index([userId])
+  @@unique([expenseId, participantId])
+  @@index([participantId])
   @@map("expense_splits")
 }
 
 // Một lần thành viên trả tiền bù trừ công nợ trong nhà.
 model DebtPayment {
-  id          String        @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  houseId     String        @map("house_id") @db.Uuid
-  payerId     String        @map("payer_id") @db.Uuid
-  recipientId String        @map("recipient_id") @db.Uuid
+  houseId     String @map("house_id") @db.Uuid
+  payerId     String @map("payer_id") @db.Uuid
+  recipientId String @map("recipient_id") @db.Uuid
 
-  clientId    String        @map("client_id") @db.VarChar(100)
+  clientId String @map("client_id") @db.VarChar(100)
 
-  amount      Int
-  method      PaymentMethod
-  status      PaymentStatus @default(PENDING)
+  amount Int
+  method PaymentMethod
+  status PaymentStatus @default(PENDING)
 
-  note        String?       @db.VarChar(1000)
+  note String? @db.VarChar(1000)
 
-  createdAt   DateTime      @default(now()) @map("created_at")
-  confirmedAt DateTime?     @map("confirmed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  confirmedAt   DateTime? @map("confirmed_at")
+  version       Int       @default(1)
+  createdById   String    @map("created_by_id") @db.Uuid
+  confirmedById String?   @map("confirmed_by_id") @db.Uuid
+  contentHash   String    @default("") @map("content_hash") @db.VarChar(64)
 
-  house     House @relation(fields: [houseId], references: [id], onDelete: Cascade)
-  payer     User  @relation("DebtPaymentsMade", fields: [payerId], references: [id], onDelete: Restrict)
-  recipient User  @relation("DebtPaymentsReceived", fields: [recipientId], references: [id], onDelete: Restrict)
+  house       House            @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  payer       HouseParticipant @relation("DebtPaymentsMade", fields: [houseId, payerId], references: [houseId, id], onDelete: Restrict)
+  recipient   HouseParticipant @relation("DebtPaymentsReceived", fields: [houseId, recipientId], references: [houseId, id], onDelete: Restrict)
+  createdBy   User             @relation("PaymentRecorder", fields: [createdById], references: [id], onDelete: Restrict)
+  confirmedBy User?            @relation("PaymentConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
 
   @@unique([houseId, payerId, clientId])
   @@index([houseId, createdAt])
@@ -694,22 +723,133 @@ model DebtPayment {
 
 // Lịch sử chỉnh sửa khoản chi.
 model ExpenseAdjustment {
-  id          String   @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  expenseId   String   @map("expense_id") @db.Uuid
-  createdById String   @map("created_by_id") @db.Uuid
+  expenseId   String @map("expense_id") @db.Uuid
+  createdById String @map("created_by_id") @db.Uuid
 
-  oldAmount   Int      @map("old_amount")
-  newAmount   Int      @map("new_amount")
+  oldAmount Int @map("old_amount")
+  newAmount Int @map("new_amount")
 
-  reason      String   @db.VarChar(1000)
+  reason      String @db.VarChar(1000)
+  action      String @default("EDIT") @db.VarChar(30)
+  version     Int    @default(1)
+  oldSnapshot Json?  @map("old_snapshot")
+  newSnapshot Json?  @map("new_snapshot")
 
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Restrict)
 
-  createdBy User      @relation("ExpenseAdjustmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy User @relation("ExpenseAdjustmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
   @@index([expenseId, createdAt])
   @@map("expense_adjustments")
+}
+
+// Account participants use their user ID; guests get an independent ID.
+// The composite key keeps the same person distinct in each house's ledger.
+model HouseParticipant {
+  houseId          String         @map("house_id") @db.Uuid
+  id               String         @default(uuid()) @db.Uuid
+  userId           String?        @map("user_id") @db.Uuid
+  displayName      String         @map("display_name") @db.VarChar(120)
+  leftAt           DateTime?      @map("left_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  house            House          @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  user             User?          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  paidExpenses     Expense[]      @relation("ExpensePayer")
+  splits           ExpenseSplit[]
+  paymentsMade     DebtPayment[]  @relation("DebtPaymentsMade")
+  paymentsReceived DebtPayment[]  @relation("DebtPaymentsReceived")
+
+  @@id([houseId, id])
+  @@unique([houseId, userId])
+  @@map("house_participants")
+}
+
+model ExpenseReceipt {
+  expenseId String  @id @map("expense_id") @db.Uuid
+  data      Bytes   @db.ByteA
+  mimeType  String  @default("image/jpeg") @map("mime_type") @db.VarChar(50)
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@map("expense_receipts")
+}
+
+model HouseMessage {
+  id          String                   @id @default(uuid()) @db.Uuid
+  houseId     String                   @map("house_id") @db.Uuid
+  senderId    String                   @map("sender_id") @db.Uuid
+  clientId    String                   @map("client_id") @db.Uuid
+  number      Int
+  text        String                   @db.VarChar(2000)
+  contentHash String                   @map("content_hash") @db.VarChar(64)
+  version     Int                      @default(1)
+  editedAt    DateTime?                @map("edited_at")
+  deletedAt   DateTime?                @map("deleted_at")
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  house       House                    @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  sender      User                     @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  attachments HouseMessageAttachment[]
+  poll        HousePoll?
+
+  @@unique([houseId, number])
+  @@unique([houseId, senderId, clientId])
+  @@index([senderId, createdAt])
+  @@map("house_messages")
+}
+
+model HouseMessageAttachment {
+  id        String                @id @default(uuid()) @db.Uuid
+  messageId String                @map("message_id") @db.Uuid
+  kind      MessageAttachmentKind
+  mimeType  String                @map("mime_type") @db.VarChar(50)
+  byteSize  Int                   @map("byte_size")
+  fileName  String?               @map("file_name") @db.VarChar(255)
+  position  Int
+  width     Int?
+  height    Int?
+  data      Bytes                 @db.ByteA
+  message   HouseMessage          @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, position])
+  @@map("house_message_attachments")
+}
+
+model HousePoll {
+  messageId String            @id @map("message_id") @db.Uuid
+  question  String            @db.VarChar(200)
+  closedAt  DateTime?         @map("closed_at") @db.Timestamptz(3)
+  message   HouseMessage      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  options   HousePollOption[]
+  votes     HousePollVote[]
+
+  @@map("house_polls")
+}
+
+model HousePollOption {
+  id       String          @id @default(uuid()) @db.Uuid
+  pollId   String          @map("poll_id") @db.Uuid
+  text     String          @db.VarChar(120)
+  position Int
+  poll     HousePoll       @relation(fields: [pollId], references: [messageId], onDelete: Cascade)
+  votes    HousePollVote[]
+
+  @@unique([pollId, id])
+  @@unique([pollId, position])
+  @@map("house_poll_options")
+}
+
+model HousePollVote {
+  pollId   String          @map("poll_id") @db.Uuid
+  userId   String          @map("user_id") @db.Uuid
+  optionId String          @map("option_id") @db.Uuid
+  poll     HousePoll       @relation(fields: [pollId], references: [messageId], onDelete: Cascade)
+  option   HousePollOption @relation(fields: [pollId, optionId], references: [pollId, id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([pollId, userId])
+  @@index([pollId, optionId])
+  @@map("house_poll_votes")
 }

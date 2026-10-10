@@ -4,10 +4,14 @@ import { AuthModule } from '../auth/auth.module.js';
 import { CommunicationsModule } from '../communications/communications.module.js';
 import { HousesController } from './houses.controller.js';
 import { HousesService } from './houses.service.js';
+import { HouseAccessService } from './house-access.service.js';
+import { HouseChatController } from './house-chat.controller.js';
+import { HouseChatService } from './house-chat.service.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, CommunicationsModule],
-  controllers: [HousesController],
-  providers: [HousesService],
+  controllers: [HousesController, HouseChatController],
+  providers: [HousesService, HouseAccessService, HouseChatService],
+  exports: [HouseAccessService],
 })
 export class HousesModule {}

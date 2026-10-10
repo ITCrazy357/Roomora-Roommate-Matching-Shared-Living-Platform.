@@ -38,6 +38,10 @@ Nền nhấn dùng kem hồng/cam nhạt.
   chấm cam đỏ. Nút phụ dùng chữ trung tính và viền `--border-strong`.
 - Trạng thái lỗi dùng `--danger`, `--danger-soft`, `--danger-foreground`;
   trạng thái thành công dùng nền nhấn nhạt và chữ cam đậm kèm nội dung/icon rõ ràng.
+- Tài chính dùng màu ngữ nghĩa: `--success-*` xanh lá cho tiền cần nhận/đã xác nhận,
+  `--danger-*` đỏ cho tiền đang nợ, `--warning-*` vàng cho trạng thái chờ,
+  nền trung tính cho công nợ bằng 0. Luôn có nhãn chữ và dấu số đi kèm màu.
+  `--info-*` xanh dương dành cho thông tin hỗ trợ; nút thao tác vẫn giữ màu thương hiệu.
 - Giữ màu nhận diện của logo bên thứ ba, ví dụ logo Google.
 
 `button-secondary` là nút viền trung tính cho hành động phụ. Tên variant chỉ

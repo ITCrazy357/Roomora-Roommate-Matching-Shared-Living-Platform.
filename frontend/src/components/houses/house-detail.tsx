@@ -20,11 +20,17 @@ import {
   Textarea,
 } from "../ui";
 import { HouseForm } from "./house-form";
+import { HouseChat } from "./house-chat";
+import { HouseFinances } from "./house-finances";
+import { useUpdates } from "../communications/updates-provider";
 
 export function HouseDetail({ id, userId }: { id: string; userId: string }) {
   const router = useRouter();
+  const { revision } = useUpdates();
   const [house, setHouse] = useState<House | null>(null);
-  const [tab, setTab] = useState<"overview" | "members" | "info">("overview");
+  const [tab, setTab] = useState<
+    "overview" | "members" | "info" | "chat" | "expenses" | "balances"
+  >("overview");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
@@ -46,10 +52,13 @@ export function HouseDetail({ id, userId }: { id: string; userId: string }) {
         setError("");
       })
       .catch((error) => {
-        if (!controller.signal.aborted) setError(houseError(error));
+        if (!controller.signal.aborted) {
+          setHouse(null);
+          setError(houseError(error));
+        }
       });
     return () => controller.abort();
-  }, [id, refresh]);
+  }, [id, refresh, revision]);
 
   useEffect(() => {
     if (tab !== "members" || house?.ownerId !== userId) return;
@@ -101,7 +110,7 @@ export function HouseDetail({ id, userId }: { id: string; userId: string }) {
       !window.confirm(
         closing
           ? "Bạn là người cuối cùng trong nhà. Nhà sẽ được lưu trữ và các lời mời đang chờ bị thu hồi. Tiếp tục?"
-          : "Bạn sẽ mất quyền xem thông tin nhà sau khi rời. Tiếp tục?",
+          : "Bạn sẽ mất quyền xem thông tin và chat của nhà. Lịch sử công nợ liên quan tới bạn vẫn được giữ để trả nợ. Tiếp tục?",
       )
     )
       return;
@@ -142,8 +151,8 @@ export function HouseDetail({ id, userId }: { id: string; userId: string }) {
       ?.displayName ?? "Trưởng nhà";
   return (
     <section className="container page-section houses-page">
-      <Link className="text-link" href="/nha-chung">
-        ← Tất cả nhà chung
+      <Link className="text-link" href="/nha-chung/lich-su">
+        Lịch sử công nợ các nhà đã ở →
       </Link>
       <Card className="house-hero">
         <span className="eyebrow">
@@ -160,6 +169,9 @@ export function HouseDetail({ id, userId }: { id: string; userId: string }) {
           [
             ["overview", "Tổng quan"],
             ["members", "Thành viên"],
+            ["chat", "Chat chung"],
+            ["expenses", "Chi phí"],
+            ["balances", "Công nợ & Quyết toán"],
             ["info", "Thông tin nhà"],
           ] as const
         ).map(([key, label]) => (
@@ -178,6 +190,10 @@ export function HouseDetail({ id, userId }: { id: string; userId: string }) {
         <p className="success-state" role="status">
           {notice}
         </p>
+      )}
+      {tab === "chat" && <HouseChat houseId={id} userId={userId} />}
+      {(tab === "expenses" || tab === "balances") && (
+        <HouseFinances key={tab} houseId={id} userId={userId} mode={tab} />
       )}
       {tab === "overview" && (
         <div className="house-grid">
@@ -306,15 +322,18 @@ export function HouseDetail({ id, userId }: { id: string; userId: string }) {
                   <div>
                     <strong>{member.displayName}</strong>
                     <p className="text-muted">
-                      {member.userId === house.ownerId
-                        ? "Trưởng nhà"
-                        : "Thành viên"}{" "}
-                      · Tham gia {houseDate(member.joinedAt)}
+                      {member.role === "OWNER" ? "Trưởng nhà" : "Thành viên"} ·
+                      Tham gia {houseDate(member.joinedAt)}
                     </p>
                   </div>
-                  <Link className="text-link" href={`/ho-so/${member.userId}`}>
-                    Xem hồ sơ
-                  </Link>
+                  {member.userId !== userId && (
+                    <Link
+                      className="text-link"
+                      href={`/ho-so/${member.userId}`}
+                    >
+                      Xem hồ sơ
+                    </Link>
+                  )}
                 </div>
               ))}
             </Card>
@@ -538,6 +557,12 @@ export function HouseDetail({ id, userId }: { id: string; userId: string }) {
             <p>
               Trưởng nhà mời thành viên, quản lý thông tin, nội quy và chuyển
               quyền. Mọi thành viên có thể đăng thông báo chung.
+            </p>
+            <p className="text-muted">
+              Trưởng nhà là người quản lý nhóm trên Roomora, có thể là người
+              thuê. Vai trò này không xác nhận quyền sở hữu phòng hoặc thay thế
+              sự chấp thuận của chủ phòng. Danh sách thành viên chỉ gồm người đã
+              tham gia trên Roomora.
             </p>
             <p className="text-muted">
               Dữ liệu nhà chỉ được trả về cho thành viên đang tham gia.

@@ -70,6 +70,7 @@ export class HousesService {
       await tx.houseEvent.create({
         data: { houseId: created.id, userId, actorId: userId, type: 'CREATED' },
       });
+      await this.saveParticipant(tx, created.id, userId);
       return created;
     });
     return this.get(userId, house.id);
@@ -159,6 +160,7 @@ export class HousesService {
         joinedAt: member.joinedAt,
         displayName: member.user.profile?.displayName ?? 'Thành viên Roomora',
         avatarUrl: member.user.profile?.avatarUrl ?? null,
+        role: member.userId === house.ownerId ? 'OWNER' : 'MEMBER',
       })),
       announcements: house.announcements.map((item) => ({
         id: item.id,
@@ -413,6 +415,7 @@ export class HousesService {
         create: { houseId: invite.houseId, userId },
         update: { joinedAt: new Date(), leftAt: null },
       });
+      await this.saveParticipant(tx, invite.houseId, userId);
       await tx.houseEvent.create({
         data: {
           houseId: invite.houseId,
@@ -497,6 +500,18 @@ export class HousesService {
       await tx.houseEvent.create({
         data: { houseId: id, userId, actorId: userId, type: 'LEFT' },
       });
+      await tx.houseParticipant.updateMany({
+        where: { houseId: id, userId },
+        data: { leftAt: new Date() },
+      });
+      const members = await tx.houseMember.findMany({
+        where: { houseId: id, leftAt: null },
+        select: { userId: true },
+      });
+      await this.notifications.signal(tx, [
+        userId,
+        ...members.map((member) => member.userId),
+      ]);
     });
     return { left: true };
   }
@@ -528,6 +543,27 @@ export class HousesService {
       await tx.houseAnnouncement.delete({ where: { id: announcementId } });
     });
     return this.get(userId, id);
+  }
+
+  private async saveParticipant(
+    tx: Prisma.TransactionClient,
+    houseId: string,
+    userId: string,
+  ) {
+    const profile = await tx.profile.findUnique({
+      where: { userId },
+      select: { displayName: true },
+    });
+    await tx.houseParticipant.upsert({
+      where: { houseId_id: { houseId, id: userId } },
+      create: {
+        houseId,
+        id: userId,
+        userId,
+        displayName: profile?.displayName ?? 'Thành viên Roomora',
+      },
+      update: { leftAt: null },
+    });
   }
 
   private async lockHouse(

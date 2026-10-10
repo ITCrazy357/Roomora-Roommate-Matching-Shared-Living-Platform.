@@ -59,7 +59,8 @@ export function ListingEditorFields({
       | "otherCost"
       | "area"
       | "availableSlots"
-      | "currentResidents",
+      | "currentResidents"
+      | "desiredResidents",
     label: string,
     min = 0,
     max = 100000000,
@@ -102,8 +103,8 @@ export function ListingEditorFields({
                 {type === "ROOMMATE"
                   ? "Bạn có chỗ ở và muốn tìm thêm người cùng nhà."
                   : type === "ROOM_WANTED"
-                    ? "Bạn đang tìm phòng trong khu vực và ngân sách mong muốn."
-                    : "Bạn có phòng để cho thuê."}
+                    ? "Đăng điều kiện phòng bạn muốn tìm để người có phòng hoặc cần bàn giao liên hệ."
+                    : "Bạn có phòng để cho thuê hoặc muốn bàn giao phòng đang thuê."}
               </span>
             </label>
           ))}
@@ -141,7 +142,11 @@ export function ListingEditorFields({
           value={form.description}
           rows={7}
           maxLength={5000}
-          hint="Mô tả không gian và sinh hoạt; ít nhất 30 ký tự khi gửi duyệt. Không ghi địa chỉ cụ thể trong phần công khai."
+          hint={
+            form.type === "ROOM_WANTED"
+              ? "Nêu số người dự kiến ở, khu vực, tiện ích và điều kiện cần có; ít nhất 30 ký tự khi gửi duyệt."
+              : "Mô tả không gian và sinh hoạt; ít nhất 30 ký tự khi gửi duyệt. Không ghi địa chỉ cụ thể trong phần công khai."
+          }
           onChange={(event) => change("description", event.target.value)}
         />
         <div className="form-grid">
@@ -164,6 +169,13 @@ export function ListingEditorFields({
             )}
           {form.type === "ROOMMATE" &&
             numberField("currentResidents", "Số người đang ở", 0, 20)}
+          {form.type === "ROOM_WANTED" &&
+            numberField(
+              "desiredResidents",
+              "Số người dự kiến ở (tùy chọn)",
+              1,
+              20,
+            )}
           <Input
             id="availableFrom"
             label="Ngày có thể dọn vào"
@@ -172,6 +184,19 @@ export function ListingEditorFields({
             onChange={(event) => change("availableFrom", event.target.value)}
           />
         </div>
+        {form.type === "ROOMMATE" && (
+          <p className="text-muted">
+            Tính cả bạn và người đang ở không dùng Roomora. Số người do bạn khai
+            báo, không tự tính từ thành viên Nhà chung hoặc số kết nối.
+          </p>
+        )}
+        {form.type !== "ROOM_WANTED" && (
+          <p className="text-muted">
+            Nếu bạn đang thuê và muốn tìm người ghép hoặc bàn giao phòng, hãy
+            trao đổi với chủ phòng để được chấp thuận. Chủ phòng không cần có
+            tài khoản Roomora.
+          </p>
+        )}
       </div>
     );
 
@@ -297,7 +322,7 @@ export function ListingEditorFields({
       <div className="form-stack">
         <h2>
           {form.type === "ROOM_WANTED"
-            ? "Tiêu chí sinh hoạt"
+            ? "Tiện ích & Điều kiện mong muốn"
             : "Ảnh thực tế & Tiêu chí"}
         </h2>
         {form.type !== "ROOM_WANTED" && (

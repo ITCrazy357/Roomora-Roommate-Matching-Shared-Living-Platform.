@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -12,6 +14,7 @@ import {
   UseGuards,
   UseInterceptors,
   Res,
+  UseFilters,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -20,10 +23,14 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import { ConversationsService } from './conversations.service.js';
 import { NotificationsService } from './notifications.service.js';
 import { UpdatesService } from './updates.service.js';
+import { sendMessageAttachment, type MessageFiles } from './message-media.js';
+import { MessageUploadFilter } from './message-upload.filter.js';
 import {
   AppointmentDto,
   AppointmentQuery,
   ChangeAppointmentDto,
+  EditMessageDto,
+  MessageVersionDto,
   MessageQuery,
   NotificationQuery,
   PageQuery,
@@ -63,13 +70,15 @@ export class CommunicationsController {
     return this.conversations.messages(req.auth.userId, id, query);
   }
   @Post('conversations/:id/messages')
+  @UseFilters(MessageUploadFilter)
   @UseInterceptors(
     FileFieldsInterceptor(
       [
         { name: 'images', maxCount: 4 },
         { name: 'audio', maxCount: 1 },
+        { name: 'files', maxCount: 4 },
       ],
-      { limits: { fileSize: 5 * 1024 * 1024, files: 5, fields: 2 } },
+      { limits: { fileSize: 5 * 1024 * 1024, files: 9, fields: 2 } },
     ),
   )
   send(
@@ -77,9 +86,30 @@ export class CommunicationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SendMessageDto,
     @UploadedFiles()
-    files?: { images?: Express.Multer.File[]; audio?: Express.Multer.File[] },
+    files?: MessageFiles,
   ) {
     return this.conversations.send(req.auth.userId, id, dto, files);
+  }
+  @Patch('conversations/:id/messages/:messageId') editMessage(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Body() dto: EditMessageDto,
+  ) {
+    return this.conversations.editMessage(req.auth.userId, id, messageId, dto);
+  }
+  @Delete('conversations/:id/messages/:messageId') deleteMessage(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Body() dto: MessageVersionDto,
+  ) {
+    return this.conversations.deleteMessage(
+      req.auth.userId,
+      id,
+      messageId,
+      dto,
+    );
   }
   @Get('conversations/:id/attachments/:attachmentId') async attachment(
     @Req() req: AuthenticatedRequest,
@@ -92,14 +122,7 @@ export class CommunicationsController {
       id,
       attachmentId,
     );
-    response.set({
-      'Content-Type': file.mimeType,
-      'Content-Length': String(file.data.length),
-      'Cache-Control': 'private, no-store',
-      'X-Content-Type-Options': 'nosniff',
-      'Content-Disposition': 'inline',
-    });
-    response.send(Buffer.from(file.data));
+    sendMessageAttachment(response, file);
   }
   @Post('conversations/:id/read') read(
     @Req() req: AuthenticatedRequest,

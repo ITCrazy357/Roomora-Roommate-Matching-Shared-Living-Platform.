@@ -82,6 +82,11 @@ export class ListingInputDto {
   @Max(20)
   currentResidents = 0;
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  desiredResidents: number | null = null;
+  @IsOptional()
   @IsDateString({ strict: true })
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   availableFrom: string | null = null;
@@ -109,7 +114,7 @@ export class ListingInputDto {
   longitude: number | null = null;
   @IsArray()
   @ArrayUnique()
-  @ArrayMaxSize(8)
+  @ArrayMaxSize(9)
   @IsEnum(Amenity, { each: true })
   amenities: Amenity[] = [];
   @Transform(trim)
@@ -196,7 +201,7 @@ export class ListingQueryDto {
   )
   @IsArray()
   @ArrayUnique()
-  @ArrayMaxSize(8)
+  @ArrayMaxSize(9)
   @IsEnum(Amenity, { each: true })
   amenities?: Amenity[];
   @IsEnum({

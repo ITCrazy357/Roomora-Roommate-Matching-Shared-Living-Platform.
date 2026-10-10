@@ -162,6 +162,54 @@ Lưu ý: Có các trường hợp cần chú ý để làm cho đúng logic busi
 - Chủ phòng không dùng app này, nhưng user lại tìm người ghép hoặc bàn giao phòng trên này.
 - Các user đang ở với một người không dùng app này
 
+Trạng thái bổ sung 10/10/2026:
+- Đã ẩn "Xem hồ sơ" của chính mình trong danh sách thành viên Nhà chung.
+- Chat: người gửi được sửa văn bản và xóa tin của mình cho cả hai phía;
+  có dấu đã chỉnh sửa/đã xóa, chống ghi đè phiên bản và gửi lại trùng.
+  Xóa tin cũng xóa ảnh/ghi âm đính kèm; tin cũ vẫn giữ thứ tự lịch sử.
+- Tìm phòng: thêm số người dự kiến ở (tùy chọn), tiện ích nước nóng;
+  lưu/hiển thị/lọc bếp, Wi-Fi và các điều kiện mong muốn.
+  Người có phòng hoặc muốn bàn giao có thể kết nối để trao đổi với người tìm.
+- Số người đang ở do người đăng khai báo, gồm cả người không dùng app.
+  Trưởng nhà là người quản lý nhóm trên Roomora, không xác nhận quyền sở hữu phòng.
+  Thuê/ở ghép/bàn giao cần chủ phòng chấp thuận, không bắt buộc chủ phòng có tài khoản.
+- Mỗi tài khoản chỉ tham gia một nhà đang hoạt động; rời nhà mới được tạo/tham gia nhà khác.
+  Mục Nhà chung mở thẳng nhà hiện tại. Vai trò Trưởng nhà/Thành viên hiển thị dưới tên.
+- Đã có chat văn bản/ảnh/ghi âm chung trong nhà, cập nhật qua SSE, phân trang, sửa/xóa tin của mình,
+  chống gửi trùng và kiểm tra phiên bản. Rời nhà sẽ mất quyền xem/gửi chat.
+  Media chỉ thành viên hiện tại được đọc; xóa tin sẽ xóa cả file. Khung chat gọn theo màn hình.
+- Chat chung: nút "Tạo bình chọn" thay "Chọn ghi âm"; vẫn giữ nút micro.
+  Bình chọn có 2–10 phương án, mỗi thành viên một phiếu, được đổi/bỏ khi còn mở.
+  Người tạo được đóng; kết quả cập nhật qua SSE. Xóa tin xóa cả bình chọn và phiếu.
+- Chat cá nhân/chung đều gửi và tải tệp: tối đa 4 tệp/tin,
+  tổng ảnh/ghi âm/tệp sau xử lý không quá 5 MB; giữ tên tiếng Việt.
+  Tệp tải xuống riêng tư, không mở trực tiếp như HTML; chống gửi trùng, xóa tin xóa tệp.
+  Migration chat_files_house_polls đã deploy; 40 kiểm thử chat HTTP/PostgreSQL qua.
+  Edge kiểm tra tạo/bỏ/đổi/đóng bình chọn, SSE, tải tệp đúng nội dung và tên,
+  bố cục bình chọn/xem trước/tin có tệp không tràn ngang ở 320–1920 px.
+- Nút thêm tệp hiện có chữ "Thêm tệp" trên thanh công cụ chat cá nhân/chung,
+  dễ nhận ra hơn biểu tượng kẹp giấy đơn lẻ; đã kiểm tra mở trình chọn và gửi/tải thực tế.
+- Service chi phí đã tách theo khoản chi, người tham gia, số dư/quyết toán,
+  thanh toán và biên nhận; quyền và lịch sử/SSE dùng chung, giữ nguyên API/nghiệp vụ.
+  Cấu trúc chi tiết: backend/src/modules/expenses/README.md.
+- Đã hoàn thành backend và frontend khoản chi, chia đều/chia cụ thể, ảnh biên nhận riêng tư,
+  số dư, gợi ý bù trừ, thanh toán chờ người nhận xác nhận và chốt quyết toán.
+- Chia tiền theo VNĐ nguyên, phần dư phân bổ nhất quán; gửi lại khoản chi/thanh toán
+  cùng clientId không tạo bản ghi trùng. Sửa/hủy cần lý do và lưu lịch sử trước/sau.
+  Điều chỉnh khoản đã quyết toán giữ nguyên các thanh toán đã xác nhận và tính lại nợ.
+- Người ở cùng không dùng app được thêm vào sổ chi phí, không tạo tài khoản/quyền chat.
+  Với người nhận ngoài app, trưởng nhà ghi nhận thủ công sau khi kiểm tra với họ;
+  giao diện ghi rõ đây là xác nhận thủ công.
+- Thành viên rời nhà vẫn xem được lịch sử liên quan và trả/xác nhận nợ cũ qua Lịch sử công nợ.
+  Có thanh toán đang chờ thì phải xác nhận/từ chối/hủy trước khi thay đổi khoản chi.
+- Kiểm chứng: migration đã deploy lên PostgreSQL local; 58 kiểm thử HTTP/PostgreSQL
+  của chi phí, chat, Nhà chung và tin đăng đã qua. Build backend/frontend, TypeScript/lint qua.
+  Trình duyệt thật đã kiểm tra các luồng chính và responsive 1440/390/320 px.
+  Bổ sung màu ngữ nghĩa: tiền cần nhận xanh lá, nợ đỏ, chờ xác nhận vàng, cân bằng trung tính.
+  Kiểm tra thêm 27 trang ở 320/390/430/768/820/1024/1366/1920 px, gửi ảnh/ghi âm thực tế
+  qua trình duyệt kiểm thử; micro dùng thiết bị giả lập, chưa kiểm tra phần cứng Safari/iOS.
+  Chi tiết quy tắc và kiểm chứng: PHASE_7_STATUS.md.
+
 Màn hình: chi phí, công nợ, quyết toán.
 
 Công việc:

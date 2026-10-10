@@ -33,6 +33,14 @@
   --danger: #b4233b;
   --danger-soft: #fff1f2;
   --danger-foreground: #9f1239;
+  --success: #15803d;
+  --success-foreground: #166534;
+  --success-soft: #ecfdf3;
+  --warning: #a16207;
+  --warning-foreground: #854d0e;
+  --warning-soft: #fffbeb;
+  --info-foreground: #1d4ed8;
+  --info-soft: #eff6ff;
 
   --surface-overlay: color-mix(in srgb, var(--surface) 93%, transparent);
   --surface-overlay-border: color-mix(in srgb, var(--surface) 60%, transparent);

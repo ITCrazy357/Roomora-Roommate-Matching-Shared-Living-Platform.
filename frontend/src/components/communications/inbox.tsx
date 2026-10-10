@@ -142,12 +142,18 @@ function InboxContent({ id }: { id?: string }) {
                   <strong>{item.person.displayName}</strong>
                   <small>
                     {item.lastMessage
-                      ? item.lastMessage.text ||
-                        (item.lastMessage.attachments.some(
-                          (file) => file.kind === "AUDIO",
-                        )
-                          ? "Đã gửi ghi âm"
-                          : "Đã gửi ảnh")
+                      ? item.lastMessage.deletedAt
+                        ? "Tin nhắn đã bị xóa"
+                        : item.lastMessage.text ||
+                          (item.lastMessage.attachments.some(
+                            (file) => file.kind === "FILE",
+                          )
+                            ? "Đã gửi tệp đính kèm"
+                            : item.lastMessage.attachments.some(
+                                  (file) => file.kind === "AUDIO",
+                                )
+                              ? "Đã gửi ghi âm"
+                              : "Đã gửi ảnh")
                       : "Hai bạn đã kết nối. Bắt đầu trò chuyện."}
                   </small>
                 </span>

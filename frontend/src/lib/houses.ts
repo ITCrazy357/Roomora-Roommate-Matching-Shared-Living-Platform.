@@ -37,6 +37,7 @@ export interface House {
     displayName: string;
     avatarUrl: string | null;
     joinedAt: string;
+    role: "OWNER" | "MEMBER";
   }[];
   announcements: {
     id: string;

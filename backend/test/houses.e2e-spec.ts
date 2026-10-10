@@ -270,6 +270,8 @@ describe('Phase 6 houses and listing types (real PostgreSQL)', () => {
       await post(agents[0], '/listings', {
         type: 'ROOM_WANTED',
         title: `${prefix} Tìm phòng gần trung tâm`,
+        desiredResidents: 2,
+        amenities: ['KITCHEN', 'WIFI', 'HOT_WATER'],
         description:
           'Tìm phòng yên tĩnh gần trung tâm, có thể dọn vào tháng tới.',
         rent: 3000000,
@@ -297,6 +299,8 @@ describe('Phase 6 houses and listing types (real PostgreSQL)', () => {
       await agents[2].get(`/api/v1/listings/${created.id}`).expect(200)
     ).body;
     expect(publicData.type).toBe('ROOM_WANTED');
+    expect(publicData.desiredResidents).toBe(2);
+    expect(publicData.amenities).toEqual(['KITCHEN', 'WIFI', 'HOT_WATER']);
     expect(JSON.stringify(publicData)).not.toContain('Địa chỉ riêng');
     await post(agents[0], `/listings/${created.id}/full`, {
       version: row.version + 1,
@@ -305,13 +309,60 @@ describe('Phase 6 houses and listing types (real PostgreSQL)', () => {
     const filtered = (
       await agents[2]
         .get('/api/v1/listings')
-        .query({ type: 'ROOM_WANTED', search: prefix })
+        .query({
+          type: 'ROOM_WANTED',
+          search: prefix,
+          amenities: 'KITCHEN,WIFI,HOT_WATER',
+        })
         .expect(200)
     ).body;
     expect(filtered.items.map((item: { id: string }) => item.id)).toContain(
       created.id,
     );
     await prisma.listing.delete({ where: { id: created.id } });
+  });
+
+  it('validates desired occupancy and clears it for other listing types', async () => {
+    for (const desiredResidents of [0, 21, 1.5, '2']) {
+      await post(agents[0], '/listings', {
+        type: 'ROOM_WANTED',
+        desiredResidents,
+      }).expect(400);
+    }
+    const created = (
+      await post(agents[0], '/listings', {
+        type: 'ROOM_WANTED',
+        desiredResidents: 2,
+      }).expect(201)
+    ).body;
+    try {
+      const edited = (
+        await agents[0]
+          .put(`/api/v1/listings/${created.id}`)
+          .set('Origin', origin)
+          .send({
+            type: 'ROOM_WANTED',
+            desiredResidents: 3,
+            version: created.version,
+          })
+          .expect(200)
+      ).body;
+      expect(edited.desiredResidents).toBe(3);
+      const changedType = (
+        await agents[0]
+          .put(`/api/v1/listings/${created.id}`)
+          .set('Origin', origin)
+          .send({
+            type: 'ROOMMATE',
+            desiredResidents: 3,
+            version: edited.version,
+          })
+          .expect(200)
+      ).body;
+      expect(changedType.desiredResidents).toBeNull();
+    } finally {
+      await prisma.listing.delete({ where: { id: created.id } });
+    }
   });
 
   it('lets only the owner mark a roommate listing full', async () => {

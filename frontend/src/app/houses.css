@@ -2,6 +2,278 @@
   display: grid;
   gap: 24px;
 }
+.finance-section {
+  min-width: 0;
+}
+.finance-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.finance-intro h2 {
+  margin-bottom: 8px;
+}
+.finance-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.expense-form fieldset {
+  border: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.expense-shares {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: var(--primary-subtle);
+  border-radius: 12px;
+}
+.expense-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.expense-share label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.expense-share .field {
+  flex: 1 1 190px;
+  max-width: 280px;
+}
+.expense-share input[type="checkbox"] {
+  accent-color: var(--primary-action);
+}
+.expense-list {
+  display: grid;
+  gap: 16px;
+}
+.expense-card h3 {
+  font-size: 1.25rem;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+.expense-card > p {
+  margin: 12px 0;
+}
+.expense-amount {
+  font-size: 1.3rem;
+  color: var(--primary-foreground);
+  white-space: nowrap;
+}
+.expense-split-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 16px 0;
+}
+.expense-split-list > span {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--primary-subtle);
+  font-size: 0.85rem;
+}
+.balance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+}
+.balance-amount {
+  display: block;
+  font-size: 1.8rem;
+  margin-top: 16px;
+  color: var(--primary-foreground);
+}
+.balance-card dl {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 0.85rem;
+}
+.balance-card dl > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.balance-card dt {
+  color: var(--muted);
+}
+.balance-card dd {
+  margin: 0;
+}
+.payment-row,
+.expense-history {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.payment-row > p,
+.payment-row .finance-actions {
+  margin-top: 12px;
+}
+.expense-history > p {
+  margin: 8px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.expense-history small {
+  color: var(--muted);
+}
+.expense-history-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 12px 0;
+}
+.expense-history-values > div {
+  background: var(--primary-subtle);
+  padding: 12px;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.expense-history-values span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.finance-guest-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin: 16px 0;
+}
+.finance-guest-form .field {
+  flex: 1 1 220px;
+}
+.receipt-preview img {
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+.house-chat > h2 {
+  margin-bottom: 8px;
+}
+.house-chat .house-chat-history {
+  margin-top: 16px;
+  border-radius: 12px;
+  height: clamp(200px, 38dvh, 320px);
+  gap: 12px;
+}
+.house-chat {
+  width: min(100%, 920px);
+  justify-self: center;
+  min-width: 0;
+}
+.house-chat .message-composer {
+  margin-top: 12px;
+  padding: 12px 0 0;
+}
+.house-chat .message-bubble {
+  max-width: min(90%, 400px);
+}
+.balance-card {
+  border-top: 4px solid var(--border-strong);
+}
+.balance-receivable {
+  border-color: var(--success);
+  background: linear-gradient(var(--success-soft), var(--surface));
+}
+.balance-debt {
+  border-color: var(--danger);
+  background: linear-gradient(var(--danger-soft), var(--surface));
+}
+.balance-clear {
+  background: linear-gradient(var(--surface-muted), var(--surface));
+}
+.balance-receivable .balance-amount {
+  color: var(--success-foreground);
+}
+.balance-debt .balance-amount {
+  color: var(--danger-foreground);
+}
+.balance-clear .balance-amount {
+  color: var(--muted);
+}
+.expense-card {
+  border-left: 4px solid var(--warning);
+}
+.expense-card.status-settled {
+  border-left-color: var(--success);
+}
+.expense-card.status-cancelled {
+  border-left-color: var(--border-strong);
+}
+.finance-status.status-confirmed,
+.finance-status.status-settled {
+  background: var(--success-soft);
+  color: var(--success-foreground);
+}
+.finance-status.status-pending,
+.finance-status.status-active,
+.finance-status.status-adjustment_required {
+  background: var(--warning-soft);
+  color: var(--warning-foreground);
+}
+.finance-status.status-rejected {
+  background: var(--danger-soft);
+  color: var(--danger-foreground);
+}
+.finance-status.status-cancelled {
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+.house-chat-composer {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.house-chat-composer .button {
+  justify-self: end;
+}
+.house-message-person {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.house-message-person .house-avatar {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+}
+.house-message-person strong {
+  font-size: 0.85rem;
+}
+.house-message-person small {
+  text-align: left;
+  margin: 2px 0 0;
+}
+@media (max-width: 600px) {
+  .expense-card .house-row,
+  .payment-row .house-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .expense-history-values {
+    grid-template-columns: 1fr;
+  }
+  .finance-transfer {
+    flex-wrap: wrap;
+  }
+  .finance-intro .finance-actions {
+    width: 100%;
+  }
+}
 .house-heading h1,
 .house-hero h1 {
   margin: 6px 0 10px;
@@ -83,6 +355,7 @@
 }
 .house-member > div {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 .house-member .text-link {
   white-space: nowrap;
@@ -159,6 +432,91 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.house-poll-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--primary-subtle);
+  min-width: 0;
+}
+.house-poll-form p {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.house-poll-option-input {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+.house-poll-option-input .field {
+  flex: 1;
+  min-width: 0;
+}
+.house-poll-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.house-poll-actions .button {
+  min-height: 44px;
+  font-size: 0.8rem;
+}
+.house-poll {
+  width: min(340px, 100%);
+  min-width: 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+.house-poll h3 {
+  margin: 8px 0 12px;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+.house-poll > small {
+  color: var(--muted);
+}
+.house-poll-options {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.house-poll-option {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: linear-gradient(
+    to right,
+    var(--primary-soft) var(--poll-percentage),
+    var(--surface) var(--poll-percentage)
+  );
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.house-poll-option small {
+  color: var(--muted);
+}
+.house-poll-option.is-selected {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+.house-poll-option:disabled {
+  cursor: default;
+}
 .house-check {
   display: flex;
   align-items: center;
@@ -169,6 +527,19 @@
 }
 .house-history {
   font-size: 0.9rem;
+}
+.house-panel,
+.house-summary,
+.house-hero {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.balance-card .house-row {
+  flex-wrap: wrap;
+}
+.expense-share label {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 @media (max-width: 800px) {
   .house-grid {

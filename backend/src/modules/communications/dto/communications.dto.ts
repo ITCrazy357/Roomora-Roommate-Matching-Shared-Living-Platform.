@@ -45,6 +45,12 @@ export class SendMessageDto {
 export class TypingDto {
   @IsBoolean() typing!: boolean;
 }
+export class MessageVersionDto {
+  @IsInt() @Min(1) version!: number;
+}
+export class EditMessageDto extends MessageVersionDto {
+  @Transform(trim) @IsString() @Length(0, 2000) text!: string;
+}
 export class ReadMessagesDto {
   @IsInt() @Min(0) number!: number;
 }

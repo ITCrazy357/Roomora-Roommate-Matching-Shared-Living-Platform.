@@ -14,6 +14,7 @@ export const emptyForm = {
   area: "",
   availableSlots: "1",
   currentResidents: "0",
+  desiredResidents: "",
   availableFrom: "",
   provinceCode: "",
   wardCode: "",
@@ -44,6 +45,7 @@ export function formFromListing(listing: Listing): ListingForm {
     area: listing.area?.toString() ?? "",
     availableSlots: String(listing.availableSlots),
     currentResidents: String(listing.currentResidents),
+    desiredResidents: listing.desiredResidents?.toString() ?? "",
     availableFrom: listing.availableFrom?.slice(0, 10) ?? "",
     provinceCode: listing.provinceCode ?? "",
     wardCode: listing.wardCode ?? "",
@@ -70,6 +72,10 @@ export function formInput(form: ListingForm) {
     otherCost: Number(form.otherCost),
     availableSlots: Number(form.availableSlots),
     currentResidents: Number(form.currentResidents),
+    desiredResidents:
+      form.type === "ROOM_WANTED" && form.desiredResidents !== ""
+        ? Number(form.desiredResidents)
+        : null,
     availableFrom: form.availableFrom || null,
     provinceCode: form.provinceCode || null,
     wardCode: form.wardCode || null,

@@ -11,12 +11,16 @@ export interface Message {
   clientId: string;
   number: number;
   text: string;
+  version: number;
+  editedAt: string | null;
+  deletedAt: string | null;
   createdAt: string;
   attachments: MessageAttachment[];
 }
 export interface MessageAttachment {
   id: string;
-  kind: "IMAGE" | "AUDIO";
+  kind: "IMAGE" | "AUDIO" | "FILE";
+  fileName: string | null;
   mimeType: string;
   byteSize: number;
   width: number | null;
@@ -98,6 +102,11 @@ const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
 export function formatTime(value: string) {
   return dateFormatter.format(new Date(value));
 }
+export function formatFileSize(bytes: number) {
+  return bytes < 1024 * 1024
+    ? `${Math.max(1, Math.ceil(bytes / 1024))} KB`
+    : `${(bytes / (1024 * 1024)).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} MB`;
+}
 export function communicationError(error: unknown) {
   if (error instanceof ApiError) {
     const labels: Record<string, string> = {
@@ -109,6 +118,19 @@ export function communicationError(error: unknown) {
       APPOINTMENT_LISTING:
         "Chọn tin phòng đang công khai của một trong hai người.",
       MESSAGE_CHANGED: "Nội dung gửi lại không khớp tin nhắn trước đó.",
+      MESSAGE_FILE_SIZE: "Tệp phải có nội dung và không quá 5 MB.",
+      POLL_DUPLICATE_OPTIONS: "Các phương án bình chọn cần khác nhau.",
+      POLL_NOT_FOUND: "Bình chọn đã bị xóa hoặc không còn khả dụng.",
+      POLL_CLOSED: "Bình chọn đã đóng. Hãy tải lại để xem kết quả.",
+      POLL_OPTION_INVALID: "Phương án không thuộc bình chọn này.",
+      POLL_CREATOR_ONLY: "Chỉ người tạo được đóng bình chọn.",
+      POLL_IMMUTABLE:
+        "Câu hỏi và phương án không thể sửa sau khi tạo bình chọn.",
+      MESSAGE_UPDATED:
+        "Tin nhắn đã thay đổi. Hãy tải lại trước khi sửa hoặc xóa.",
+      MESSAGE_EMPTY: "Tin nhắn cần có nội dung, ảnh, ghi âm hoặc tệp.",
+      MESSAGE_MEDIA_SIZE: "Tổng ảnh, ghi âm và tệp sau xử lý không quá 5 MB.",
+      MESSAGE_MEDIA_LIMIT: "Mỗi tin nhắn tối đa 4 ảnh, 1 ghi âm và 4 tệp.",
       RATE_LIMITED: "Bạn đã thao tác quá nhiều. Vui lòng thử lại sau.",
     };
     if (error.code && labels[error.code]) return labels[error.code];

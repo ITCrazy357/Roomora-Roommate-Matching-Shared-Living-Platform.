@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import { createHash } from 'node:crypto';
-import sharp from 'sharp';
+import { prepareMessageMedia, type MessageFiles } from './message-media.js';
 import type { Prisma, Conversation } from '../../generated/prisma/client.js';
 import { NotificationsService } from './notifications.service.js';
 import { UpdatesService } from './updates.service.js';
@@ -15,6 +15,8 @@ import type {
   PageQuery,
   MessageQuery,
   SendMessageDto,
+  EditMessageDto,
+  MessageVersionDto,
   AppointmentDto,
   AppointmentQuery,
   ChangeAppointmentDto,
@@ -50,6 +52,9 @@ const messageSelect = {
   clientId: true,
   number: true,
   text: true,
+  version: true,
+  editedAt: true,
+  deletedAt: true,
   createdAt: true,
   attachments: {
     select: {
@@ -57,16 +62,13 @@ const messageSelect = {
       kind: true,
       mimeType: true,
       byteSize: true,
+      fileName: true,
       width: true,
       height: true,
     },
     orderBy: { position: 'asc' },
   },
 } as const;
-type MessageFiles = {
-  images?: Express.Multer.File[];
-  audio?: Express.Multer.File[];
-};
 
 @Injectable()
 export class ConversationsService {
@@ -130,7 +132,7 @@ export class ConversationsService {
     const unread = await this.prisma.$queryRaw<{ id: string; count: number }[]>`
       SELECT c.id, COUNT(m.id)::int AS count FROM conversations c
       JOIN connections r ON r.id = c.connection_id
-      JOIN messages m ON m.conversation_id = c.id AND m.sender_id <> ${userId}::uuid
+      JOIN messages m ON m.conversation_id = c.id AND m.sender_id <> ${userId}::uuid AND m.deleted_at IS NULL
         AND m.number > CASE WHEN r.sender_id = ${userId}::uuid THEN c.sender_read ELSE c.receiver_read END
       WHERE r.status = 'ACCEPTED' AND (r.sender_id = ${userId}::uuid OR r.receiver_id = ${userId}::uuid)
       AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = r.sender_id AND b.target_id = r.receiver_id) OR (b.blocker_id = r.receiver_id AND b.target_id = r.sender_id))
@@ -238,41 +240,17 @@ export class ConversationsService {
   ) {
     const images = files?.images ?? [];
     const audio = files?.audio ?? [];
-    if (!dto.text && !images.length && !audio.length)
+    const documents = files?.files ?? [];
+    if (!dto.text && !images.length && !audio.length && !documents.length)
       throw new BadRequestException({ code: 'MESSAGE_EMPTY' });
-    if (images.length > 4 || audio.length > 1)
+    if (images.length > 4 || audio.length > 1 || documents.length > 4)
       throw new BadRequestException({ code: 'MESSAGE_MEDIA_LIMIT' });
-    if (images.length || audio.length)
+    if (images.length || audio.length || documents.length)
       await this.access(this.prisma, userId, id);
-    const hash = createHash('sha256').update(
-      JSON.stringify({
-        text: dto.text,
-        images: images.length,
-        audio: audio.length,
-      }),
+    const { contentHash, attachments } = await prepareMessageMedia(
+      dto.text,
+      files,
     );
-    const attachments: Array<{
-      kind: 'IMAGE' | 'AUDIO';
-      mimeType: string;
-      byteSize: number;
-      width?: number;
-      height?: number;
-      data: Uint8Array<ArrayBuffer>;
-    }> = [];
-    for (const file of images) {
-      hash.update(String(file.buffer.length)).update(':').update(file.buffer);
-      attachments.push(await this.prepareImage(file));
-    }
-    for (const file of audio) {
-      hash.update(String(file.buffer.length)).update(':').update(file.buffer);
-      attachments.push(this.prepareAudio(file));
-    }
-    if (
-      attachments.reduce((total, file) => total + file.byteSize, 0) >
-      5 * 1024 * 1024
-    )
-      throw new BadRequestException({ code: 'MESSAGE_MEDIA_SIZE' });
-    const contentHash = hash.digest('hex');
     return this.withConversation(userId, id, async (tx, row) => {
       const existing = await tx.message.findUnique({
         where: {
@@ -338,72 +316,103 @@ export class ConversationsService {
       return message;
     });
   }
+  async editMessage(
+    userId: string,
+    id: string,
+    messageId: string,
+    dto: EditMessageDto,
+  ) {
+    return this.withConversation(userId, id, async (tx, row) => {
+      const message = await tx.message.findFirst({
+        where: { id: messageId, conversationId: id, senderId: userId },
+        select: { ...messageSelect, contentHash: true },
+      });
+      if (!message) this.unavailable();
+      if (message.deletedAt || message.version !== dto.version)
+        throw new ConflictException({ code: 'MESSAGE_UPDATED' });
+      if (!dto.text && !message.attachments.length)
+        throw new BadRequestException({ code: 'MESSAGE_EMPTY' });
+      if (message.text === dto.text) {
+        const { contentHash: _contentHash, ...view } = message;
+        return view;
+      }
+      const updated = await tx.message.update({
+        where: { id: messageId },
+        // Keep the original hash so retries of the original send stay idempotent.
+        data: {
+          text: dto.text,
+          contentHash:
+            message.contentHash || this.originalTextHash(message.text),
+          editedAt: new Date(),
+          version: { increment: 1 },
+        },
+        select: messageSelect,
+      });
+      await this.notifications.signal(tx, [
+        userId,
+        this.otherUser(row, userId),
+      ]);
+      return updated;
+    });
+  }
+
+  async deleteMessage(
+    userId: string,
+    id: string,
+    messageId: string,
+    dto: MessageVersionDto,
+  ) {
+    return this.withConversation(userId, id, async (tx, row) => {
+      const message = await tx.message.findFirst({
+        where: { id: messageId, conversationId: id, senderId: userId },
+        select: { ...messageSelect, contentHash: true },
+      });
+      if (!message) this.unavailable();
+      if (message.deletedAt) {
+        const { contentHash: _contentHash, ...view } = message;
+        return view;
+      }
+      if (message.version !== dto.version)
+        throw new ConflictException({ code: 'MESSAGE_UPDATED' });
+      await tx.messageAttachment.deleteMany({ where: { messageId } });
+      const deleted = await tx.message.update({
+        where: { id: messageId },
+        // Preserve the sequence and client ID; a retried send cannot restore deleted media.
+        data: {
+          text: '',
+          contentHash:
+            message.contentHash || this.originalTextHash(message.text),
+          deletedAt: new Date(),
+          version: { increment: 1 },
+        },
+        select: messageSelect,
+      });
+      await this.notifications.signal(tx, [
+        userId,
+        this.otherUser(row, userId),
+      ]);
+      return deleted;
+    });
+  }
+
+  private originalTextHash(text: string) {
+    // Messages sent before media support did not have a content hash.
+    return createHash('sha256')
+      .update(JSON.stringify({ text, images: 0, audio: 0 }))
+      .digest('hex');
+  }
+
   async attachment(userId: string, id: string, attachmentId: string) {
     await this.access(this.prisma, userId, id);
     const file = await this.prisma.messageAttachment.findFirst({
-      where: { id: attachmentId, message: { conversationId: id } },
-      select: { data: true, mimeType: true },
+      where: {
+        id: attachmentId,
+        message: { conversationId: id, deletedAt: null },
+      },
+      select: { data: true, mimeType: true, kind: true, fileName: true },
     });
     if (!file) this.unavailable();
     return file;
-  }
-  private async prepareImage(file: Express.Multer.File) {
-    if (!file.buffer?.length || file.size > 5 * 1024 * 1024)
-      throw new BadRequestException({ code: 'MESSAGE_IMAGE_SIZE' });
-    try {
-      const source = sharp(file.buffer, {
-        limitInputPixels: 25_000_000,
-        failOn: 'warning',
-      });
-      const metadata = await source.metadata();
-      if (
-        !['jpeg', 'png', 'webp'].includes(metadata.format ?? '') ||
-        (metadata.pages ?? 1) > 1
-      )
-        throw new Error('Invalid image');
-      const data = await source
-        .rotate()
-        .resize(1600, 1200, {
-          fit: 'inside',
-          withoutEnlargement: true,
-        })
-        .jpeg({ quality: 82 })
-        .toBuffer();
-      if (data.length > 2 * 1024 * 1024) throw new Error('Image too large');
-      const size = await sharp(data).metadata();
-      return {
-        kind: 'IMAGE' as const,
-        mimeType: 'image/jpeg',
-        byteSize: data.length,
-        width: size.width,
-        height: size.height,
-        data: Uint8Array.from(data),
-      };
-    } catch {
-      throw new BadRequestException({ code: 'MESSAGE_IMAGE_INVALID' });
-    }
-  }
-  private prepareAudio(file: Express.Multer.File) {
-    if (!file.buffer?.length || file.size > 2 * 1024 * 1024)
-      throw new BadRequestException({ code: 'MESSAGE_AUDIO_SIZE' });
-    const mimeType = file.mimetype.split(';')[0].toLowerCase();
-    const webm =
-      mimeType === 'audio/webm' &&
-      file.buffer.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
-    const mp4 =
-      mimeType === 'audio/mp4' &&
-      file.buffer.subarray(4, 8).toString() === 'ftyp';
-    const ogg =
-      mimeType === 'audio/ogg' &&
-      file.buffer.subarray(0, 4).toString() === 'OggS';
-    if (!webm && !mp4 && !ogg)
-      throw new BadRequestException({ code: 'MESSAGE_AUDIO_INVALID' });
-    return {
-      kind: 'AUDIO' as const,
-      mimeType,
-      byteSize: file.size,
-      data: Uint8Array.from(file.buffer),
-    };
   }
   async read(userId: string, id: string, number: number) {
     return this.withConversation(userId, id, async (tx, row) => {

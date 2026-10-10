@@ -1,373 +1,253 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service.js';
-import { CreateExpenseDto, ExpenseQueryDto } from './dto/expenses.dto.js';
+import type { Prisma } from '../../generated/prisma/client.js';
+import { HouseAccessService } from '../houses/house-access.service.js';
+import { ExpenseEventsService } from './expense-events.service.js';
+import { ExpenseAccessService } from './expense-access.service.js';
+import type {
+  CreateExpenseDto,
+  UpdateExpenseDto,
+  CancelExpenseDto,
+  ExpenseQueryDto,
+} from './dto/expenses.dto.js';
+import { expenseSplits } from './expense-calculations.js';
+import {
+  expenseInclude,
+  expenseView,
+  type ExpenseRow,
+} from './expense-views.js';
 
 @Injectable()
 export class ExpensesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: HouseAccessService,
+    private readonly events: ExpenseEventsService,
+    private readonly expenseAccess: ExpenseAccessService,
+  ) {}
 
-  private unavailable(): never {
-    throw new NotFoundException({
-      code: 'HOUSE_NOT_FOUND',
+  private async validatePeople(
+    tx: Prisma.TransactionClient,
+    houseId: string,
+    payerId: string,
+    splits: { participantId: string; amount: number }[],
+    previous?: ExpenseRow,
+  ) {
+    const ids = [
+      ...new Set([payerId, ...splits.map((split) => split.participantId)]),
+    ];
+    const people = await tx.houseParticipant.findMany({
+      where: { houseId, id: { in: ids } },
+      select: { id: true, leftAt: true },
     });
-  }
-
-  private async canAccessHouse(userId: string, houseId: string) {
-    const house = await this.prisma.house.findFirst({
-      where: {
-        id: houseId,
-        closedAt: null,
-        members: {
-          some: {
-            userId,
-            leftAt: null,
-          },
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!house) {
-      this.unavailable();
-    }
-    return house;
+    const historical = new Set(
+      previous
+        ? [
+            previous.payerId,
+            ...previous.splits.map((split) => split.participantId),
+          ]
+        : [],
+    );
+    if (
+      people.length !== ids.length ||
+      people.some((person) => person.leftAt && !historical.has(person.id))
+    )
+      throw new BadRequestException({ code: 'EXPENSE_MEMBER_NOT_ACTIVE' });
   }
 
   async create(userId: string, houseId: string, dto: CreateExpenseDto) {
-    const splitUserIds = dto.splits.map((split) => split.userId);
-
-    const uniqueUserIds = new Set(splitUserIds);
-
-    if (uniqueUserIds.size !== splitUserIds.length) {
-      throw new BadRequestException({
-        code: 'EXPENSE_DUPLICATE_SPLIT_USERS',
-      });
-    }
-
-    const splitTotal = dto.splits.reduce(
-      (total, split) => total + split.amount,
-      0,
-    );
-
-    if (splitTotal !== dto.amount) {
-      throw new BadRequestException({
-        code: 'EXPENSE_SPLIT_AMOUNT_MISMATCH',
-      });
-    }
-
-    if (!uniqueUserIds.has(dto.payerId)) {
-      throw new BadRequestException({
-        code: 'EXPENSE_PAYER_NOT_PARTICIPANT',
-      });
-    }
-
-    return this.prisma.$transaction(async (transaction) => {
-      const house = await transaction.house.updateMany({
+    const splits = expenseSplits(dto);
+    const data = {
+      title: dto.title,
+      description: dto.description,
+      payerId: dto.payerId,
+      amount: dto.amount,
+      receiptUrl: dto.receiptUrl ?? null,
+      splitMode: dto.splitMode,
+    };
+    const contentHash = createHash('sha256')
+      .update(JSON.stringify({ ...data, splits }))
+      .digest('hex');
+    return this.prisma.$transaction(async (tx) => {
+      await this.access.lock(tx, houseId);
+      await this.access.active(tx, userId, houseId);
+      const existing = await tx.expense.findUnique({
         where: {
-          id: houseId,
-          closedAt: null,
-          members: {
-            some: {
-              userId: userId,
-              leftAt: null,
-            },
+          houseId_createdById_clientId: {
+            houseId,
+            createdById: userId,
+            clientId: dto.clientId,
           },
         },
-        data: {
-          updatedAt: new Date(),
-        },
+        include: expenseInclude,
       });
-
-      if (!house.count) {
-        this.unavailable();
+      if (existing) {
+        if (existing.contentHash !== contentHash)
+          throw new ConflictException({ code: 'EXPENSE_RETRY_CHANGED' });
+        return expenseView(existing);
       }
-
-      const members = await transaction.houseMember.findMany({
-        where: {
-          houseId,
-          leftAt: null,
-          userId: {
-            in: [...uniqueUserIds],
-          },
-        },
-        select: {
-          userId: true,
-        },
-      });
-
-      if (members.length !== uniqueUserIds.size) {
-        throw new BadRequestException({
-          code: 'EXPENSE_MEMBER_NOT_ACTIVE',
-        });
-      }
-
-      return transaction.expense.create({
+      await this.expenseAccess.noPending(tx, houseId);
+      await this.validatePeople(tx, houseId, dto.payerId, splits);
+      const row = await tx.expense.create({
         data: {
+          ...data,
           houseId,
-          payerId: dto.payerId,
           createdById: userId,
+          clientId: dto.clientId,
+          contentHash,
+          splits: { create: splits.map((split) => ({ ...split, houseId })) },
+        },
+        include: expenseInclude,
+      });
+      await this.events.record(
+        tx,
+        userId,
+        null,
+        row,
+        'CREATE',
+        'Ghi khoản chi',
+      );
+      await this.events.signal(tx, houseId);
+      return expenseView(row);
+    });
+  }
+
+  async update(
+    userId: string,
+    houseId: string,
+    id: string,
+    dto: UpdateExpenseDto,
+  ) {
+    const splits = expenseSplits(dto);
+    return this.prisma.$transaction(async (tx) => {
+      await this.access.lock(tx, houseId);
+      const house = await this.access.active(tx, userId, houseId);
+      const previous = await this.expenseAccess.expense(
+        tx,
+        userId,
+        houseId,
+        id,
+      );
+      this.expenseAccess.editable(userId, house.ownerId, previous, dto.version);
+      await this.expenseAccess.noPending(tx, houseId);
+      await this.validatePeople(tx, houseId, dto.payerId, splits, previous);
+      await tx.expenseSplit.deleteMany({ where: { expenseId: id } });
+      const updated = await tx.expense.update({
+        where: { id },
+        data: {
           title: dto.title,
           description: dto.description,
+          payerId: dto.payerId,
           amount: dto.amount,
-          receiptUrl: dto.receiptUrl,
-          splits: {
-            create: dto.splits.map((split) => ({
-              userId: split.userId,
-              amount: split.amount,
-            })),
-          },
+          receiptUrl: dto.receiptUrl ?? previous.receiptUrl,
+          splitMode: dto.splitMode,
+          status: 'ACTIVE',
+          version: { increment: 1 },
+          splits: { create: splits.map((split) => ({ ...split, houseId })) },
         },
-
-        include: {
-          splits: {
-            orderBy: {
-              userId: 'asc',
-            },
-            select: {
-              id: true,
-              userId: true,
-              amount: true,
-            },
-          },
-        },
+        include: expenseInclude,
       });
+      await this.events.record(
+        tx,
+        userId,
+        previous,
+        updated,
+        previous.status === 'SETTLED' ? 'ADJUST_SETTLED' : 'EDIT',
+        dto.reason,
+      );
+      await this.events.signal(tx, houseId);
+      return expenseView(updated);
+    });
+  }
+
+  async cancel(
+    userId: string,
+    houseId: string,
+    id: string,
+    dto: CancelExpenseDto,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.access.lock(tx, houseId);
+      const house = await this.access.active(tx, userId, houseId);
+      const previous = await this.expenseAccess.expense(
+        tx,
+        userId,
+        houseId,
+        id,
+      );
+      this.expenseAccess.editable(userId, house.ownerId, previous, dto.version);
+      await this.expenseAccess.noPending(tx, houseId);
+      const updated = await tx.expense.update({
+        where: { id },
+        data: { status: 'CANCELLED', version: { increment: 1 } },
+        include: expenseInclude,
+      });
+      await this.events.record(
+        tx,
+        userId,
+        previous,
+        updated,
+        previous.status === 'SETTLED' ? 'CANCEL_SETTLED' : 'CANCEL',
+        dto.reason,
+      );
+      await this.events.signal(tx, houseId);
+      return expenseView(updated);
     });
   }
 
   async list(userId: string, houseId: string, query: ExpenseQueryDto) {
-    await this.canAccessHouse(userId, houseId);
-
-    const where = {
-      houseId,
-    };
-
-    const [items, total] = await Promise.all([
-      this.prisma.expense.findMany({
-        where,
-        include: {
-          payer: {
-            select: {
-              id: true,
-              profile: {
-                select: {
-                  displayName: true,
-                },
-              },
-            },
-          },
-          createdBy: {
-            select: {
-              id: true,
-              profile: {
-                select: {
-                  displayName: true,
-                },
-              },
-            },
-          },
-          splits: {
-            orderBy: {
-              userId: 'asc',
-            },
-            select: {
-              id: true,
-              userId: true,
-              amount: true,
-            },
-          },
-        },
-        orderBy: [
-          {
-            createdAt: 'desc',
-          },
-          {
-            id: 'desc',
-          },
-        ],
-        skip: (query.page - 1) * query.limit,
-        take: query.limit,
-      }),
-      this.prisma.expense.count({
-        where,
-      }),
-    ]);
-
-    return {
-      items,
-      total,
-      page: query.page,
-      pages: Math.ceil(total / query.limit),
-    };
-  }
-
-  async getBalances(userId: string, houseId: string) {
-    await this.canAccessHouse(userId, houseId);
-
-    const [members, expenses] = await Promise.all([
-      this.prisma.houseMember.findMany({
-        where: {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const house = await this.access.finance(tx, userId, houseId);
+        const where: Prisma.ExpenseWhereInput = {
           houseId,
-        },
-        select: {
-          userId: true,
-          user: {
-            select: {
-              id: true,
-              profile: {
-                select: {
-                  displayName: true,
-                  avatarUrl: true,
-                },
-              },
-            },
-          },
-        },
-      }),
-
-      this.prisma.expense.findMany({
-        where: {
-          houseId,
-          status: {
-            not: 'CANCELLED',
-          },
-        },
-        select: {
-          payerId: true,
-          amount: true,
-          splits: {
-            select: {
-              userId: true,
-              amount: true,
-            },
-          },
-        },
-      }),
-    ]);
-
-    const balanceMap = new Map<
-      string,
-      {
-        paid: number;
-        owed: number;
-      }
-    >();
-
-    for (const member of members) {
-      balanceMap.set(member.userId, {
-        paid: 0,
-        owed: 0,
-      });
-    }
-
-    for (const expense of expenses) {
-      const payer = balanceMap.get(expense.payerId);
-
-      if (payer) {
-        payer.paid += expense.amount;
-      }
-
-      for (const split of expense.splits) {
-        const member = balanceMap.get(split.userId);
-
-        if (member) {
-          member.owed += split.amount;
-        }
-      }
-    }
-
-    const balances = members.map((member) => {
-      const value = balanceMap.get(member.userId)!;
-      const balance = value.paid - value.owed;
-
-      return {
-        userId: member.userId,
-        displayName: member.user.profile?.displayName ?? null,
-        avatarUrl: member.user.profile?.avatarUrl ?? null,
-        paid: value.paid,
-        owed: value.owed,
-        balance,
-        status: balance > 0 ? 'RECEIVE' : balance < 0 ? 'PAY' : 'SETTLED',
-      };
-    });
-
-    const totalBalance = balances.reduce(
-      (total, item) => total + item.balance,
-      0,
-    );
-
-    return {
-      balances,
-      totalBalance,
-    };
-  }
-
-  async getSettlements(userId: string, houseId: string) {
-    await this.canAccessHouse(userId, houseId);
-
-    const balances = await this.getBalances(userId, houseId);
-
-    const creditors = balances.balances
-      .filter((item) => item.balance > 0)
-      .map((item) => ({
-        ...item,
-        remaining: item.balance,
-      }))
-      .sort((a, b) => b.remaining - a.remaining);
-
-    const debtors = balances.balances
-      .filter((item) => item.balance < 0)
-      .map((item) => ({
-        ...item,
-        remaining: -item.balance,
-      }))
-      .sort((a, b) => b.remaining - a.remaining);
-
-    const transfers: Array<{
-      payerId: string;
-      payerName: string;
-      recipientId: string;
-      recipientName: string;
-      amount: number;
-    }> = [];
-
-    let creditorIndex = 0;
-    let debtorIndex = 0;
-
-    while (creditorIndex < creditors.length && debtorIndex < debtors.length) {
-      const creditor = creditors[creditorIndex];
-      const debtor = debtors[debtorIndex];
-
-      //Đề xuất cần phải trả
-      const amount = Math.min(creditor.remaining, debtor.remaining);
-
-      if (amount > 0) {
-        transfers.push({
-          payerId: debtor.userId,
-          payerName: debtor.displayName ?? '',
-          recipientId: creditor.userId,
-          recipientName: creditor.displayName ?? '',
-          amount,
+          ...(!house.active
+            ? {
+                OR: [
+                  { payer: { userId } },
+                  { createdById: userId },
+                  { splits: { some: { participant: { userId } } } },
+                ],
+              }
+            : {}),
+        };
+        const items = await tx.expense.findMany({
+          where,
+          include: expenseInclude,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          skip: (query.page - 1) * query.limit,
+          take: query.limit,
         });
-      }
+        const total = await tx.expense.count({ where });
+        return {
+          items: items.map((row) => expenseView(row)),
+          total,
+          page: query.page,
+          pages: Math.ceil(total / query.limit),
+          active: house.active,
+          ownerId: house.ownerId,
+          houseName: house.name,
+        };
+      },
+      { isolationLevel: 'RepeatableRead' },
+    );
+  }
 
-      creditor.remaining -= amount;
-      debtor.remaining -= amount;
-
-      if (creditor.remaining === 0) {
-        creditorIndex++;
-      }
-
-      if (debtor.remaining === 0) {
-        debtorIndex++;
-      }
-    }
-
-    return transfers;
+  async adjustments(userId: string, houseId: string, id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.expenseAccess.expense(tx, userId, houseId, id);
+      return tx.expenseAdjustment.findMany({
+        where: { expenseId: id },
+        orderBy: [{ version: 'asc' }, { createdAt: 'asc' }],
+        include: {
+          createdBy: { select: { profile: { select: { displayName: true } } } },
+        },
+      });
+    });
   }
 }

@@ -1,0 +1,63 @@
+import { Injectable } from '@nestjs/common';
+import type { Prisma } from '../../generated/prisma/client.js';
+import { NotificationsService } from '../communications/notifications.service.js';
+import type { ExpenseRow } from './expense-views.js';
+
+@Injectable()
+export class ExpenseEventsService {
+  constructor(private readonly notifications: NotificationsService) {}
+
+  private snapshot(row: ExpenseRow): Prisma.InputJsonObject {
+    return {
+      title: row.title,
+      description: row.description,
+      payerId: row.payerId,
+      amount: row.amount,
+      status: row.status,
+      splitMode: row.splitMode,
+      receiptUrl: row.receiptUrl,
+      hasReceipt: !!row.receipt,
+      splits: row.splits.map((split) => ({
+        participantId: split.participantId,
+        amount: split.amount,
+      })),
+    };
+  }
+
+  async record(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    before: ExpenseRow | null,
+    after: ExpenseRow,
+    action: string,
+    reason: string,
+  ) {
+    await tx.expenseAdjustment.create({
+      data: {
+        expenseId: after.id,
+        createdById: userId,
+        oldAmount: before?.amount ?? 0,
+        newAmount: after.amount,
+        action,
+        reason,
+        version: after.version,
+        ...(before ? { oldSnapshot: this.snapshot(before) } : {}),
+        newSnapshot: this.snapshot(after),
+      },
+    });
+  }
+
+  async signal(
+    tx: Prisma.TransactionClient,
+    houseId: string,
+    extra: string[] = [],
+  ) {
+    const members = await tx.houseMember.findMany({
+      where: { houseId, leftAt: null },
+      select: { userId: true },
+    });
+    await this.notifications.signal(tx, [
+      ...new Set([...extra, ...members.map((member) => member.userId)]),
+    ]);
+  }
+}

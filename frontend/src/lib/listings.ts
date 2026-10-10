@@ -9,6 +9,7 @@ export const amenities = {
   KITCHEN: "Bếp",
   BALCONY: "Ban công",
   PRIVATE_BATHROOM: "Phòng tắm riêng",
+  HOT_WATER: "Nước nóng",
 } as const;
 export type Amenity = keyof typeof amenities;
 export const listingStatuses = {
@@ -56,6 +57,7 @@ export interface Listing {
   area: number | null;
   availableSlots: number;
   currentResidents: number;
+  desiredResidents: number | null;
   availableFrom: string | null;
   provinceCode: string | null;
   provinceName: string | null;

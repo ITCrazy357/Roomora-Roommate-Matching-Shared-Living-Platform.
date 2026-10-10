@@ -25,6 +25,14 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-danger-foreground: var(--danger-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
   --font-sans: var(--font-be-vietnam), system-ui, "Segoe UI", sans-serif;
 }
 

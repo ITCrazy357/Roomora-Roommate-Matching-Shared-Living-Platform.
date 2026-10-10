@@ -7,6 +7,10 @@ import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { NotificationsService } from '../src/modules/communications/notifications.service.js';
+import { ExpenseRemindersService } from '../src/modules/expenses/expense-reminders.service.js';
+import { HouseAccessService } from '../src/modules/houses/house-access.service.js';
+import { ConfigService } from '@nestjs/config';
+import { vietnamDate } from '../src/modules/expenses/expense-promises.service.js';
 
 describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
   let app: INestApplication, prisma: PrismaService, houseId: string;
@@ -133,6 +137,11 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
     }
   }, 30000);
   async function clearFinance() {
+    await prisma.notification.deleteMany({
+      where: { href: `/nha-chung/${houseId}/chi-phi` },
+    });
+    await prisma.repaymentPromise.deleteMany({ where: { houseId } });
+    await prisma.debtReminder.deleteMany({ where: { houseId } });
     await prisma.expenseAdjustment.deleteMany({
       where: { expense: { houseId } },
     });
@@ -683,6 +692,302 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
     expect((await balances()).every((person) => person.balance === 0)).toBe(
       true,
     );
+  });
+  it('persists settled state, notifies the house once and reopens for new expenses', async () => {
+    const state = () => agents[0].get(base() + '/balances').expect(200);
+    expect((await state()).body).toMatchObject({
+      isSettled: false,
+      unsettledCount: 0,
+    });
+    await create({
+      ...expenseBody(),
+      splits: [{ userId: ids[0], amount: 1000 }],
+    });
+    await post(1, base() + '/settle').expect(403);
+    expect((await post(0, base() + '/settle').expect(201)).body.settled).toBe(
+      1,
+    );
+    expect((await state()).body).toMatchObject({
+      isSettled: true,
+      unsettledCount: 0,
+    });
+    const notices = await prisma.notification.findMany({
+      where: {
+        href: `/nha-chung/${houseId}/chi-phi`,
+        title: { startsWith: 'Đã chốt quyết toán' },
+      },
+    });
+    expect(notices.map((notice) => notice.userId).sort()).toEqual(
+      ids.slice(0, 3).sort(),
+    );
+    const filtered = (
+      await agents[1].get('/api/v1/notifications?type=HOUSE').expect(200)
+    ).body;
+    expect(
+      filtered.items.some((notice: { title: string }) =>
+        notice.title.startsWith('Đã chốt quyết toán'),
+      ),
+    ).toBe(true);
+    expect((await post(0, base() + '/settle').expect(201)).body.settled).toBe(
+      0,
+    );
+    expect(
+      await prisma.notification.count({
+        where: { id: { in: notices.map((notice) => notice.id) } },
+      }),
+    ).toBe(3);
+    expect(
+      await prisma.notification.count({
+        where: {
+          href: `/nha-chung/${houseId}/chi-phi`,
+          title: { startsWith: 'Đã chốt quyết toán' },
+        },
+      }),
+    ).toBe(3);
+    await create();
+    expect((await state()).body).toMatchObject({
+      isSettled: false,
+      unsettledCount: 1,
+    });
+  });
+  const promiseDate = (days: number) =>
+    vietnamDate(new Date(Date.now() + days * 86400000));
+  async function ageDebt(participantId = ids[1]) {
+    const now = new Date();
+    return prisma.debtReminder.update({
+      where: { houseId_participantId: { houseId, participantId } },
+      data: {
+        debtSinceAt: new Date(now.getTime() - 8 * 86400000),
+        nextReminderAt: new Date(now.getTime() - 1000),
+        lastReminderAt: null,
+      },
+    });
+  }
+  it('queues weekly debt email once across worker instances and skips the first seven days', async () => {
+    await create();
+    const reminders = app.get(ExpenseRemindersService),
+      now = new Date();
+    let state = await prisma.debtReminder.findUniqueOrThrow({
+      where: { houseId_participantId: { houseId, participantId: ids[1] } },
+    });
+    await reminders.runDue(now, houseId);
+    expect(
+      await prisma.notification.count({ where: { debtReminderId: state.id } }),
+    ).toBe(0);
+    state = await ageDebt();
+    const otherWorker = new ExpenseRemindersService(
+      prisma,
+      app.get(HouseAccessService),
+      app.get(NotificationsService),
+      app.get(ConfigService),
+    );
+    await Promise.all([
+      reminders.runDue(now, houseId),
+      otherWorker.runDue(now, houseId),
+    ]);
+    const notices = await prisma.notification.findMany({
+      where: { debtReminderId: state.id },
+    });
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatchObject({
+      userId: ids[1],
+      emailRequired: true,
+      emailSentAt: null,
+    });
+    await reminders.runDue(new Date(now.getTime() + 6 * 86400000), houseId);
+    expect(
+      await prisma.notification.count({ where: { debtReminderId: state.id } }),
+    ).toBe(1);
+    await reminders.runDue(new Date(now.getTime() + 7 * 86400000), houseId);
+    expect(
+      await prisma.notification.count({ where: { debtReminderId: state.id } }),
+    ).toBe(2);
+  });
+  it('validates repayment dates, notifies the creditor, protects versions and cancels queued reminders', async () => {
+    await create();
+    const state = await ageDebt(),
+      reminders = app.get(ExpenseRemindersService);
+    await reminders.runDue(new Date(), houseId);
+    for (const payOn of [
+      promiseDate(-1),
+      promiseDate(31),
+      '2026-02-30',
+      promiseDate(1) + 'T12:00:00Z',
+    ])
+      await post(1, base() + '/repayment-promises', {
+        recipientId: ids[0],
+        payOn,
+      }).expect(400);
+    await post(3, base() + '/repayment-promises', {
+      recipientId: ids[0],
+      payOn: promiseDate(8),
+    }).expect(404);
+    await post(0, base() + '/repayment-promises', {
+      recipientId: ids[1],
+      payOn: promiseDate(8),
+    }).expect(400);
+    const body = { recipientId: ids[0], payOn: promiseDate(8) };
+    await post(1, base() + '/repayment-promises', {
+      ...body,
+      payerId: ids[2],
+    }).expect(400);
+    await post(1, base() + '/repayment-promises', body).expect(201);
+    await post(1, base() + '/repayment-promises', body).expect(201);
+    const result = (await agents[1].get(base() + '/balances').expect(200)).body;
+    expect(result.repaymentPromises).toHaveLength(1);
+    expect(result.repaymentPromises[0]).toMatchObject({
+      payOn: body.payOn,
+      amount: 500,
+      version: 1,
+      payerUserId: ids[1],
+    });
+    expect(
+      result.balances.find((person: { id: string }) => person.id === ids[1])
+        .reminderPausedUntil,
+    ).toBeTruthy();
+    expect(
+      await prisma.notification.count({
+        where: {
+          userId: ids[0],
+          href: `/nha-chung/${houseId}/chi-phi`,
+          title: { contains: 'hẹn trả tiền' },
+        },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({
+        where: { debtReminderId: state.id, emailRequired: true },
+      }),
+    ).toBe(0);
+    await post(1, base() + '/repayment-promises', {
+      ...body,
+      payOn: promiseDate(10),
+      version: 9,
+    }).expect(409);
+    await post(1, base() + '/repayment-promises', {
+      ...body,
+      payOn: promiseDate(10),
+      version: 1,
+    }).expect(201);
+    await agents[1]
+      .delete(base() + `/repayment-promises/${ids[0]}`)
+      .set('Origin', origin)
+      .send({ version: 1 })
+      .expect(409);
+    await agents[1]
+      .delete(base() + `/repayment-promises/${ids[0]}`)
+      .set('Origin', origin)
+      .send({ version: 2 })
+      .expect(200);
+    expect(await prisma.repaymentPromise.count({ where: { houseId } })).toBe(0);
+    expect(
+      (await prisma.debtReminder.findUniqueOrThrow({ where: { id: state.id } }))
+        .pausedUntil,
+    ).toBeNull();
+  });
+  it('resumes reminders after the promised day in Vietnam and does not reset the weekly cadence', async () => {
+    await create();
+    await post(1, base() + '/repayment-promises', {
+      recipientId: ids[0],
+      payOn: promiseDate(1),
+    }).expect(201);
+    const promise = await prisma.repaymentPromise.findFirstOrThrow({
+      where: { houseId },
+    });
+    expect(promise.remindAfter.toISOString()).toContain('16:59:59.999Z');
+    const state = await ageDebt(),
+      reminders = app.get(ExpenseRemindersService);
+    await reminders.runDue(new Date(), houseId);
+    expect(
+      await prisma.notification.count({ where: { debtReminderId: state.id } }),
+    ).toBe(0);
+    const due = new Date(promise.remindAfter.getTime() + 1);
+    await reminders.runDue(due, houseId);
+    expect(
+      await prisma.notification.count({ where: { debtReminderId: state.id } }),
+    ).toBe(1);
+    await reminders.runDue(new Date(due.getTime() + 6 * 86400000), houseId);
+    expect(
+      await prisma.notification.count({ where: { debtReminderId: state.id } }),
+    ).toBe(1);
+  });
+  it('stops queued mail for pending or paid debt and starts a fresh seven-day clock for new debt', async () => {
+    await create();
+    const state = await ageDebt(),
+      reminders = app.get(ExpenseRemindersService);
+    await reminders.runDue(new Date(), houseId);
+    const payment = (
+      await post(1, base() + '/payments', paymentBody()).expect(201)
+    ).body;
+    expect(
+      await prisma.notification.count({
+        where: { debtReminderId: state.id, emailRequired: true },
+      }),
+    ).toBe(0);
+    await reminders.runDue(new Date(Date.now() + 20 * 86400000), houseId);
+    expect(
+      await prisma.notification.count({ where: { debtReminderId: state.id } }),
+    ).toBe(1);
+    await post(0, base() + `/payments/${payment.id}`, {
+      version: 1,
+      action: 'confirm',
+    }).expect(201);
+    expect(
+      (await prisma.debtReminder.findUniqueOrThrow({ where: { id: state.id } }))
+        .debtSinceAt,
+    ).toBeNull();
+    await post(0, base() + '/settle').expect(201);
+    await create();
+    const fresh = await prisma.debtReminder.findUniqueOrThrow({
+      where: { id: state.id },
+    });
+    expect(fresh.lastReminderAt).toBeNull();
+    expect(fresh.nextReminderAt!.getTime() - fresh.debtSinceAt!.getTime()).toBe(
+      7 * 86400000,
+    );
+  });
+  it('only pauses aggregated email when all outstanding creditor transfers have valid promises', async () => {
+    await create({
+      ...expenseBody(),
+      amount: 2000,
+      splits: [
+        { userId: ids[0], amount: 1000 },
+        { userId: ids[1], amount: 1000 },
+      ],
+    });
+    await create({
+      ...expenseBody(),
+      payerId: ids[2],
+      amount: 2000,
+      splits: [
+        { userId: ids[2], amount: 1000 },
+        { userId: ids[1], amount: 1000 },
+      ],
+    });
+    await post(1, base() + '/repayment-promises', {
+      recipientId: ids[0],
+      payOn: promiseDate(9),
+    }).expect(201);
+    let state = await prisma.debtReminder.findUniqueOrThrow({
+      where: { houseId_participantId: { houseId, participantId: ids[1] } },
+    });
+    expect(state.pausedUntil).toBeNull();
+    await post(1, base() + '/repayment-promises', {
+      recipientId: ids[2],
+      payOn: promiseDate(10),
+    }).expect(201);
+    state = await prisma.debtReminder.findUniqueOrThrow({
+      where: { id: state.id },
+    });
+    expect(state.pausedUntil?.toISOString().slice(0, 10)).toBe(promiseDate(9));
+    await create({
+      ...expenseBody(),
+      splits: [{ userId: ids[1], amount: 1000 }],
+    });
+    state = await prisma.debtReminder.findUniqueOrThrow({
+      where: { id: state.id },
+    });
+    expect(state.pausedUntil).toBeNull();
   });
   it('retains personal debt history after leaving, permits settling it and denies other house data', async () => {
     const row = await create();

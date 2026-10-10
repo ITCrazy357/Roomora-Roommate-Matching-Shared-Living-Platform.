@@ -14,6 +14,8 @@ import {
   type Transfer,
   type Payment,
   type ExpenseChange,
+  type BalancePage,
+  type RepaymentPromise,
 } from "@/lib/expenses";
 import { formatTime, type Page } from "@/lib/communications";
 import { useUpdates } from "../communications/updates-provider";
@@ -21,6 +23,7 @@ import { Pagination } from "../communications/pagination";
 import { Button, Card, ErrorState, Input, LoadingState, Textarea } from "../ui";
 import { ExpenseForm } from "./expense-form";
 import { PaymentForm } from "./payment-form";
+import { RepaymentPromiseForm, vietnamDate } from "./repayment-promise-form";
 
 interface FinanceData {
   expenses: ExpensePage;
@@ -28,6 +31,9 @@ interface FinanceData {
   transfers: Transfer[];
   participants: Participant[];
   payments: Page<Payment>;
+  isSettled: boolean;
+  unsettledCount: number;
+  repaymentPromises: RepaymentPromise[];
 }
 export function HouseFinances({
   houseId,
@@ -44,10 +50,12 @@ export function HouseFinances({
   const [paymentPage, setPaymentPage] = useState(1);
   const [refresh, setRefresh] = useState(0);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
   const [form, setForm] = useState<Expense | "new" | null>(null);
   const [transfer, setTransfer] = useState<Transfer | null>(null);
+  const [promiseTransfer, setPromiseTransfer] = useState<Transfer | null>(null);
   const [cancelExpense, setCancelExpense] = useState<Expense | null>(null);
   const [reason, setReason] = useState("");
   const [history, setHistory] = useState<{
@@ -68,7 +76,7 @@ export function HouseFinances({
           apiFetch<ExpensePage>(`${path}?page=${page}`, {
             signal: controller.signal,
           }),
-          apiFetch<{ balances: Balance[] }>(`${path}/balances`, {
+          apiFetch<BalancePage>(`${path}/balances`, {
             signal: controller.signal,
           }),
           apiFetch<Transfer[]>(`${path}/settlements`, {
@@ -91,14 +99,17 @@ export function HouseFinances({
             balances: balances.balances,
             transfers,
             payments,
+            isSettled: balances.isSettled,
+            unsettledCount: balances.unsettledCount,
+            repaymentPromises: balances.repaymentPromises,
             participants,
           });
-          setError("");
+          setLoadError("");
         }
       } catch (error) {
         if (!controller.signal.aborted) {
           setData(null);
-          setError(expenseError(error));
+          setLoadError(expenseError(error));
         }
       }
     }
@@ -121,6 +132,7 @@ export function HouseFinances({
   function changed() {
     setForm(null);
     setTransfer(null);
+    setPromiseTransfer(null);
     setCancelExpense(null);
     setHistory(null);
     setReason("");
@@ -143,6 +155,10 @@ export function HouseFinances({
           : {}),
       });
       changed();
+      if (endpoint === "/settle")
+        setNotice("Đã chốt quyết toán. Các khoản chi hiện tại đã được đóng.");
+      if (endpoint.startsWith("/repayment-promises"))
+        setNotice("Đã hủy ngày hẹn trả tiền.");
       return true;
     } catch (error) {
       setError(expenseError(error));
@@ -186,9 +202,9 @@ export function HouseFinances({
   if (!data)
     return (
       <Card className="house-panel">
-        {error ? (
+        {loadError ? (
           <ErrorState
-            message={error}
+            message={loadError}
             action={
               <Button onClick={() => setRefresh((value) => value + 1)}>
                 Thử lại
@@ -205,6 +221,7 @@ export function HouseFinances({
   const active = data.expenses.active;
   const canSettle =
     owner &&
+    data.unsettledCount > 0 &&
     data.balances.every(
       (row) =>
         row.balance === 0 && row.pendingSent === 0 && row.pendingReceived === 0,
@@ -241,6 +258,7 @@ export function HouseFinances({
               onClick={() => {
                 setForm("new");
                 setTransfer(null);
+                setPromiseTransfer(null);
               }}
             >
               ＋ Ghi khoản chi
@@ -249,7 +267,7 @@ export function HouseFinances({
           {owner && (
             <Button
               variant="secondary"
-              disabled={!canSettle || pending}
+              disabled={data.isSettled || !canSettle || pending}
               onClick={() => {
                 if (
                   window.confirm(
@@ -259,11 +277,36 @@ export function HouseFinances({
                   void action("/settle", "POST");
               }}
             >
-              Chốt quyết toán
+              {data.isSettled ? "Đã chốt" : "Chốt quyết toán"}
             </Button>
           )}
         </div>
       </Card>
+      {data.isSettled && (
+        <p className="success-state" role="status">
+          Đã chốt quyết toán. Lịch sử được giữ; ghi khoản chi mới sẽ bắt đầu
+          phần chưa chốt.
+        </p>
+      )}
+      {promiseTransfer && (
+        <Card className="house-panel">
+          <RepaymentPromiseForm
+            key={`${promiseTransfer.payerId}:${promiseTransfer.recipientId}`}
+            houseId={houseId}
+            transfer={promiseTransfer}
+            promise={data.repaymentPromises.find(
+              (promise) =>
+                promise.payerId === promiseTransfer.payerId &&
+                promise.recipientId === promiseTransfer.recipientId,
+            )}
+            onSaved={() => {
+              changed();
+              setNotice("Đã lưu ngày hẹn và thông báo cho người nhận.");
+            }}
+            onCancel={() => setPromiseTransfer(null)}
+          />
+        </Card>
+      )}
       {form && active && (
         <Card className="house-panel">
           <ExpenseForm
@@ -620,6 +663,15 @@ export function HouseFinances({
                     {money(row.pendingReceived)}
                   </p>
                 )}
+                {row.reminderPausedUntil && (
+                  <p className="text-muted">
+                    Tạm dừng email nhắc nợ đến hết{" "}
+                    {new Intl.DateTimeFormat("vi-VN", {
+                      timeZone: "Asia/Ho_Chi_Minh",
+                    }).format(new Date(row.reminderPausedUntil))}
+                    .
+                  </p>
+                )}
               </Card>
             ))}
           </div>
@@ -652,9 +704,67 @@ export function HouseFinances({
                     Ghi đã trả
                   </Button>
                 )}
+                {row.payerUserId === userId && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setPromiseTransfer(row);
+                      setTransfer(null);
+                    }}
+                  >
+                    {data.repaymentPromises.some(
+                      (promise) =>
+                        promise.payerId === row.payerId &&
+                        promise.recipientId === row.recipientId,
+                    )
+                      ? "Sửa ngày hẹn"
+                      : "Hẹn ngày trả"}
+                  </Button>
+                )}
               </div>
             ))}
           </Card>
+          {data.repaymentPromises.length > 0 && (
+            <Card className="house-panel">
+              <h2>Ngày hẹn trả tiền</h2>
+              {data.repaymentPromises.map((promise) => (
+                <div
+                  className="house-row finance-transfer"
+                  key={`${promise.payerId}:${promise.recipientId}`}
+                >
+                  <div>
+                    <strong>
+                      {promise.payerName} → {promise.recipientName}
+                    </strong>
+                    <p>
+                      {money(promise.amount)} · Hẹn{" "}
+                      {promise.payOn.split("-").reverse().join("/")}
+                    </p>
+                    {promise.payOn < vietnamDate() && (
+                      <p className="text-error">
+                        Đã quá ngày hẹn, email nhắc nợ được tiếp tục.
+                      </p>
+                    )}
+                  </div>
+                  {promise.payerUserId === userId && (
+                    <Button
+                      variant="secondary"
+                      disabled={pending}
+                      onClick={() =>
+                        void action(
+                          `/repayment-promises/${promise.recipientId}`,
+                          "DELETE",
+                          { version: promise.version },
+                        )
+                      }
+                    >
+                      Hủy ngày hẹn
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </Card>
+          )}
           <Card className="house-panel">
             <h2>Lịch sử thanh toán</h2>
             {!data.payments.items.length && (

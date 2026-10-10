@@ -70,8 +70,8 @@ export class ChangeAppointmentDto {
 }
 export class NotificationQuery extends PageQuery {
   @IsOptional() @IsIn(['all', 'unread']) tab: 'all' | 'unread' = 'all';
-  @IsOptional() @IsIn(['CONNECTION', 'MESSAGE', 'APPOINTMENT']) type?:
-    'CONNECTION' | 'MESSAGE' | 'APPOINTMENT';
+  @IsOptional() @IsIn(['CONNECTION', 'MESSAGE', 'APPOINTMENT', 'HOUSE']) type?:
+    'CONNECTION' | 'MESSAGE' | 'APPOINTMENT' | 'HOUSE';
 }
 export class AppointmentQuery extends PageQuery {
   @IsOptional() @IsIn(['all', 'upcoming', 'pending', 'past']) tab:

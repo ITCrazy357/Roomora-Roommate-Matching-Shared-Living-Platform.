@@ -83,4 +83,66 @@ describe('Notification email delivery', () => {
     await service.deliver();
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
+  it('skips mail cancelled after its batch was claimed', async () => {
+    const { service, prisma, mail } = fixture();
+    prisma.notification.findUnique.mockResolvedValue({
+      id: 'notice',
+      user: { email: 'recipient@example.test' },
+      title: 'Debt reminder',
+      href: '/nha-chung/house/chi-phi',
+      emailAttempts: 1,
+      emailRequired: false,
+    });
+    await service.deliver();
+    expect(mail.sendNotification).not.toHaveBeenCalled();
+  });
+  it.each([
+    { debtSinceAt: null, unpaidAmount: 0, pausedUntil: null },
+    { debtSinceAt: new Date(), unpaidAmount: 0, pausedUntil: null },
+    {
+      debtSinceAt: new Date(),
+      unpaidAmount: 500,
+      pausedUntil: new Date(Date.now() + 86400000),
+    },
+  ])(
+    'suppresses a stale debt email using current reminder state',
+    async (debtReminder) => {
+      const { service, prisma, mail } = fixture();
+      prisma.notification.findUnique.mockResolvedValue({
+        id: 'notice',
+        user: { email: 'recipient@example.test' },
+        title: 'Debt reminder',
+        href: '/nha-chung/house/chi-phi',
+        emailAttempts: 1,
+        emailRequired: true,
+        debtReminderId: 'reminder',
+        debtReminder,
+      });
+      await service.deliver();
+      expect(mail.sendNotification).not.toHaveBeenCalled();
+      expect(prisma.notification.updateMany).toHaveBeenCalledWith({
+        where: { id: 'notice' },
+        data: { emailRequired: false },
+      });
+    },
+  );
+  it('delivers debt reminders again once the promised day has passed', async () => {
+    const { service, prisma, mail } = fixture();
+    prisma.notification.findUnique.mockResolvedValue({
+      id: 'notice',
+      user: { email: 'recipient@example.test' },
+      title: 'Debt reminder',
+      href: '/nha-chung/house/chi-phi',
+      emailAttempts: 1,
+      emailRequired: true,
+      debtReminderId: 'reminder',
+      debtReminder: {
+        debtSinceAt: new Date(),
+        unpaidAmount: 500,
+        pausedUntil: new Date(Date.now() - 1),
+      },
+    });
+    await service.deliver();
+    expect(mail.sendNotification).toHaveBeenCalledOnce();
+  });
 });

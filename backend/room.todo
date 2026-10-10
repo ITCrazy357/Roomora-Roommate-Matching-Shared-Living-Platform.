@@ -194,6 +194,18 @@ Trạng thái bổ sung 10/10/2026:
   Cấu trúc chi tiết: backend/src/modules/expenses/README.md.
 - Đã hoàn thành backend và frontend khoản chi, chia đều/chia cụ thể, ảnh biên nhận riêng tư,
   số dư, gợi ý bù trừ, thanh toán chờ người nhận xác nhận và chốt quyết toán.
+- Sau quyết toán có thông báo cho thành viên; nút chuyển "Đã chốt" và bị khóa,
+  giữ sau tải lại trang. Khoản chi mới/điều chỉnh mở lại trạng thái chưa chốt.
+- Nhắc nợ email mỗi 7 ngày theo từng người/nhà, loại tiền đã ghi trả chờ xác nhận;
+  hủy mail chưa gửi khi trả đủ. Người đang nợ được hẹn ngày trả (từ hôm nay đến 30 ngày tới),
+  sửa/hủy có kiểm tra phiên bản; người nhận nhận thông báo, người ngoài app qua trưởng nhà.
+  Khi mọi khoản còn nợ đã hẹn đủ, dừng mail đến hết ngày hẹn sớm nhất (UTC+7).
+  Nợ khác chưa hẹn/nợ mới vượt số tiền đã hẹn vẫn được nhắc; quá hẹn tiếp tục chu kỳ 7 ngày.
+  Migration debt_reminders_promises đã deploy; cần backend hoạt động và cấu hình SMTP để gửi mail.
+  Kiểm chứng: 23 kiểm thử chi phí + 5 Nhà chung trên PostgreSQL, 9 kiểm thử giao email,
+  build backend/frontend và lint qua; gửi mail được kiểm tra bằng SMTP cục bộ.
+  Edge kiểm tra hẹn/sửa/hủy, thông báo cho chủ nợ, "Đã chốt" sau tải lại và mở đợt mới,
+  cùng form/khung ảnh/trạng thái chốt ở 320–1920 px không tràn ngang; chưa kiểm tra hộp thư thật.
 - Ghi nhận đã trả: chọn Chuyển khoản hiện tải ảnh minh chứng tùy chọn (JPG/PNG/WebP, tối đa 5 MB),
   xem trước/bỏ ảnh; chọn Tiền mặt ẩn và xóa ảnh đang chọn. Người có quyền xem thanh toán
   mở ảnh đã lưu để đối chiếu. Ảnh lưu riêng tư cùng thanh toán, không tự xác nhận đã nhận tiền,

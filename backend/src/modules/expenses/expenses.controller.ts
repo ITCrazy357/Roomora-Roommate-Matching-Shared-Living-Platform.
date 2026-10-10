@@ -28,6 +28,8 @@ import {
   PaymentActionDto,
   UploadReceiptDto,
   GuestParticipantDto,
+  RepaymentPromiseDto,
+  ExpenseVersionDto,
 } from './dto/expenses.dto.js';
 import { ExpensesService } from './expenses.service.js';
 import { ExpenseParticipantsService } from './expense-participants.service.js';
@@ -35,6 +37,7 @@ import { ExpenseBalancesService } from './expense-balances.service.js';
 import { ExpensePaymentsService } from './expense-payments.service.js';
 import { ExpenseReceiptsService } from './expense-receipts.service.js';
 import { PaymentProofUploadFilter } from './payment-proof-upload.filter.js';
+import { ExpensePromisesService } from './expense-promises.service.js';
 
 @Controller('expenses')
 @UseGuards(AuthGuard)
@@ -54,6 +57,7 @@ export class ExpensesController {
     private readonly participantsService: ExpenseParticipantsService,
     private readonly paymentsService: ExpensePaymentsService,
     private readonly receipts: ExpenseReceiptsService,
+    private readonly promises: ExpensePromisesService,
   ) {}
   @Get() list(
     @Req() req: AuthenticatedRequest,
@@ -86,6 +90,21 @@ export class ExpensesController {
     @Param('houseId', ParseUUIDPipe) houseId: string,
   ) {
     return this.balancesService.settle(req.auth.userId, houseId);
+  }
+  @Post('repayment-promises') promise(
+    @Req() req: AuthenticatedRequest,
+    @Param('houseId', ParseUUIDPipe) houseId: string,
+    @Body() dto: RepaymentPromiseDto,
+  ) {
+    return this.promises.save(req.auth.userId, houseId, dto);
+  }
+  @Delete('repayment-promises/:recipientId') cancelPromise(
+    @Req() req: AuthenticatedRequest,
+    @Param('houseId', ParseUUIDPipe) houseId: string,
+    @Param('recipientId', ParseUUIDPipe) recipientId: string,
+    @Body() dto: ExpenseVersionDto,
+  ) {
+    return this.promises.cancel(req.auth.userId, houseId, recipientId, dto);
   }
   @Get('participants') participants(
     @Req() req: AuthenticatedRequest,

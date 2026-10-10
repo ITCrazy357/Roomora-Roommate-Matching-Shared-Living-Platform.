@@ -8,11 +8,9 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { HouseAccessService } from '../houses/house-access.service.js';
 import { ExpenseEventsService } from './expense-events.service.js';
 import { ExpenseAccessService } from './expense-access.service.js';
-import {
-  personSelect,
-  participantView,
-  expenseInclude,
-} from './expense-views.js';
+import { expenseInclude } from './expense-views.js';
+import { calculateHouseBalances } from './expense-ledger.js';
+import { NotificationsService } from '../communications/notifications.service.js';
 import { settlementTransfers } from './expense-calculations.js';
 
 @Injectable()
@@ -22,58 +20,11 @@ export class ExpenseBalancesService {
     private readonly access: HouseAccessService,
     private readonly events: ExpenseEventsService,
     private readonly expenseAccess: ExpenseAccessService,
+    private readonly notifications: NotificationsService,
   ) {}
 
-  async calculate(tx: Prisma.TransactionClient, houseId: string) {
-    const people = await tx.houseParticipant.findMany({
-      where: { houseId },
-      select: personSelect,
-      orderBy: { id: 'asc' },
-    });
-    const expenses = await tx.expense.findMany({
-      where: { houseId, status: { not: 'CANCELLED' } },
-      select: {
-        payerId: true,
-        amount: true,
-        splits: { select: { participantId: true, amount: true } },
-      },
-    });
-    const payments = await tx.debtPayment.findMany({
-      where: { houseId, status: { in: ['PENDING', 'CONFIRMED'] } },
-    });
-    const rows = new Map(
-      people.map((person) => [
-        person.id,
-        {
-          ...participantView(person),
-          participantId: person.id,
-          paid: 0,
-          owed: 0,
-          sent: 0,
-          received: 0,
-          pendingSent: 0,
-          pendingReceived: 0,
-          balance: 0,
-        },
-      ]),
-    );
-    for (const expense of expenses) {
-      rows.get(expense.payerId)!.paid += expense.amount;
-      for (const split of expense.splits)
-        rows.get(split.participantId)!.owed += split.amount;
-    }
-    for (const payment of payments) {
-      if (payment.status === 'CONFIRMED') {
-        rows.get(payment.payerId)!.sent += payment.amount;
-        rows.get(payment.recipientId)!.received += payment.amount;
-      } else {
-        rows.get(payment.payerId)!.pendingSent += payment.amount;
-        rows.get(payment.recipientId)!.pendingReceived += payment.amount;
-      }
-    }
-    for (const row of rows.values())
-      row.balance = row.paid - row.owed + row.sent - row.received;
-    return [...rows.values()];
+  calculate(tx: Prisma.TransactionClient, houseId: string) {
+    return calculateHouseBalances(tx, houseId);
   }
 
   async get(userId: string, houseId: string) {
@@ -81,6 +32,21 @@ export class ExpenseBalancesService {
       async (tx) => {
         const house = await this.access.finance(tx, userId, houseId);
         const all = await this.calculate(tx, houseId);
+        const unsettledCount = await tx.expense.count({
+          where: {
+            houseId,
+            status: { in: ['ACTIVE', 'ADJUSTMENT_REQUIRED'] },
+          },
+        });
+        const hasExpenses = await tx.expense.count({
+          where: { houseId, status: { not: 'CANCELLED' } },
+        });
+        const promises = await tx.repaymentPromise.findMany({
+          where: { houseId },
+        });
+        const reminders = await tx.debtReminder.findMany({
+          where: { houseId },
+        });
         const balances = house.active
           ? all
           : all.filter(
@@ -89,7 +55,43 @@ export class ExpenseBalancesService {
                 (house.ownerId === userId && row.isGuest),
             );
         return {
-          balances,
+          balances: balances.map((row) => ({
+            ...row,
+            reminderPausedUntil:
+              reminders.find((state) => state.participantId === row.id)
+                ?.pausedUntil ?? null,
+          })),
+          isSettled: hasExpenses > 0 && unsettledCount === 0,
+          unsettledCount,
+          repaymentPromises: promises
+            .filter(
+              (promise) =>
+                house.active ||
+                all.some(
+                  (person) =>
+                    person.userId === userId &&
+                    [promise.payerId, promise.recipientId].includes(person.id),
+                ) ||
+                (house.ownerId === userId &&
+                  all.some(
+                    (person) =>
+                      person.isGuest &&
+                      [promise.payerId, promise.recipientId].includes(
+                        person.id,
+                      ),
+                  )),
+            )
+            .map((promise) => ({
+              ...promise,
+              payerName: all.find((person) => person.id === promise.payerId)
+                ?.displayName,
+              recipientName: all.find(
+                (person) => person.id === promise.recipientId,
+              )?.displayName,
+              payerUserId: all.find((person) => person.id === promise.payerId)
+                ?.userId,
+              payOn: promise.payOn.toISOString().slice(0, 10),
+            })),
           totalBalance: balances.reduce((sum, row) => sum + row.balance, 0),
         };
       },
@@ -156,6 +158,20 @@ export class ExpenseBalancesService {
           'SETTLE',
           'Quyết toán khi toàn bộ công nợ đã bằng 0',
         );
+      }
+      if (rows.length) {
+        const members = await tx.houseMember.findMany({
+          where: { houseId, leftAt: null },
+          select: { userId: true },
+        });
+        for (const member of members)
+          await this.notifications.create(
+            tx,
+            member.userId,
+            'HOUSE',
+            `Đã chốt quyết toán tại ${house.name.slice(0, 120)}. Toàn bộ công nợ đã cân bằng.`,
+            `/nha-chung/${houseId}/chi-phi`,
+          );
       }
       await this.events.signal(tx, houseId);
       return { settled: rows.length };

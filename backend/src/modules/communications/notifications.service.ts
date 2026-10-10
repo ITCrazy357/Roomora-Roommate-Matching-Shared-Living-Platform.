@@ -33,9 +33,10 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     title: string,
     href: string,
     emailRequired = false,
+    debtReminderId?: string,
   ) {
     await tx.notification.create({
-      data: { userId, type, title, href, emailRequired },
+      data: { userId, type, title, href, emailRequired, debtReminderId },
     });
     await this.signal(tx, [userId]);
   }
@@ -126,9 +127,24 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       for (const id of ids) {
         const item = await this.prisma.notification.findUnique({
           where: { id },
-          include: { user: { select: { email: true } } },
+          include: { user: { select: { email: true } }, debtReminder: true },
         });
         if (!item) continue;
+        // Financial writes cancel queued mail when paid, pending, or promised.
+        if (item.emailRequired === false) continue;
+        if (
+          item.debtReminderId &&
+          (!item.debtReminder?.debtSinceAt ||
+            item.debtReminder.unpaidAmount <= 0 ||
+            (item.debtReminder.pausedUntil &&
+              item.debtReminder.pausedUntil > new Date()))
+        ) {
+          await this.prisma.notification.updateMany({
+            where: { id },
+            data: { emailRequired: false },
+          });
+          continue;
+        }
         try {
           await this.mail.sendNotification(
             item.user.email,

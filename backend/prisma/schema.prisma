@@ -513,21 +513,24 @@ model AppointmentChange {
 }
 
 model Notification {
-  id            String           @id @default(uuid()) @db.Uuid
-  userId        String           @map("user_id") @db.Uuid
-  type          NotificationType
-  title         String           @db.VarChar(200)
-  href          String           @db.VarChar(200)
-  readAt        DateTime?        @map("read_at")
-  createdAt     DateTime         @default(now()) @map("created_at")
-  emailRequired Boolean          @default(false) @map("email_required")
-  emailSentAt   DateTime?        @map("email_sent_at")
-  emailAttempts Int              @default(0) @map("email_attempts")
-  emailNextAt   DateTime         @default(now()) @map("email_next_at")
-  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  type           NotificationType
+  title          String           @db.VarChar(200)
+  href           String           @db.VarChar(200)
+  readAt         DateTime?        @map("read_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  emailRequired  Boolean          @default(false) @map("email_required")
+  emailSentAt    DateTime?        @map("email_sent_at")
+  emailAttempts  Int              @default(0) @map("email_attempts")
+  emailNextAt    DateTime         @default(now()) @map("email_next_at")
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  debtReminderId String?          @map("debt_reminder_id") @db.Uuid
+  debtReminder   DebtReminder?    @relation(fields: [debtReminderId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt, createdAt])
   @@index([emailRequired, emailSentAt, emailNextAt])
+  @@index([debtReminderId])
   @@map("notifications")
 }
 
@@ -732,6 +735,39 @@ model DebtPaymentProof {
   @@map("debt_payment_proofs")
 }
 
+model DebtReminder {
+  id             String           @id @default(uuid()) @db.Uuid
+  houseId        String           @map("house_id") @db.Uuid
+  participantId  String           @map("participant_id") @db.Uuid
+  debtSinceAt    DateTime?        @map("debt_since_at")
+  lastReminderAt DateTime?        @map("last_reminder_at")
+  nextReminderAt DateTime?        @map("next_reminder_at")
+  pausedUntil    DateTime?        @map("paused_until")
+  unpaidAmount   Int              @default(0) @map("unpaid_amount")
+  participant    HouseParticipant @relation(fields: [houseId, participantId], references: [houseId, id], onDelete: Cascade)
+  notifications  Notification[]
+
+  @@unique([houseId, participantId])
+  @@index([nextReminderAt])
+  @@map("debt_reminders")
+}
+
+model RepaymentPromise {
+  houseId     String           @map("house_id") @db.Uuid
+  payerId     String           @map("payer_id") @db.Uuid
+  recipientId String           @map("recipient_id") @db.Uuid
+  amount      Int
+  payOn       DateTime         @map("pay_on") @db.Date
+  remindAfter DateTime         @map("remind_after")
+  version     Int              @default(1)
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  payer       HouseParticipant @relation("RepaymentPromiser", fields: [houseId, payerId], references: [houseId, id], onDelete: Cascade)
+  recipient   HouseParticipant @relation("RepaymentPromiseRecipient", fields: [houseId, recipientId], references: [houseId, id], onDelete: Cascade)
+
+  @@id([houseId, payerId, recipientId])
+  @@map("repayment_promises")
+}
+
 // Lịch sử chỉnh sửa khoản chi.
 model ExpenseAdjustment {
   id String @id @default(uuid()) @db.Uuid
@@ -761,18 +797,21 @@ model ExpenseAdjustment {
 // Account participants use their user ID; guests get an independent ID.
 // The composite key keeps the same person distinct in each house's ledger.
 model HouseParticipant {
-  houseId          String         @map("house_id") @db.Uuid
-  id               String         @default(uuid()) @db.Uuid
-  userId           String?        @map("user_id") @db.Uuid
-  displayName      String         @map("display_name") @db.VarChar(120)
-  leftAt           DateTime?      @map("left_at")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  house            House          @relation(fields: [houseId], references: [id], onDelete: Cascade)
-  user             User?          @relation(fields: [userId], references: [id], onDelete: Restrict)
-  paidExpenses     Expense[]      @relation("ExpensePayer")
-  splits           ExpenseSplit[]
-  paymentsMade     DebtPayment[]  @relation("DebtPaymentsMade")
-  paymentsReceived DebtPayment[]  @relation("DebtPaymentsReceived")
+  houseId               String             @map("house_id") @db.Uuid
+  id                    String             @default(uuid()) @db.Uuid
+  userId                String?            @map("user_id") @db.Uuid
+  displayName           String             @map("display_name") @db.VarChar(120)
+  leftAt                DateTime?          @map("left_at")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  house                 House              @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  user                  User?              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  paidExpenses          Expense[]          @relation("ExpensePayer")
+  splits                ExpenseSplit[]
+  paymentsMade          DebtPayment[]      @relation("DebtPaymentsMade")
+  paymentsReceived      DebtPayment[]      @relation("DebtPaymentsReceived")
+  debtReminder          DebtReminder?
+  repaymentPromises     RepaymentPromise[] @relation("RepaymentPromiser")
+  repaymentAppointments RepaymentPromise[] @relation("RepaymentPromiseRecipient")
 
   @@id([houseId, id])
   @@unique([houseId, userId])

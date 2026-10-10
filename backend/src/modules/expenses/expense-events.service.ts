@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { NotificationsService } from '../communications/notifications.service.js';
 import type { ExpenseRow } from './expense-views.js';
+import { ExpenseRemindersService } from './expense-reminders.service.js';
 
 @Injectable()
 export class ExpenseEventsService {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly reminders: ExpenseRemindersService,
+  ) {}
 
   private snapshot(row: ExpenseRow): Prisma.InputJsonObject {
     return {
@@ -52,6 +56,7 @@ export class ExpenseEventsService {
     houseId: string,
     extra: string[] = [],
   ) {
+    await this.reminders.sync(tx, houseId);
     const members = await tx.houseMember.findMany({
       where: { houseId, leftAt: null },
       select: { userId: true },

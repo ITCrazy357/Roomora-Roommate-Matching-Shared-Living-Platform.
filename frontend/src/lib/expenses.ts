@@ -45,6 +45,23 @@ export interface Balance extends Participant {
   pendingSent: number;
   pendingReceived: number;
   balance: number;
+  reminderPausedUntil: string | null;
+}
+export interface RepaymentPromise {
+  payerId: string;
+  recipientId: string;
+  payerUserId: string | null;
+  payerName: string;
+  recipientName: string;
+  amount: number;
+  payOn: string;
+  version: number;
+}
+export interface BalancePage {
+  balances: Balance[];
+  isSettled: boolean;
+  unsettledCount: number;
+  repaymentPromises: RepaymentPromise[];
 }
 export interface Transfer {
   payerId: string;
@@ -140,6 +157,11 @@ export function expenseError(error: unknown) {
       PAYMENT_PROOF_METHOD: "Chỉ đính kèm minh chứng khi chọn Chuyển khoản.",
       HOUSE_HAS_DEBT:
         "Chỉ quyết toán khi mọi số dư bằng 0 và không còn thanh toán chờ xác nhận.",
+      REPAYMENT_DATE_INVALID: "Chọn ngày hẹn từ hôm nay đến 30 ngày tới.",
+      REPAYMENT_DEBT_CHANGED:
+        "Đề xuất trả tiền đã thay đổi. Tải lại sổ công nợ rồi chọn lại.",
+      REPAYMENT_PROMISE_CHANGED:
+        "Ngày hẹn đã thay đổi. Tải lại trước khi sửa hoặc hủy.",
       RECEIPT_INVALID:
         "Chọn ảnh biên nhận JPG, PNG hoặc WebP hợp lệ, tối đa 5 MB.",
       PARTICIPANT_LIMIT: "Sổ chi phí có tối đa 100 người đang tham gia.",

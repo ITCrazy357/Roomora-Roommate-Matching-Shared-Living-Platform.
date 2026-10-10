@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { Transform, Type } from 'class-transformer';
 import {
+  Matches,
+  IsDateString,
   IsUUID,
   Min,
   IsInt,
@@ -103,4 +105,11 @@ export class PaymentActionDto extends ExpenseVersionDto {
 }
 export class GuestParticipantDto {
   @Transform(trim) @IsString() @Length(1, 120) displayName!: string;
+}
+export class RepaymentPromiseDto {
+  @IsUUID() recipientId!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  payOn!: string;
+  @IsOptional() @IsInt() @Min(1) version?: number;
 }

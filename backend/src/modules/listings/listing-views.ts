@@ -5,6 +5,7 @@ export const details = {
   owner: {
     select: {
       id: true,
+      lockedAt: true,
       profile: {
         select: { displayName: true, avatarUrl: true, visibility: true },
       },

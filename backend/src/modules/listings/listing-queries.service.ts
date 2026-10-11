@@ -25,7 +25,8 @@ export class ListingQueriesService {
     });
     if (!listing) this.rules.notFound();
     if (listing.ownerId === userId) return this.rules.privateView(listing);
-    if (listing.status !== 'PUBLISHED') this.rules.notFound();
+    if (listing.status !== 'PUBLISHED' || listing.owner.lockedAt)
+      this.rules.notFound();
     const saved = userId
       ? await this.prisma.savedListing.findUnique({
           where: { userId_listingId: { userId, listingId: id } },
@@ -37,7 +38,11 @@ export class ListingQueriesService {
   listPublic(query: ListingQueryDto, userId?: string) {
     return this.list(
       query,
-      { ...this.filters(query), status: 'PUBLISHED' },
+      {
+        ...this.filters(query),
+        status: 'PUBLISHED',
+        owner: { lockedAt: null },
+      },
       userId,
     );
   }
@@ -57,6 +62,7 @@ export class ListingQueriesService {
       {
         ...this.filters(query),
         status: 'PUBLISHED',
+        owner: { lockedAt: null },
         saves: { some: { userId } },
       },
       userId,
@@ -107,6 +113,8 @@ export class ListingQueriesService {
       { id: 'desc' },
     ];
     if (privateData) orderBy = [{ updatedAt: 'desc' }, { id: 'desc' }];
+    if (privateData && !userId && where.status === 'PENDING')
+      orderBy = [{ submittedAt: 'asc' }, { id: 'asc' }];
     if (query.sort === 'price_asc') orderBy = [{ rent: 'asc' }, { id: 'desc' }];
     if (query.sort === 'price_desc')
       orderBy = [{ rent: 'desc' }, { id: 'desc' }];

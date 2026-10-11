@@ -12,7 +12,7 @@ const UpdatesContext = createContext({
   typingByConversation: {} as Record<string, boolean>,
 });
 export function UpdatesProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [state, setState] = useState({
     userId: "",
     revision: 0,
@@ -37,6 +37,16 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
     let running = false;
     let pending = false;
     async function sync() {
+      if (user?.role === "ADMIN") {
+        setState((old) => ({
+          ...old,
+          userId,
+          revision: old.revision + 1,
+          messages: 0,
+          notifications: 0,
+        }));
+        return;
+      }
       if (running) {
         pending = true;
         return;
@@ -95,7 +105,8 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
         if (
           typeof signal.conversationId !== "string" ||
           typeof signal.typing !== "boolean"
-        ) return;
+        )
+          return;
         const id = signal.conversationId;
         const typing = signal.typing;
         clearTimeout(typingTimers.get(id));
@@ -115,6 +126,7 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
     });
     stream.addEventListener("expired", () => {
       stream.close();
+      setUser(null);
       setState((old) => ({ ...old, connected: false }));
     });
     const focus = () => {
@@ -129,11 +141,17 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("focus", focus);
       document.removeEventListener("visibilitychange", focus);
     };
-  }, [user]);
+  }, [user, setUser]);
   const value =
     user && user.id === state.userId
       ? state
-      : { revision: 0, connected: false, messages: 0, notifications: 0, typingByConversation: {} };
+      : {
+          revision: 0,
+          connected: false,
+          messages: 0,
+          notifications: 0,
+          typingByConversation: {},
+        };
   return (
     <UpdatesContext.Provider value={value}>{children}</UpdatesContext.Provider>
   );

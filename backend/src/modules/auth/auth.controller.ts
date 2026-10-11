@@ -14,7 +14,7 @@ import {
 import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../../common/request-context.js';
 import { AuthService } from './auth.service.js';
-import { AuthGuard } from './auth.guard.js';
+import { AuthGuard, AdminAccountAccess } from './auth.guard.js';
 import {
   EmailDto,
   LoginDto,
@@ -24,6 +24,7 @@ import {
 } from './dto/auth.dto.js';
 
 @Controller('auth')
+@AdminAccountAccess()
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 

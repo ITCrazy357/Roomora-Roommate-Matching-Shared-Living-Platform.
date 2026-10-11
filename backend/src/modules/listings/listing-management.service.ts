@@ -102,6 +102,16 @@ export class ListingManagementService {
       });
     if (input.decision === 'PUBLISHED') this.rules.requireComplete(listing);
     await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${listing.ownerId}::uuid FOR UPDATE`;
+      const owner = await tx.user.findUniqueOrThrow({
+        where: { id: listing.ownerId },
+        select: { lockedAt: true },
+      });
+      if (input.decision === 'PUBLISHED' && owner.lockedAt)
+        throw new BadRequestException({
+          code: 'LISTING_OWNER_LOCKED',
+          message: 'Không thể duyệt tin của tài khoản đang bị khóa',
+        });
       const result = await tx.listing.updateMany({
         where: { id, version: input.version, status: 'PENDING' },
         data: {
@@ -127,7 +137,7 @@ export class ListingManagementService {
 
   async save(userId: string, id: string) {
     const listing = await this.prisma.listing.findFirst({
-      where: { id, status: 'PUBLISHED' },
+      where: { id, status: 'PUBLISHED', owner: { lockedAt: null } },
       select: { id: true },
     });
     if (!listing) this.rules.notFound();

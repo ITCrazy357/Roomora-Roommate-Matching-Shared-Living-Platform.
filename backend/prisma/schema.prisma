@@ -161,13 +161,16 @@ enum RecurringDraftStatus {
 }
 
 model User {
-  id              String    @id @default(uuid()) @db.Uuid
-  role            UserRole  @default(USER)
-  email           String    @unique @db.VarChar(320)
-  passwordHash    String?   @map("password_hash") @db.VarChar(255)
-  emailVerifiedAt DateTime? @map("email_verified_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id                String    @id @default(uuid()) @db.Uuid
+  role              UserRole  @default(USER)
+  email             String    @unique @db.VarChar(320)
+  passwordHash      String?   @map("password_hash") @db.VarChar(255)
+  emailVerifiedAt   DateTime? @map("email_verified_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  lockedAt          DateTime? @map("locked_at")
+  lockReason        String?   @map("lock_reason") @db.VarChar(1000)
+  moderationVersion Int       @default(1) @map("moderation_version")
 
   profile             Profile?
   sessions            Session[]
@@ -191,18 +194,21 @@ model User {
   houseActions        HouseEvent[]        @relation("HouseEventActor")
   houseAnnouncements  HouseAnnouncement[]
 
-  createdExpenses     Expense[]           @relation("ExpenseCreator")
-  expenseAdjustments  ExpenseAdjustment[] @relation("ExpenseAdjustmentCreator")
+  createdExpenses     Expense[]            @relation("ExpenseCreator")
+  expenseAdjustments  ExpenseAdjustment[]  @relation("ExpenseAdjustmentCreator")
   expenseCorrections  ExpenseCorrection[]
   houseParticipants   HouseParticipant[]
   houseMessages       HouseMessage[]
   housePollVotes      HousePollVote[]
-  recordedPayments    DebtPayment[]       @relation("PaymentRecorder")
-  confirmedPayments   DebtPayment[]       @relation("PaymentConfirmer")
-  houseActivities     HouseActivity[]     @relation("ActivityCreator")
-  completedActivities HouseActivity[]     @relation("ActivityCompleter")
+  recordedPayments    DebtPayment[]        @relation("PaymentRecorder")
+  confirmedPayments   DebtPayment[]        @relation("PaymentConfirmer")
+  houseActivities     HouseActivity[]      @relation("ActivityCreator")
+  completedActivities HouseActivity[]      @relation("ActivityCompleter")
   recurringExpenses   RecurringExpense[]
+  adminActions        AdminAction[]
+  systemAnnouncements SystemAnnouncement[]
 
+  @@index([role, lockedAt, createdAt])
   @@map("users")
 }
 
@@ -593,20 +599,62 @@ model UserBlock {
 }
 
 model UserReport {
-  id         String           @id @default(uuid()) @db.Uuid
-  reporterId String           @map("reporter_id") @db.Uuid
-  targetId   String           @map("target_id") @db.Uuid
-  reason     UserReportReason
-  details    String           @db.VarChar(1000)
-  status     UserReportStatus @default(OPEN)
-  createdAt  DateTime         @default(now()) @map("created_at")
-  reporter   User             @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  target     User             @relation("ReportedUser", fields: [targetId], references: [id], onDelete: Cascade)
+  id           String           @id @default(uuid()) @db.Uuid
+  reporterId   String           @map("reporter_id") @db.Uuid
+  targetId     String           @map("target_id") @db.Uuid
+  reason       UserReportReason
+  details      String           @db.VarChar(1000)
+  status       UserReportStatus @default(OPEN)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  version      Int              @default(1)
+  handledAt    DateTime?        @map("handled_at")
+  handlingNote String?          @map("handling_note") @db.VarChar(1000)
+  reporter     User             @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  target       User             @relation("ReportedUser", fields: [targetId], references: [id], onDelete: Cascade)
 
   @@unique([reporterId, targetId])
   @@index([reporterId, createdAt])
   @@index([status, createdAt])
   @@map("user_reports")
+}
+
+enum AnnouncementKind {
+  GENERAL
+  MAINTENANCE
+}
+
+model SystemAnnouncement {
+  id               String           @id @default(uuid()) @db.Uuid
+  authorId         String           @map("author_id") @db.Uuid
+  title            String           @db.VarChar(120)
+  message          String           @db.VarChar(1000)
+  kind             AnnouncementKind @default(GENERAL)
+  displayFrom      DateTime         @map("display_from")
+  displayUntil     DateTime         @map("display_until")
+  maintenanceFrom  DateTime?        @map("maintenance_from")
+  maintenanceUntil DateTime?        @map("maintenance_until")
+  published        Boolean          @default(false)
+  version          Int              @default(1)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  author           User             @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([published, displayUntil, displayFrom])
+  @@map("system_announcements")
+}
+
+model AdminAction {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
+  action    String   @db.VarChar(50)
+  entityId  String   @map("entity_id") @db.Uuid
+  reason    String?  @db.VarChar(1000)
+  snapshot  Json
+  createdAt DateTime @default(now()) @map("created_at")
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([entityId, createdAt])
+  @@map("admin_actions")
 }
 
 model Session {
@@ -841,22 +889,22 @@ model ExpenseAdjustment {
 // Account participants use their user ID; guests get an independent ID.
 // The composite key keeps the same person distinct in each house's ledger.
 model HouseParticipant {
-  houseId               String             @map("house_id") @db.Uuid
-  id                    String             @default(uuid()) @db.Uuid
-  userId                String?            @map("user_id") @db.Uuid
-  displayName           String             @map("display_name") @db.VarChar(120)
-  leftAt                DateTime?          @map("left_at")
-  createdAt             DateTime           @default(now()) @map("created_at")
-  house                 House              @relation(fields: [houseId], references: [id], onDelete: Cascade)
-  user                  User?              @relation(fields: [userId], references: [id], onDelete: Restrict)
-  paidExpenses          Expense[]          @relation("ExpensePayer")
+  houseId               String                   @map("house_id") @db.Uuid
+  id                    String                   @default(uuid()) @db.Uuid
+  userId                String?                  @map("user_id") @db.Uuid
+  displayName           String                   @map("display_name") @db.VarChar(120)
+  leftAt                DateTime?                @map("left_at")
+  createdAt             DateTime                 @default(now()) @map("created_at")
+  house                 House                    @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  user                  User?                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  paidExpenses          Expense[]                @relation("ExpensePayer")
   splits                ExpenseSplit[]
   correctionShares      ExpenseCorrectionShare[]
-  paymentsMade          DebtPayment[]      @relation("DebtPaymentsMade")
-  paymentsReceived      DebtPayment[]      @relation("DebtPaymentsReceived")
+  paymentsMade          DebtPayment[]            @relation("DebtPaymentsMade")
+  paymentsReceived      DebtPayment[]            @relation("DebtPaymentsReceived")
   debtReminder          DebtReminder?
-  repaymentPromises     RepaymentPromise[] @relation("RepaymentPromiser")
-  repaymentAppointments RepaymentPromise[] @relation("RepaymentPromiseRecipient")
+  repaymentPromises     RepaymentPromise[]       @relation("RepaymentPromiser")
+  repaymentAppointments RepaymentPromise[]       @relation("RepaymentPromiseRecipient")
   activities            HouseActivity[]
   recurringExpenses     RecurringExpense[]
 
@@ -867,24 +915,24 @@ model HouseParticipant {
 
 // Append-only differences against a closed expense; the original stays unchanged.
 model ExpenseCorrection {
-  id            String @id @default(uuid()) @db.Uuid
-  houseId       String @map("house_id") @db.Uuid
-  expenseId     String @map("expense_id") @db.Uuid
-  createdById   String @map("created_by_id") @db.Uuid
-  clientId      String @map("client_id") @db.VarChar(100)
-  contentHash   String @map("content_hash") @db.VarChar(64)
-  version       Int
-  reason        String @db.VarChar(1000)
-  amountDelta   Int @map("amount_delta")
-  oldSnapshot   Json @map("old_snapshot")
-  newSnapshot   Json @map("new_snapshot")
-  recordedOn    DateTime @map("recorded_on") @db.Date
-  createdAt     DateTime @default(now()) @map("created_at")
-  settledAt     DateTime? @map("settled_at")
-  house         House @relation(fields: [houseId], references: [id], onDelete: Cascade)
-  expense       Expense @relation(fields: [expenseId], references: [id], onDelete: Restrict)
-  createdBy     User @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  shares        ExpenseCorrectionShare[]
+  id          String                   @id @default(uuid()) @db.Uuid
+  houseId     String                   @map("house_id") @db.Uuid
+  expenseId   String                   @map("expense_id") @db.Uuid
+  createdById String                   @map("created_by_id") @db.Uuid
+  clientId    String                   @map("client_id") @db.VarChar(100)
+  contentHash String                   @map("content_hash") @db.VarChar(64)
+  version     Int
+  reason      String                   @db.VarChar(1000)
+  amountDelta Int                      @map("amount_delta")
+  oldSnapshot Json                     @map("old_snapshot")
+  newSnapshot Json                     @map("new_snapshot")
+  recordedOn  DateTime                 @map("recorded_on") @db.Date
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  settledAt   DateTime?                @map("settled_at")
+  house       House                    @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  expense     Expense                  @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+  createdBy   User                     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  shares      ExpenseCorrectionShare[]
 
   @@unique([expenseId, version])
   @@unique([houseId, createdById, clientId])
@@ -893,13 +941,13 @@ model ExpenseCorrection {
 }
 
 model ExpenseCorrectionShare {
-  correctionId  String @map("correction_id") @db.Uuid
-  houseId       String @map("house_id") @db.Uuid
-  participantId String @map("participant_id") @db.Uuid
-  paidDelta     Int @map("paid_delta")
-  owedDelta     Int @map("owed_delta")
+  correctionId  String            @map("correction_id") @db.Uuid
+  houseId       String            @map("house_id") @db.Uuid
+  participantId String            @map("participant_id") @db.Uuid
+  paidDelta     Int               @map("paid_delta")
+  owedDelta     Int               @map("owed_delta")
   correction    ExpenseCorrection @relation(fields: [correctionId], references: [id], onDelete: Cascade)
-  participant   HouseParticipant @relation(fields: [houseId, participantId], references: [houseId, id], onDelete: Restrict)
+  participant   HouseParticipant  @relation(fields: [houseId, participantId], references: [houseId, id], onDelete: Restrict)
 
   @@id([correctionId, participantId])
   @@map("expense_correction_shares")

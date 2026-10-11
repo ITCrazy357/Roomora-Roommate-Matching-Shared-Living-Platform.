@@ -11,12 +11,13 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../../common/request-context.js';
-import { AuthGuard } from './auth.guard.js';
+import { AuthGuard, AdminAccountAccess } from './auth.guard.js';
 import { LinkGoogleDto } from './dto/auth.dto.js';
 import { GoogleAuthService } from './google-auth.service.js';
 import { GoogleClientService } from './google-client.service.js';
 
 @Controller('auth')
+@AdminAccountAccess()
 export class GoogleAuthController {
   constructor(
     private readonly googleAuth: GoogleAuthService,

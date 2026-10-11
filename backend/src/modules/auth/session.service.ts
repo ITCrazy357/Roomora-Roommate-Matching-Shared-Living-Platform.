@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { PrismaService } from '../../database/prisma.service.js';
@@ -23,14 +27,28 @@ export class SessionService {
     response: Response,
   ): Promise<void> {
     const token = randomToken();
-    await this.prisma.session.create({
-      data: {
-        userId,
-        tokenHash: hashToken(token),
-        userAgent: request.headers['user-agent']?.slice(0, 500),
-        ipAddress: (request.ip || request.socket.remoteAddress)?.slice(0, 64),
-        expiresAt: new Date(Date.now() + SESSION_TTL_MS),
-      },
+    await this.prisma.$transaction(async (tx) => {
+      // Serialize session creation with account locking so a concurrent login
+      // cannot create a usable session after all old sessions were revoked.
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+      const user = await tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { lockedAt: true },
+      });
+      if (user.lockedAt)
+        throw new ForbiddenException({
+          code: 'ACCOUNT_LOCKED',
+          message: 'Tài khoản đã bị khóa do vi phạm',
+        });
+      await tx.session.create({
+        data: {
+          userId,
+          tokenHash: hashToken(token),
+          userAgent: request.headers['user-agent']?.slice(0, 500),
+          ipAddress: (request.ip || request.socket.remoteAddress)?.slice(0, 64),
+          expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+        },
+      });
     });
     this.setCookie(response, token);
   }
@@ -45,7 +63,12 @@ export class SessionService {
       include: { user: true },
     });
 
-    if (!session || session.revokedAt || session.expiresAt <= now) {
+    if (
+      !session ||
+      session.revokedAt ||
+      session.expiresAt <= now ||
+      session.user.lockedAt
+    ) {
       return undefined;
     }
 
@@ -60,6 +83,7 @@ export class SessionService {
       userId: session.userId,
       sessionId: session.id,
       email: session.user.email,
+      role: session.user.role,
     };
   }
 

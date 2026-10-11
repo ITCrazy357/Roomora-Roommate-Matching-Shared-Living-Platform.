@@ -148,9 +148,11 @@ export class GoogleAuthService {
       step = 'session';
       await this.sessions.create(user.id, request, response);
       return this.frontendUrl(
-        user.profile?.onboardingCompletedAt
-          ? '/tai-khoan/ho-so'
-          : '/onboarding',
+        user.role === 'ADMIN'
+          ? '/admin/tin-dang'
+          : user.profile?.onboardingCompletedAt
+            ? '/tai-khoan/ho-so'
+            : '/onboarding',
       );
     } catch (error) {
       return this.errorRedirect(error, errorPath, step);
@@ -158,6 +160,12 @@ export class GoogleAuthService {
   }
 
   errorRedirect(error: unknown, path = '/dang-nhap', step = 'start'): string {
+    if (
+      error instanceof HttpException &&
+      (error.getResponse() as { code?: string })?.code === 'ACCOUNT_LOCKED'
+    ) {
+      return this.frontendUrl(path, 'ACCOUNT_LOCKED');
+    }
     if (error instanceof HttpException && error.getStatus() === 429) {
       return this.frontendUrl(path, 'RATE_LIMITED');
     }

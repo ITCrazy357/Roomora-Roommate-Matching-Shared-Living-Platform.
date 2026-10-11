@@ -335,6 +335,14 @@ Bảng quyết toán nhà chung và chứng từ mua dịch vụ Roomora là hai
 
 Màn hình: dashboard admin, quản lý người dùng, báo cáo vi phạm, hỗ trợ.
 
+Bổ sung 11/10/2026 theo yêu cầu: ADMIN có giao diện riêng gồm tin chờ duyệt (trang mặc định sau đăng nhập),
+người dùng, báo cáo vi phạm và thông báo hệ thống. Ẩn menu người dùng và chặn ADMIN dùng API House,
+chi phí, hội thoại, kết nối, đăng tin; vẫn sử dụng bảo mật tài khoản và SSE phiên đăng nhập.
+Khóa/mở khóa có lý do và lịch sử, thu hồi phiên, chặn đăng nhập, ẩn tin/hồ sơ công khai;
+báo cáo không tự khóa tài khoản. Thông báo nháp/phát/gỡ có lịch, banner toàn giao diện, giờ bảo trì UTC+7.
+Xem src/modules/admin/README.md. Báo cáo từng tin đăng, ticket hỗ trợ và thanh toán vẫn chưa triển khai;
+không đánh dấu toàn bộ Phase 10 hoàn thành chỉ vì các phần quản trị trên đã có.
+
 Công việc:
 
 Mở rộng kiểm duyệt đã có từ Phase 3.

@@ -35,6 +35,8 @@ export class PeopleDiscoveryService {
       visibility: 'PUBLIC',
       userId: viewerId ? { not: viewerId } : undefined,
       user: {
+        role: 'USER',
+        lockedAt: null,
         emailVerifiedAt: { not: null },
         ...(viewerId
           ? {
@@ -140,10 +142,14 @@ export class PeopleDiscoveryService {
   async getPerson(targetId: string, viewerId?: string) {
     const profile = await this.prisma.profile.findUnique({
       where: { userId: targetId },
-      include: { user: { select: { emailVerifiedAt: true } } },
+      include: {
+        user: { select: { emailVerifiedAt: true, lockedAt: true, role: true } },
+      },
     });
     if (
       !profile ||
+      profile.user.lockedAt ||
+      profile.user.role !== 'USER' ||
       (!profile.user.emailVerifiedAt && targetId !== viewerId) ||
       (profile.visibility !== 'PUBLIC' && targetId !== viewerId)
     )

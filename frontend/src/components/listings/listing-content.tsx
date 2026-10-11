@@ -29,9 +29,11 @@ const lifestyle: Record<string, string> = {
 export function ListingContent({
   listing,
   preview = false,
+  moderation = false,
 }: {
   listing: Listing;
   preview?: boolean;
+  moderation?: boolean;
 }) {
   const costUnit = listingCostUnit(listing.type);
   const costs = [
@@ -235,7 +237,13 @@ export function ListingContent({
               <PersonAvatar person={listing.owner} />
               <strong>{listing.owner.displayName}</strong>
             </div>
+            {moderation && (
+              <Link className="text-link" href="/admin/nguoi-dung">
+                Quản lý người dùng →
+              </Link>
+            )}
             {!preview &&
+              !moderation &&
               (listing.owner.profilePublic ? (
                 <Link className="text-link" href={`/ho-so/${listing.ownerId}`}>
                   Xem hồ sơ và kết nối →

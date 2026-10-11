@@ -19,7 +19,7 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../common/request-context.js';
-import { AuthGuard } from '../auth/auth.guard.js';
+import { AuthGuard, AdminAccountAccess } from '../auth/auth.guard.js';
 import { ConversationsService } from './conversations.service.js';
 import { NotificationsService } from './notifications.service.js';
 import { UpdatesService } from './updates.service.js';
@@ -47,7 +47,9 @@ export class CommunicationsController {
     private readonly notifications: NotificationsService,
     private readonly updates: UpdatesService,
   ) {}
-  @Sse('updates') stream(@Req() req: AuthenticatedRequest) {
+  @Sse('updates')
+  @AdminAccountAccess()
+  stream(@Req() req: AuthenticatedRequest) {
     return this.updates.stream(req.auth);
   }
   @Get('conversations') list(

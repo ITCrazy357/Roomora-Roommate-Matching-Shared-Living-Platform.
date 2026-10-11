@@ -1,4 +1,6 @@
+"use client";
 import Link from "next/link";
+import { useAuth } from "./auth-provider";
 import { ProfileIcon } from "./profile-icon";
 import { ButtonLink } from "./ui";
 
@@ -22,6 +24,16 @@ const linkGroups = [
 ];
 
 export function SiteFooter() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (user?.role === "ADMIN")
+    return (
+      <footer className="admin-footer container">
+        <span>© Roomora · Khu vực quản trị</span>
+        <Link href="/admin/tai-khoan">Bảo mật tài khoản</Link>
+        <a href="#main-content">Về đầu trang ↑</a>
+      </footer>
+    );
   return (
     <footer className="site-footer">
       <div className="container">

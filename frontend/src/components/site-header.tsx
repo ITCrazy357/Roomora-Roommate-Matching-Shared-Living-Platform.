@@ -8,6 +8,20 @@ import { useAuth } from "./auth-provider";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { ProfileIcon } from "./profile-icon";
 import { useUpdates } from "./communications/updates-provider";
+import { adminLinks } from "@/lib/admin";
+import { PersonAvatar } from "./person-avatar";
+
+const userMenu = [
+  { href: "/tai-khoan/ho-so", label: "Hồ sơ của tôi" },
+  { href: "/ket-noi", label: "Yêu cầu kết nối" },
+  { href: "/ket-noi?tab=accepted", label: "Đã kết nối" },
+  { href: "/nha-chung", label: "Nhà chung" },
+  { href: "/lich-xem-phong", label: "Lịch hẹn" },
+  { href: "/thong-bao", label: "Thông báo" },
+  { href: "/tin-cua-toi", label: "Tin của tôi" },
+  { href: "/da-luu", label: "Tin đã lưu" },
+  { href: "/tai-khoan/cai-dat", label: "Cài đặt" },
+];
 
 const links = [
   { href: "/", label: "Trang chủ" },
@@ -21,6 +35,11 @@ export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const navigation = isAdmin ? [adminLinks[0]] : links;
+  const menu = isAdmin
+    ? [...adminLinks, { href: "/admin/tai-khoan", label: "Bảo mật tài khoản" }]
+    : userMenu;
   const updates = useUpdates();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -65,7 +84,7 @@ export function SiteHeader() {
     >
       <div className="container header-inner">
         <Link
-          href="/"
+          href={isAdmin ? "/admin/tin-dang" : "/"}
           className="brand"
           aria-label="Roomora — Trang chủ"
           onClick={() => setOpen(false)}
@@ -75,11 +94,13 @@ export function SiteHeader() {
           </span>
           <span>
             Roomora<span className="brand-dot">.</span>
-            <small>Hợp người, chung nhà</small>
+            <small>
+              {isAdmin ? "Khu vực quản trị" : "Hợp người, chung nhà"}
+            </small>
           </span>
         </Link>
         <nav aria-label="Điều hướng chính" className="desktop-nav">
-          {links.map(({ href, label }) => (
+          {navigation.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
@@ -101,30 +122,38 @@ export function SiteHeader() {
           )}
           {!loading && user && (
             <>
-              <Link
-                href="/thong-bao"
-                aria-label={`Thông báo, ${updates.notifications} chưa đọc`}
-              >
-                <svg
-                  width="19"
-                  height="19"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  aria-hidden="true"
-                >
-                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-                </svg>
-                {updates.notifications > 0 && (
-                  <span className="nav-count">{updates.notifications}</span>
-                )}
-              </Link>
-              <Link href="/dang-tin" className="nav-primary">
-                + Đăng tin
-              </Link>
+              {!isAdmin && (
+                <>
+                  <Link
+                    href="/thong-bao"
+                    aria-label={`Thông báo, ${updates.notifications} chưa đọc`}
+                  >
+                    <svg
+                      width="19"
+                      height="19"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      aria-hidden="true"
+                    >
+                      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+                    </svg>
+                    {updates.notifications > 0 && (
+                      <span className="nav-count">{updates.notifications}</span>
+                    )}
+                  </Link>
+                  <Link href="/dang-tin" className="nav-primary">
+                    + Đăng tin
+                  </Link>
+                </>
+              )}
               <details ref={accountMenu} className="account-menu">
-                <summary>{user.displayName}</summary>
+                <summary>
+                  <PersonAvatar person={user} />
+                  {user.displayName}
+                  {isAdmin && <span className="admin-role-tag">ADMIN</span>}
+                </summary>
                 <nav
                   aria-label="Menu tài khoản"
                   onClick={(event) => {
@@ -135,18 +164,11 @@ export function SiteHeader() {
                       accountMenu.current.open = false;
                   }}
                 >
-                  <Link href="/tai-khoan/ho-so">Hồ sơ của tôi</Link>
-                  <Link href="/ket-noi">Yêu cầu kết nối</Link>
-                  <Link href="/ket-noi?tab=accepted">Đã kết nối</Link>
-                  <Link href="/nha-chung">Nhà chung</Link>
-                  <Link href="/lich-xem-phong">Lịch hẹn</Link>
-                  <Link href="/thong-bao">Thông báo</Link>
-                  <Link href="/tin-cua-toi">Tin của tôi</Link>
-                  <Link href="/da-luu">Tin đã lưu</Link>
-                  <Link href="/tai-khoan/cai-dat">Cài đặt</Link>
-                  {user.role === "ADMIN" && (
-                    <Link href="/admin/tin-dang">Kiểm duyệt tin</Link>
-                  )}
+                  {menu.map((link) => (
+                    <Link key={link.href} href={link.href}>
+                      {link.label}
+                    </Link>
+                  ))}
                   <button
                     type="button"
                     className="nav-button"
@@ -179,7 +201,7 @@ export function SiteHeader() {
         className="mobile-nav container"
         hidden={!open}
       >
-        {links.map(({ href, label }) => (
+        {navigation.map(({ href, label }) => (
           <Link
             key={href}
             href={href}
@@ -204,41 +226,24 @@ export function SiteHeader() {
         )}
         {!loading && user && (
           <>
-            <Link href="/thong-bao" onClick={() => setOpen(false)}>
-              Thông báo ({updates.notifications})
-            </Link>
-            <Link href="/lich-xem-phong" onClick={() => setOpen(false)}>
-              Lịch hẹn
-            </Link>
-            <Link href="/dang-tin" onClick={() => setOpen(false)}>
-              + Đăng tin
-            </Link>
-            <Link href="/tin-cua-toi" onClick={() => setOpen(false)}>
-              Tin của tôi
-            </Link>
-            <Link href="/ket-noi" onClick={() => setOpen(false)}>
-              Yêu cầu kết nối
-            </Link>
-            <Link href="/ket-noi?tab=accepted" onClick={() => setOpen(false)}>
-              Đã kết nối
-            </Link>
-            <Link href="/nha-chung" onClick={() => setOpen(false)}>
-              Nhà chung
-            </Link>
-            <Link href="/da-luu" onClick={() => setOpen(false)}>
-              Tin đã lưu
-            </Link>
-            {user.role === "ADMIN" && (
-              <Link href="/admin/tin-dang" onClick={() => setOpen(false)}>
-                Kiểm duyệt tin
+            {!isAdmin && (
+              <Link href="/dang-tin" onClick={() => setOpen(false)}>
+                + Đăng tin
               </Link>
             )}
-            <Link href="/tai-khoan/ho-so" onClick={() => setOpen(false)}>
-              Hồ sơ của tôi
-            </Link>
-            <Link href="/tai-khoan/cai-dat" onClick={() => setOpen(false)}>
-              Cài đặt
-            </Link>
+            {menu
+              .filter(
+                (link) => !navigation.some((item) => item.href === link.href),
+              )
+              .map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
             <button
               type="button"
               className="mobile-nav-button"

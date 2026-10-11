@@ -33,7 +33,11 @@ export function LoginForm() {
       });
       setUser(response.user);
       router.replace(
-        response.user.onboardingCompleted ? "/tai-khoan/ho-so" : "/onboarding",
+        response.user.role === "ADMIN"
+          ? "/admin/tin-dang"
+          : response.user.onboardingCompleted
+            ? "/tai-khoan/ho-so"
+            : "/onboarding",
       );
       router.refresh();
     } catch (submitError) {

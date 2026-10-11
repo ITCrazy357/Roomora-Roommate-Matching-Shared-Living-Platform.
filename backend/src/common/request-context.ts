@@ -4,6 +4,7 @@ export interface AuthContext {
   userId: string;
   sessionId: string;
   email: string;
+  role: 'USER' | 'ADMIN';
 }
 
 export interface AuthenticatedRequest extends Request {

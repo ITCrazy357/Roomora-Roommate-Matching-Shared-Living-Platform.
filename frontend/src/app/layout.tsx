@@ -4,6 +4,9 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { AuthProvider } from "@/components/auth-provider";
 import { UpdatesProvider } from "@/components/communications/updates-provider";
+import { SystemBanner } from "@/components/admin/system-banner";
+import { AdminRouteGate } from "@/components/admin/admin-route-gate";
+import "./admin.css";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import "./profile-editor.css";
@@ -40,9 +43,10 @@ export default function RootLayout({
         </a>
         <AuthProvider>
           <UpdatesProvider>
+            <SystemBanner />
             <SiteHeader />
             <main id="main-content" tabIndex={-1}>
-              {children}
+              <AdminRouteGate>{children}</AdminRouteGate>
             </main>
             <SiteFooter />
           </UpdatesProvider>

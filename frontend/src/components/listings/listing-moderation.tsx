@@ -21,6 +21,8 @@ import {
   Textarea,
 } from "../ui";
 import { ListingContent } from "./listing-content";
+import { adminError } from "@/lib/admin";
+import { useUpdates } from "../communications/updates-provider";
 
 function ModerationDetail({
   id,
@@ -36,6 +38,7 @@ function ModerationDetail({
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
   const [retry, setRetry] = useState(0);
+  const { revision } = useUpdates();
   const panel = usePanelFocus(selected && listing ? id : null);
   useEffect(() => {
     const controller = new AbortController();
@@ -45,7 +48,7 @@ function ModerationDetail({
         if (!controller.signal.aborted) setError(listingError(error));
       });
     return () => controller.abort();
-  }, [id, retry]);
+  }, [id, retry, revision]);
   async function review(decision: "PUBLISHED" | "REJECTED") {
     if (!listing) return;
     if (decision === "REJECTED" && !reason.trim()) {
@@ -66,7 +69,7 @@ function ModerationDetail({
       });
       onReviewed();
     } catch (error) {
-      setError(listingError(error));
+      setError(adminError(error));
     } finally {
       setPending(false);
     }
@@ -107,7 +110,7 @@ function ModerationDetail({
           Mã tin: {listing.id} · Phiên bản: {listing.version}
         </p>
       </Card>
-      <ListingContent listing={listing} />
+      <ListingContent listing={listing} moderation />
       <Card>
         <h2>Quyết định kiểm duyệt</h2>
         <p className="text-muted">
@@ -167,6 +170,7 @@ function ModerationDetail({
 }
 
 export function ListingModeration() {
+  const { revision } = useUpdates();
   const [status, setStatus] = useState("PENDING");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
@@ -191,10 +195,10 @@ export function ListingModeration() {
           setResult({ key, error: listingError(error) });
       });
     return () => controller.abort();
-  }, [path, key, page]);
+  }, [path, key, page, revision]);
   const id = selected ?? result.data?.items[0]?.id;
   return (
-    <section className="container page-section listings-page">
+    <section className="listings-page admin-page">
       <div className="listing-page-heading">
         <div>
           <span className="eyebrow">QUẢN TRỊ ROOMORA</span>
@@ -310,6 +314,7 @@ export function ListingModeration() {
               id={id}
               selected={selected === id}
               onReviewed={() => {
+                window.dispatchEvent(new Event("roomora:admin-change"));
                 setSelected(null);
                 setRetry((value) => value + 1);
                 setNotice("Đã lưu quyết định kiểm duyệt.");

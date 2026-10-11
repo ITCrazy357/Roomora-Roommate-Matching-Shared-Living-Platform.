@@ -1,6 +1,10 @@
 import { ApiError } from "./api";
 
 const messages: Record<string, string> = {
+  ACCOUNT_LOCKED:
+    "Tài khoản đã bị khóa do vi phạm. Vui lòng liên hệ quản trị viên Roomora.",
+  ADMIN_WORKSPACE_ONLY:
+    "Tài khoản quản trị sử dụng các chức năng trong khu vực ADMIN.",
   GOOGLE_DISABLED:
     "Đăng nhập Google chưa được bật. Bạn có thể đăng nhập bằng email.",
   GOOGLE_CANCELLED: "Bạn đã hủy đăng nhập Google. Hãy thử lại khi sẵn sàng.",

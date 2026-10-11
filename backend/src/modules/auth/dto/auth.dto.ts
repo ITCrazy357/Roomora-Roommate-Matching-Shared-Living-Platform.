@@ -2,6 +2,7 @@ import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsString,
+  IsUUID,
   Length,
   Matches,
   MaxLength,
@@ -61,6 +62,15 @@ export class TokenDto {
   @IsString()
   @Matches(/^[A-Za-z0-9_-]{40,128}$/)
   token!: string;
+}
+
+export class OtpDto {
+  @IsUUID('4')
+  challengeId!: string;
+
+  @IsString()
+  @Matches(/^[0-9]{6}$/)
+  code!: string;
 }
 
 export class ResetPasswordDto extends TokenDto {

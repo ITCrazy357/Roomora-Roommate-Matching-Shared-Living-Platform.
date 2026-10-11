@@ -97,6 +97,15 @@ export function validateEnvironment(
   }
 
   const devExposeLinks = booleanValue('AUTH_DEV_EXPOSE_LINKS', false);
+  const otpSecret = optionalText('AUTH_OTP_SECRET');
+  if (
+    (otpSecret && otpSecret.length < 32) ||
+    (nodeEnv === 'production' && !otpSecret)
+  ) {
+    throw new Error(
+      'AUTH_OTP_SECRET cần ít nhất 32 ký tự và bắt buộc ở production',
+    );
+  }
   const googleClientId = optionalText('GOOGLE_CLIENT_ID');
   const googleClientSecret = optionalText('GOOGLE_CLIENT_SECRET');
   const googleRedirectUri = optionalText('GOOGLE_REDIRECT_URI');
@@ -155,6 +164,7 @@ export function validateEnvironment(
     PORT: port,
     FRONTEND_ORIGIN: origin.origin,
     AUTH_DEV_EXPOSE_LINKS: devExposeLinks,
+    AUTH_OTP_SECRET: otpSecret,
     GOOGLE_CLIENT_ID: googleClientId,
     GOOGLE_CLIENT_SECRET: googleClientSecret,
     GOOGLE_REDIRECT_URI: googleRedirectUri,

@@ -2,19 +2,28 @@
 
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth-provider";
+import {
+  OtpPanel,
+  type OtpChallenge,
+  type OtpResult,
+} from "@/components/otp-panel";
 import { AuthCard } from "@/components/auth-card";
 import { GoogleSignIn } from "@/components/google-sign-in";
 import { Button, ErrorState, Input } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
 import { authErrorMessage } from "@/lib/auth-errors";
 
-interface RegisterResult {
+interface RegisterResult extends OtpChallenge {
   message: string;
   emailSent: boolean;
-  developmentActionUrl?: string;
 }
 
 export function RegisterForm() {
+  const router = useRouter();
+  const { setUser } = useAuth();
+  const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<RegisterResult | null>(null);
@@ -31,6 +40,7 @@ export function RegisterForm() {
     }
     try {
       const response = await apiFetch<RegisterResult>("/auth/register", {
+        timeoutMs: 60_000,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -40,6 +50,7 @@ export function RegisterForm() {
         }),
       });
       setResult(response);
+      setEmail(String(data.get("email")).trim().toLowerCase());
     } catch (submitError) {
       setError(authErrorMessage(submitError));
     } finally {
@@ -50,25 +61,38 @@ export function RegisterForm() {
   return (
     <AuthCard
       eyebrow="BẮT ĐẦU VỚI ROOMORA"
-      title="Tạo tài khoản"
-      description="Một khởi đầu nhỏ cho nơi ở mới. Tạo tài khoản và giới thiệu đôi nét về bạn."
+      title={result ? "Xác minh email của bạn" : "Tạo tài khoản"}
+      description={
+        result
+          ? "Nhập mã 6 số để hoàn tất đăng ký và bắt đầu với Roomora."
+          : "Một khởi đầu nhỏ cho nơi ở mới. Tạo tài khoản và giới thiệu đôi nét về bạn."
+      }
       welcome
     >
       {!result && <GoogleSignIn disabled={pending} />}
       {result ? (
-        <div className="success-state" role="status">
-          <p>{result.message}</p>
+        <>
           {!result.emailSent && (
-            <p>
-              Email chưa gửi được. Bạn có thể yêu cầu gửi lại ở trang đăng nhập.
+            <p className="error-state" role="alert">
+              Email chưa gửi được. Hãy thử gửi lại mã sau khi hết thời gian chờ.
             </p>
           )}
-          {result.developmentActionUrl && (
-            <a className="text-link" href={result.developmentActionUrl}>
-              Mở liên kết xác minh dành cho môi trường phát triển
-            </a>
-          )}
-        </div>
+          <OtpPanel
+            email={email}
+            initialChallenge={result}
+            onVerified={(response: OtpResult) => {
+              if (!("user" in response)) return;
+              setUser(response.user);
+              router.replace(
+                response.user.role === "ADMIN"
+                  ? "/admin/tin-dang"
+                  : response.user.onboardingCompleted
+                    ? "/tai-khoan/ho-so"
+                    : "/onboarding",
+              );
+            }}
+          />
+        </>
       ) : (
         <form className="form-stack" onSubmit={submit}>
           <Input

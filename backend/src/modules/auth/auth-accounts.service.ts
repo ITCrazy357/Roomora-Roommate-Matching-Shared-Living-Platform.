@@ -8,12 +8,11 @@ import {
 import type { Request, Response } from 'express';
 import { PrismaService } from '../../database/prisma.service.js';
 import type { AuthContext } from '../../common/request-context.js';
-import { VERIFICATION_TOKEN_TTL_MS } from './auth.constants.js';
 import type { LoginDto, RegisterDto } from './dto/auth.dto.js';
-import { MailService } from './mail.service.js';
 import { PasswordService } from './password.service.js';
 import { SessionService } from './session.service.js';
 import { AuthSupportService } from './auth-support.service.js';
+import { AuthOtpService } from './auth-otp.service.js';
 
 @Injectable()
 export class AuthAccountsService {
@@ -21,8 +20,8 @@ export class AuthAccountsService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly sessions: SessionService,
-    private readonly mail: MailService,
     private readonly support: AuthSupportService,
+    private readonly otp: AuthOtpService,
   ) {}
 
   async register(dto: RegisterDto, request: Request) {
@@ -49,23 +48,16 @@ export class AuthAccountsService {
       throw error;
     }
 
-    const actionUrl = await this.support.createActionUrl(
-      user.id,
+    const challenge = await this.otp.issue(
+      user.email,
       'EMAIL_VERIFICATION',
-      '/xac-minh-email',
-      VERIFICATION_TOKEN_TTL_MS,
-    );
-    const emailSent = await this.support.trySend(() =>
-      this.mail.sendVerification(user.email, actionUrl),
+      request,
+      true,
     );
 
     return {
       message: 'Tài khoản đã được tạo. Hãy xác minh email để đăng nhập.',
-      emailSent,
-      developmentActionUrl: this.mail.exposeDevelopmentUrl(
-        actionUrl,
-        request.ip,
-      ),
+      ...challenge,
     };
   }
 

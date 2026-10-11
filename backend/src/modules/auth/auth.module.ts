@@ -4,6 +4,7 @@ import { AuthAccountsService } from './auth-accounts.service.js';
 import { AuthVerificationService } from './auth-verification.service.js';
 import { AuthRecoveryService } from './auth-recovery.service.js';
 import { AuthSupportService } from './auth-support.service.js';
+import { AuthOtpService } from './auth-otp.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthGuard, OptionalAuthGuard } from './auth.guard.js';
 import { AuthService } from './auth.service.js';
@@ -23,6 +24,7 @@ import { GoogleClientService } from './google-client.service.js';
     AuthVerificationService,
     AuthRecoveryService,
     AuthSupportService,
+    AuthOtpService,
     AuthGuard,
     OptionalAuthGuard,
     MailService,

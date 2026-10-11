@@ -45,7 +45,12 @@ const messages: Record<string, string> = {
   EMAIL_ALREADY_USED: "Email này đã được sử dụng.",
   INVALID_CREDENTIALS: "Email hoặc mật khẩu không đúng.",
   EMAIL_NOT_VERIFIED: "Bạn cần xác minh email trước khi đăng nhập.",
-  TOKEN_INVALID: "Liên kết không hợp lệ, đã dùng hoặc đã hết hạn.",
+  TOKEN_INVALID:
+    "Phiên đặt lại mật khẩu đã dùng hoặc hết hạn. Hãy xác nhận OTP mới.",
+  OTP_INVALID:
+    "Mã không đúng, đã dùng, hết hạn hoặc đã nhập sai 5 lần. Hãy kiểm tra mã hoặc yêu cầu mã mới.",
+  OTP_SEND_LIMITED:
+    "Bạn cần chờ trước khi gửi lại mã. Mỗi email được gửi tối đa 5 mã trong một giờ.",
   RATE_LIMITED: "Bạn đã thử quá nhiều lần. Vui lòng chờ rồi thử lại.",
   BUDGET_RANGE_INVALID: "Ngân sách tối thiểu không được lớn hơn tối đa.",
   AUTH_REQUIRED: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",

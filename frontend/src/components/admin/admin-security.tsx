@@ -52,9 +52,11 @@ export function AdminSecurity() {
           <h1>Bảo mật tài khoản</h1>
           <p className="text-muted">{user?.email}</p>
         </div>
-        <Link className="button button-secondary" href="/quen-mat-khau">
-          Đặt lại mật khẩu
-        </Link>
+        {user?.hasPassword && (
+          <Link className="button button-secondary" href="/quen-mat-khau">
+            Đặt lại mật khẩu
+          </Link>
+        )}
       </div>
       <GoogleAuthNotice />
       {error && <ErrorState message={error} />}

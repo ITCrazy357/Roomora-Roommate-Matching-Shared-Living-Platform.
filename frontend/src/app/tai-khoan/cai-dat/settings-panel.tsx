@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import {
@@ -120,6 +121,18 @@ export function SettingsPanel() {
   return (
     <div className="settings-grid">
       <GoogleAccountCard />
+      {auth.user?.hasPassword && (
+        <Card className="settings-card">
+          <span className="eyebrow">BẢO MẬT TÀI KHOẢN</span>
+          <h2>Mật khẩu đăng nhập</h2>
+          <p className="text-muted">
+            Xác nhận bằng mã OTP gửi qua email để đặt mật khẩu mới.
+          </p>
+          <Link className="button button-secondary" href="/quen-mat-khau">
+            Đổi mật khẩu
+          </Link>
+        </Card>
+      )}
       <Card className="settings-card">
         <span className="eyebrow">HỒ SƠ CÔNG KHAI</span>
         <h2>Ai có thể xem gì?</h2>

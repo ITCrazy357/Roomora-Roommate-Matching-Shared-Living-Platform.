@@ -112,6 +112,7 @@ describe('Google authentication (PostgreSQL e2e)', () => {
     );
     const me = await agent.get('/api/v1/auth/me').expect(200);
     expect(me.body.user.emailVerified).toBe(true);
+    expect(me.body.user.hasPassword).toBe(false);
     expect(me.body.user.email).toBe(email);
     const user = await prisma.user.findUniqueOrThrow({
       where: { email },
@@ -131,7 +132,7 @@ describe('Google authentication (PostgreSQL e2e)', () => {
       .set('Origin', origin)
       .send({ email })
       .expect(200)
-      .expect(({ body }) => expect(body.developmentActionUrl).toBeUndefined());
+      .expect(({ body }) => expect(body.developmentOtp).toBeUndefined());
   });
 
   it('recognizes returning users by Google sub even if Google email changes', async () => {

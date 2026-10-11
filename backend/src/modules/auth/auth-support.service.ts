@@ -1,7 +1,5 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../database/prisma.service.js';
-import { hashToken, randomToken } from './token.utils.js';
 
 interface RateBucket {
   attempts: number;
@@ -10,10 +8,7 @@ interface RateBucket {
 
 @Injectable()
 export class AuthSupportService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly config: ConfigService) {}
 
   private readonly logger = new Logger('AuthService');
 
@@ -23,6 +18,7 @@ export class AuthSupportService {
     id: string;
     role?: 'USER' | 'ADMIN';
     email: string;
+    passwordHash?: string | null;
     emailVerifiedAt: Date | null;
     profile: {
       displayName: string;
@@ -34,42 +30,12 @@ export class AuthSupportService {
       id: user.id,
       role: user.role ?? 'USER',
       email: user.email,
+      hasPassword: Boolean(user.passwordHash),
       emailVerified: Boolean(user.emailVerifiedAt),
       displayName: user.profile?.displayName ?? '',
       avatarUrl: user.profile?.avatarUrl ?? null,
       onboardingCompleted: Boolean(user.profile?.onboardingCompletedAt),
     };
-  }
-
-  async createActionUrl(
-    userId: string,
-    type: 'EMAIL_VERIFICATION' | 'PASSWORD_RESET',
-    path: string,
-    ttlMs: number,
-  ): Promise<string> {
-    const rawToken = randomToken();
-    const now = new Date();
-    await this.prisma.$transaction([
-      this.prisma.authToken.updateMany({
-        where: { userId, type, consumedAt: null },
-        data: { consumedAt: now },
-      }),
-      this.prisma.authToken.create({
-        data: {
-          userId,
-          type,
-          tokenHash: hashToken(rawToken),
-          expiresAt: new Date(now.getTime() + ttlMs),
-        },
-      }),
-    ]);
-
-    const url = new URL(
-      path,
-      this.config.getOrThrow<string>('FRONTEND_ORIGIN'),
-    );
-    url.searchParams.set('token', rawToken);
-    return url.toString();
   }
 
   checkRateLimit(key: string, limit: number, windowMs: number): void {

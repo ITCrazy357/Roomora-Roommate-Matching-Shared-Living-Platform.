@@ -37,7 +37,28 @@ describe('Google environment validation', () => {
 
   it('requires HTTPS callbacks in production', () => {
     expect(() =>
-      validateEnvironment({ ...base, ...google, NODE_ENV: 'production' }),
+      validateEnvironment({
+        ...base,
+        ...google,
+        NODE_ENV: 'production',
+        AUTH_OTP_SECRET: 'a'.repeat(64),
+      }),
     ).toThrow('GOOGLE_REDIRECT_URI');
+  });
+
+  it('requires a sufficiently long OTP secret in production', () => {
+    expect(() =>
+      validateEnvironment({ ...base, NODE_ENV: 'production' }),
+    ).toThrow('AUTH_OTP_SECRET');
+    expect(() =>
+      validateEnvironment({ ...base, AUTH_OTP_SECRET: 'short' }),
+    ).toThrow('AUTH_OTP_SECRET');
+    expect(
+      validateEnvironment({
+        ...base,
+        NODE_ENV: 'production',
+        AUTH_OTP_SECRET: 'a'.repeat(64),
+      }).AUTH_OTP_SECRET,
+    ).toBe('a'.repeat(64));
   });
 });

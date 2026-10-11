@@ -15,6 +15,7 @@ export interface CurrentUser {
   role: "USER" | "ADMIN";
   email: string;
   emailVerified: boolean;
+  hasPassword: boolean;
   displayName: string;
   avatarUrl: string | null;
   onboardingCompleted: boolean;

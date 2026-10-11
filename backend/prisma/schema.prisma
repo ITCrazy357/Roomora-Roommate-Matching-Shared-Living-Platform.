@@ -11,6 +11,7 @@ datasource db {
 enum AuthTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+  PASSWORD_RESET_GRANT
 }
 
 enum ProfileVisibility {
@@ -175,6 +176,7 @@ model User {
   profile             Profile?
   sessions            Session[]
   authTokens          AuthToken[]
+  authOtps            AuthOtp[]
   googleAccount       GoogleAccount?
   listings            Listing[]           @relation("ListingOwner")
   savedListings       SavedListing[]
@@ -673,6 +675,30 @@ model Session {
 
   @@index([userId, expiresAt])
   @@map("sessions")
+}
+
+// One current challenge per email and purpose, including unknown emails.
+model AuthOtp {
+  id           String        @id @default(uuid()) @db.Uuid
+  challengeId  String        @unique @map("challenge_id") @db.Uuid
+  email        String        @db.VarChar(320)
+  type         AuthTokenType
+  userId       String?       @map("user_id") @db.Uuid
+  codeHash     String        @map("code_hash") @db.Char(64)
+  attempts     Int           @default(0)
+  expiresAt    DateTime      @map("expires_at")
+  consumedAt   DateTime?     @map("consumed_at")
+  lastSentAt   DateTime      @map("last_sent_at")
+  sendWindowAt DateTime      @map("send_window_at")
+  sendCount    Int           @map("send_count")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([email, type])
+  @@index([expiresAt])
+  @@map("auth_otps")
 }
 
 model AuthToken {

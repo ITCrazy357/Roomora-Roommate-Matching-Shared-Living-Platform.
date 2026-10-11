@@ -8,7 +8,12 @@ export function AdminRouteGate({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const path = usePathname();
   const router = useRouter();
-  const redirect = user?.role === "ADMIN" && !path.startsWith("/admin/");
+  const recoveringPassword =
+    path === "/quen-mat-khau" || path === "/dat-lai-mat-khau";
+  const redirect =
+    user?.role === "ADMIN" &&
+    !path.startsWith("/admin/") &&
+    !recoveringPassword;
   useEffect(() => {
     if (redirect)
       router.replace(

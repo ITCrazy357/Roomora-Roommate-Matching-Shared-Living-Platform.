@@ -105,6 +105,14 @@ export class AdminUsersService {
         select: adminUserSelect,
       });
       if (dto.locked) {
+        await tx.authOtp.updateMany({
+          where: { userId: id, consumedAt: null },
+          data: { consumedAt: now },
+        });
+        await tx.authToken.updateMany({
+          where: { userId: id, consumedAt: null },
+          data: { consumedAt: now },
+        });
         await tx.session.updateMany({
           where: { userId: id, revokedAt: null },
           data: { revokedAt: now },

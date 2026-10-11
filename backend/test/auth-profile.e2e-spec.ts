@@ -54,9 +54,7 @@ describe('Authentication and profile (e2e)', () => {
       .send({ email, password, displayName: 'Người dùng E2E' })
       .expect(201);
     expect(registration.body.emailSent).toBe(false);
-    expect(registration.body.developmentActionUrl).toContain(
-      '/xac-minh-email?token=',
-    );
+    expect(registration.body.developmentOtp).toMatch(/^[0-9]{6}$/);
 
     await agent
       .post('/api/v1/auth/login')
@@ -65,15 +63,15 @@ describe('Authentication and profile (e2e)', () => {
       .expect(403)
       .expect(({ body }) => expect(body.code).toBe('EMAIL_NOT_VERIFIED'));
 
-    const verificationToken = new URL(
-      registration.body.developmentActionUrl as string,
-    ).searchParams.get('token');
-    expect(verificationToken).toBeTruthy();
+    const verificationOtp = {
+      challengeId: registration.body.challengeId,
+      code: registration.body.developmentOtp,
+    };
 
     const verification = await agent
       .post('/api/v1/auth/email-verification/confirm')
       .set('Origin', origin)
-      .send({ token: verificationToken })
+      .send(verificationOtp)
       .expect(200);
     expect(verification.body.user.emailVerified).toBe(true);
     const userId = verification.body.user.id as string;
@@ -81,7 +79,7 @@ describe('Authentication and profile (e2e)', () => {
     await agent
       .post('/api/v1/auth/email-verification/confirm')
       .set('Origin', origin)
-      .send({ token: verificationToken })
+      .send(verificationOtp)
       .expect(403);
 
     for (const field of [
@@ -148,9 +146,15 @@ describe('Authentication and profile (e2e)', () => {
       .set('Origin', origin)
       .send({ email })
       .expect(200);
-    const resetToken = new URL(
-      forgot.body.developmentActionUrl as string,
-    ).searchParams.get('token');
+    const proof = await request(app.getHttpServer())
+      .post('/api/v1/auth/password/verify')
+      .set('Origin', origin)
+      .send({
+        challengeId: forgot.body.challengeId,
+        code: forgot.body.developmentOtp,
+      })
+      .expect(200);
+    const resetToken = proof.body.token;
 
     await request(app.getHttpServer())
       .post('/api/v1/auth/password/reset')

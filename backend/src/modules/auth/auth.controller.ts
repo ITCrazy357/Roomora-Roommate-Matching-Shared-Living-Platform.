@@ -20,7 +20,7 @@ import {
   LoginDto,
   RegisterDto,
   ResetPasswordDto,
-  TokenDto,
+  OtpDto,
 } from './dto/auth.dto.js';
 
 @Controller('auth')
@@ -46,11 +46,11 @@ export class AuthController {
   @Post('email-verification/confirm')
   @HttpCode(200)
   confirmEmail(
-    @Body() dto: TokenDto,
+    @Body() dto: OtpDto,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    return this.auth.confirmEmail(dto.token, request, response);
+    return this.auth.confirmEmail(dto, request, response);
   }
 
   @Post('email-verification/resend')
@@ -65,10 +65,16 @@ export class AuthController {
     return this.auth.forgotPassword(dto, request);
   }
 
+  @Post('password/verify')
+  @HttpCode(200)
+  verifyPasswordOtp(@Body() dto: OtpDto, @Req() request: Request) {
+    return this.auth.verifyPasswordOtp(dto, request);
+  }
+
   @Post('password/reset')
   @HttpCode(200)
-  resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.auth.resetPassword(dto);
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() request: Request) {
+    return this.auth.resetPassword(dto, request);
   }
 
   @Get('me')

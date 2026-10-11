@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import type { AuthContext } from '../../common/request-context.js';
 import type {
   EmailDto,
+  OtpDto,
   LoginDto,
   RegisterDto,
   ResetPasswordDto,
@@ -31,8 +32,8 @@ export class AuthService {
     return this.accounts.login(dto, request, response);
   }
 
-  confirmEmail(token: string, request: Request, response: Response) {
-    return this.verification.confirmEmail(token, request, response);
+  confirmEmail(dto: OtpDto, request: Request, response: Response) {
+    return this.verification.confirmEmail(dto, request, response);
   }
 
   resendVerification(dto: EmailDto, request: Request) {
@@ -43,8 +44,15 @@ export class AuthService {
     return this.recovery.forgotPassword(dto, request);
   }
 
-  resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
-    return this.recovery.resetPassword(dto);
+  verifyPasswordOtp(dto: OtpDto, request: Request) {
+    return this.recovery.verifyPasswordOtp(dto, request);
+  }
+
+  resetPassword(
+    dto: ResetPasswordDto,
+    request: Request,
+  ): Promise<{ message: string }> {
+    return this.recovery.resetPassword(dto, request);
   }
 
   me(auth: AuthContext) {
@@ -55,6 +63,7 @@ export class AuthService {
     id: string;
     role?: 'USER' | 'ADMIN';
     email: string;
+    passwordHash?: string | null;
     emailVerifiedAt: Date | null;
     profile: {
       displayName: string;

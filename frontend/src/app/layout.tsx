@@ -14,6 +14,7 @@ import "./listings.css";
 import "./people.css";
 import "./communications.css";
 import "./houses.css";
+import "./otp.css";
 
 const beVietnam = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",

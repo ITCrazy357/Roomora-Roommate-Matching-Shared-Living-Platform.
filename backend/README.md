@@ -82,15 +82,23 @@ npm run prisma:studio
 Các API chính nằm dưới `/api/v1/auth` và `/api/v1/profiles`: đăng ký/đăng nhập,
 xác minh email, quên/đặt lại mật khẩu, phiên đăng nhập, hồ sơ riêng
 và hồ sơ công khai. Mật khẩu dùng scrypt; cookie phiên là `HttpOnly`, `SameSite=Lax`
-và `Secure` ở production; token phiên/xác minh/reset chỉ lưu dạng SHA-256 trong DB.
+và `Secure` ở production. Xác minh email và quên mật khẩu dùng OTP 6 số,
+hết hạn sau 5 phút, tối đa 5 lần nhập sai; gửi lại sau 60 giây, tối đa 5 mã/giờ/email.
+OTP lưu dạng HMAC-SHA256 với `AUTH_OTP_SECRET`; token phiên và quyền đặt lại mật khẩu
+sau xác nhận OTP lưu SHA-256. Quyền đặt lại chỉ dùng một lần trong 5 phút.
 
-Local có thể đặt `AUTH_DEV_EXPOSE_LINKS=true` để response đăng ký/quên mật khẩu trả
-liên kết hành động cho UI development. Link chỉ được trả cho request từ loopback;
+Local có thể đặt `AUTH_DEV_EXPOSE_LINKS=true` để response trả `developmentOtp`
+cho UI development. Giữ tên biến cũ để tương thích cấu hình. Mã chỉ được trả cho request từ loopback;
 validator cấm bật cờ này ở production.
 
+Đặt `AUTH_OTP_SECRET` ngẫu nhiên ít nhất 32 ký tự, cùng giá trị trên mọi instance.
+Production bắt buộc có secret; development thiếu secret sẽ dùng khóa ngẫu nhiên
+trong tiến trình, nên mã mất hiệu lực khi restart. Xem [luồng OTP và API](../docs/auth-otp.md).
+
 Để gửi email thật, cấu hình `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `MAIL_FROM` và
-nếu cần `SMTP_USER` + `SMTP_PASSWORD`. Nếu chưa có SMTP, API báo `emailSent: false`;
-không ghi token vào log.
+nếu cần `SMTP_USER` + `SMTP_PASSWORD`. Đăng ký báo `emailSent: false` nếu gửi thất bại.
+Quên mật khẩu/gửi lại xác minh trả thông báo chung để không tiết lộ tài khoản;
+không trả trạng thái gửi email. Không ghi OTP hoặc token vào log.
 
 Google dùng ba biến `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
 Callback local: `http://localhost:5000/api/v1/auth/google/callback`.

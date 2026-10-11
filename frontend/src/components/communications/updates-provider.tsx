@@ -3,8 +3,10 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "../auth-provider";
 import { apiFetch, apiUrl } from "@/lib/api";
 import type { Page, Conversation, Notice } from "@/lib/communications";
+import { useActivityHeartbeat } from "./use-activity-heartbeat";
 
 const UpdatesContext = createContext({
+  now: 0,
   revision: 0,
   connected: false,
   messages: 0,
@@ -13,7 +15,9 @@ const UpdatesContext = createContext({
 });
 export function UpdatesProvider({ children }: { children: React.ReactNode }) {
   const { user, setUser } = useAuth();
+  useActivityHeartbeat(user?.role === "USER" ? user.id : undefined);
   const [state, setState] = useState({
+    now: 0,
     userId: "",
     revision: 0,
     connected: false,
@@ -26,6 +30,10 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
     const userId = user.id;
     const controller = new AbortController();
     const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    const clock = setInterval(
+      () => setState((old) => ({ ...old, now: Date.now() })),
+      15000,
+    );
     function setTyping(id: string, typing: boolean) {
       setState((old) => {
         const next = { ...old.typingByConversation };
@@ -85,6 +93,7 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
       setState((old) => ({
         ...old,
         userId,
+        now: Date.now(),
         connected: true,
         messages: old.userId === userId ? old.messages : 0,
         notifications: old.userId === userId ? old.notifications : 0,
@@ -136,6 +145,7 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener("visibilitychange", focus);
     return () => {
       controller.abort();
+      clearInterval(clock);
       typingTimers.forEach(clearTimeout);
       stream.close();
       window.removeEventListener("focus", focus);
@@ -146,6 +156,7 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
     user && user.id === state.userId
       ? state
       : {
+          now: 0,
           revision: 0,
           connected: false,
           messages: 0,

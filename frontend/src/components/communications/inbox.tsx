@@ -20,6 +20,7 @@ import { CommunicationAccess } from "./access";
 import { useUpdates } from "./updates-provider";
 import { MessageThread } from "./message-thread";
 import { Pagination } from "./pagination";
+import { PresenceStatus } from "./presence-status";
 
 export function Inbox({ id }: { id?: string }) {
   return (
@@ -125,21 +126,25 @@ function InboxContent({ id }: { id?: string }) {
                 href={`/tin-nhan/${item.id}`}
                 aria-current={id === item.id ? "page" : undefined}
               >
-                <span className="conversation-avatar" aria-hidden="true">
-                  {item.person.avatarUrl ? (
-                    <Image
-                      src={item.person.avatarUrl}
-                      alt=""
-                      width={44}
-                      height={44}
-                      unoptimized
-                    />
-                  ) : (
-                    item.person.displayName.charAt(0)
-                  )}
+                <span className="presence-avatar">
+                  <span className="conversation-avatar" aria-hidden="true">
+                    {item.person.avatarUrl ? (
+                      <Image
+                        src={item.person.avatarUrl}
+                        alt=""
+                        width={44}
+                        height={44}
+                        unoptimized
+                      />
+                    ) : (
+                      item.person.displayName.charAt(0)
+                    )}
+                  </span>
+                  <PresenceStatus presence={item.person.presence} compact />
                 </span>
                 <span>
                   <strong>{item.person.displayName}</strong>
+                  <PresenceStatus presence={item.person.presence} />
                   <small>
                     {item.lastMessage
                       ? item.lastMessage.deletedAt

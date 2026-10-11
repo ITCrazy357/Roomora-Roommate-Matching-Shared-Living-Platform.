@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import type { HouseInfoDto } from './dto/houses.dto.js';
 import { HouseMembershipAccessService } from './house-membership-access.service.js';
+import {
+  presenceSelect,
+  presenceView,
+} from '../communications/presence-views.js';
 
 @Injectable()
 export class HouseDetailsService {
@@ -40,6 +44,7 @@ export class HouseDetailsService {
             joinedAt: true,
             user: {
               select: {
+                ...presenceSelect(),
                 profile: { select: { displayName: true, avatarUrl: true } },
               },
             },
@@ -109,6 +114,7 @@ export class HouseDetailsService {
         joinedAt: member.joinedAt,
         displayName: member.user.profile?.displayName ?? 'Thành viên Roomora',
         avatarUrl: member.user.profile?.avatarUrl ?? null,
+        presence: presenceView(member.user),
         role: member.userId === house.ownerId ? 'OWNER' : 'MEMBER',
       })),
       announcements: house.announcements.map((item) => ({

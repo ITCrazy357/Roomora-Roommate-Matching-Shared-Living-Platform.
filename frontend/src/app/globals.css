@@ -1566,6 +1566,45 @@ h3 {
 .field textarea {
   resize: vertical;
 }
+.password-field {
+  position: relative;
+  min-width: 0;
+}
+.field .password-field input {
+  padding-right: 56px;
+}
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.password-toggle svg {
+  width: 21px;
+  height: 21px;
+}
+.password-toggle:hover:not(:disabled) {
+  background: var(--primary-subtle);
+  color: var(--primary-foreground);
+}
+.password-toggle:focus-visible {
+  outline: 2px solid var(--primary-action);
+  outline-offset: 1px;
+}
+.password-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .field input::placeholder,
 .field textarea::placeholder {
   color: var(--placeholder);
@@ -1853,19 +1892,25 @@ h3 {
   width: 120px;
   height: 120px;
   flex: 0 0 120px;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   border-radius: 40px;
   background: var(--tertiary-soft);
   color: var(--primary-foreground);
   font-size: 2.5rem;
   font-weight: 700;
+  line-height: 1;
 }
 .avatar-large img {
+  display: block;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   object-fit: cover;
+  object-position: center;
 }
 .public-profile-copy .text-muted {
   max-width: 720px;

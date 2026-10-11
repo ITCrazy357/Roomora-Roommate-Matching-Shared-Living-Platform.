@@ -1,4 +1,5 @@
 import { ApiError } from "./api";
+import type { Presence } from "./presence";
 
 export interface HouseSummary {
   id: string;
@@ -37,6 +38,7 @@ export interface House {
     displayName: string;
     avatarUrl: string | null;
     joinedAt: string;
+    presence?: Presence;
     role: "OWNER" | "MEMBER";
   }[];
   announcements: {

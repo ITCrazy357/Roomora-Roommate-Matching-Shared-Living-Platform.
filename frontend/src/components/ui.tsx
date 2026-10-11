@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PasswordInput } from "./password-input";
 import type {
   ButtonHTMLAttributes,
   ComponentProps,
@@ -69,12 +70,22 @@ export function Input({
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <input
-        {...props}
-        id={id}
-        aria-invalid={error ? true : props["aria-invalid"]}
-        aria-describedby={description || undefined}
-      />
+      {props.type === "password" ? (
+        <PasswordInput
+          {...props}
+          id={id}
+          label={label}
+          aria-invalid={error ? true : props["aria-invalid"]}
+          aria-describedby={description || undefined}
+        />
+      ) : (
+        <input
+          {...props}
+          id={id}
+          aria-invalid={error ? true : props["aria-invalid"]}
+          aria-describedby={description || undefined}
+        />
+      )}
       {hint && (
         <p id={`${id}-hint`} className="text-muted text-sm">
           {hint}

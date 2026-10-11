@@ -181,6 +181,12 @@ Trạng thái bổ sung 10/10/2026:
 - Chat chung: nút "Tạo bình chọn" thay "Chọn ghi âm"; vẫn giữ nút micro.
   Bình chọn có 2–10 phương án, mỗi thành viên một phiếu, được đổi/bỏ khi còn mở.
   Người tạo được đóng; kết quả cập nhật qua SSE. Xóa tin xóa cả bình chọn và phiếu.
+- Chat cá nhân/chung có chấm xanh và trạng thái hoạt động: quá 3 phút không tương tác
+  hiển thị "Hoạt động ... phút/giờ/ngày trước". Chỉ người có quyền chat/thành viên hiện tại
+  được xem; SSE/polling/tự cuộn chat không gia hạn hoạt động. Hỗ trợ nhiều tab/thiết bị,
+  đăng xuất/phiên hết hạn/khóa tài khoản; giữ mốc hoạt động gần nhất sau đăng xuất.
+  Migration 20261011160000_chat_presence đã deploy; kiểm tra HTTP/PostgreSQL và Edge,
+  bố cục chat cá nhân/chung ở 320–1920 px. Chi tiết: src/modules/communications/README.md.
 - Chat cá nhân/chung đều gửi và tải tệp: tối đa 4 tệp/tin,
   tổng ảnh/ghi âm/tệp sau xử lý không quá 5 MB; giữ tên tiếng Việt.
   Tệp tải xuống riêng tư, không mở trực tiếp như HTML; chống gửi trùng, xóa tin xóa tệp.

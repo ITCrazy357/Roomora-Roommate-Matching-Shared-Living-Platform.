@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FocusPanel } from "../focus-panel";
 import { apiFetch } from "@/lib/api";
 import { houseError } from "@/lib/houses";
+import type { House } from "@/lib/houses";
+import { PresenceStatus } from "../communications/presence-status";
 import { formatTime } from "@/lib/communications";
 import type { HouseMessage } from "@/lib/house-chat";
 import { HousePollCard, HousePollForm } from "./house-poll";
@@ -22,9 +24,11 @@ function merge(old: HouseMessage[], incoming: HouseMessage[]) {
 export function HouseChat({
   houseId,
   userId,
+  members,
 }: {
   houseId: string;
   userId: string;
+  members: House["members"];
 }) {
   const { revision, connected } = useUpdates();
   const [messages, setMessages] = useState<HouseMessage[] | null>(null);
@@ -107,6 +111,38 @@ export function HouseChat({
         {connected ? "Tin nhắn tự cập nhật" : "Đang kết nối lại…"} · Chỉ thành
         viên đang ở được tham gia.
       </p>
+      <div
+        className="house-chat-presence"
+        aria-label="Trạng thái thành viên trong nhà"
+      >
+        {members.map((member) => (
+          <div className="house-chat-member" key={member.userId}>
+            <span className="presence-avatar">
+              <span className="house-avatar" aria-hidden="true">
+                {member.avatarUrl ? (
+                  <Image
+                    src={member.avatarUrl}
+                    alt=""
+                    width={32}
+                    height={32}
+                    unoptimized
+                  />
+                ) : (
+                  member.displayName.charAt(0)
+                )}
+              </span>
+              <PresenceStatus presence={member.presence} compact />
+            </span>
+            <span>
+              <strong>
+                {member.displayName}
+                {member.userId === userId && " (Bạn)"}
+              </strong>
+              <PresenceStatus presence={member.presence} />
+            </span>
+          </div>
+        ))}
+      </div>
       {error && (
         <ErrorState
           message={error}

@@ -1,9 +1,11 @@
 import { ApiError, apiFetch } from "./api";
+import type { Presence } from "./presence";
 
 export interface PersonSummary {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
+  presence?: Presence;
 }
 export interface Message {
   id: string;

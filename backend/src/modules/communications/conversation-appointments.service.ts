@@ -148,7 +148,7 @@ export class ConversationAppointmentsService {
         include: {
           listing: { select: { id: true, title: true, status: true } },
           conversation: {
-            include: { connection: { include: connectionInclude } },
+            include: { connection: { include: connectionInclude() } },
           },
           changes: { orderBy: { version: 'asc' } },
         },

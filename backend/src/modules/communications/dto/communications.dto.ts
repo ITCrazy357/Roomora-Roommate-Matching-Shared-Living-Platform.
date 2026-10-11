@@ -45,6 +45,9 @@ export class SendMessageDto {
 export class TypingDto {
   @IsBoolean() typing!: boolean;
 }
+export class PresenceHeartbeatDto {
+  @IsInt() @Min(0) @Max(179) idleSeconds!: number;
+}
 export class MessageVersionDto {
   @IsInt() @Min(1) version!: number;
 }

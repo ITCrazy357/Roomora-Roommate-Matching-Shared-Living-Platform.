@@ -224,7 +224,9 @@ export function HouseDetail({
             {notice}
           </p>
         )}
-        {tab === "chat" && <HouseChat houseId={id} userId={userId} />}
+        {tab === "chat" && (
+          <HouseChat houseId={id} userId={userId} members={house.members} />
+        )}
         {tab === "sharing" && (
           <HouseCostSharing house={house} userId={userId} />
         )}

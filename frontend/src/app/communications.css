@@ -1,6 +1,76 @@
 .communication-section {
   padding-block: 2.5rem 4rem;
 }
+.presence-avatar {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.presence-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--success);
+}
+.presence-avatar-dot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--surface);
+}
+.presence-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.presence-online {
+  color: var(--success-foreground);
+}
+.message-peer {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+.message-peer h2 {
+  overflow-wrap: anywhere;
+}
+.house-chat-presence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-block: 1rem;
+}
+.house-chat-member {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--surface-muted);
+  max-width: 100%;
+}
+.house-chat-member strong {
+  display: block;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.house-chat-member .house-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+}
+.house-chat-member > span:last-child {
+  min-width: 0;
+}
 .communication-title {
   display: flex;
   align-items: center;
@@ -129,8 +199,9 @@
   margin-top: 0.4rem;
 }
 .conversation-avatar {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 2.6rem;
   width: 2.6rem;
   height: 2.6rem;
@@ -138,12 +209,18 @@
   background: var(--tertiary-soft);
   color: var(--foreground);
   font-weight: 600;
+  line-height: 1;
+  overflow: hidden;
 }
 .conversation-avatar img {
+  display: block;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
 }
 .message-loading {
   grid-column: span 2;

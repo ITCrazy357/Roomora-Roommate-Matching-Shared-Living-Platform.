@@ -9,6 +9,7 @@ import { CommunicationsController } from './communications.controller.js';
 import { ConversationsService } from './conversations.service.js';
 import { NotificationsService } from './notifications.service.js';
 import { UpdatesService } from './updates.service.js';
+import { PresenceService } from './presence.service.js';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -21,6 +22,7 @@ import { UpdatesService } from './updates.service.js';
     ConversationAccessService,
     NotificationsService,
     UpdatesService,
+    PresenceService,
   ],
   exports: [NotificationsService],
 })

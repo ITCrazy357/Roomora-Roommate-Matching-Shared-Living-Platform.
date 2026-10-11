@@ -21,7 +21,7 @@ export class ConversationQueriesService {
       this.prisma.conversation.findMany({
         where,
         include: {
-          connection: { include: connectionInclude },
+          connection: { include: connectionInclude() },
           messages: {
             orderBy: { number: 'desc' },
             take: 1,
@@ -60,7 +60,7 @@ export class ConversationQueriesService {
   async detail(userId: string, id: string) {
     const row = await this.prisma.conversation.findFirst({
       where: { id, connection: participant(userId) },
-      include: { connection: { include: connectionInclude } },
+      include: { connection: { include: connectionInclude() } },
     });
     if (!row) this.conversationAccess.unavailable();
     const [appointments, listings] = await Promise.all([

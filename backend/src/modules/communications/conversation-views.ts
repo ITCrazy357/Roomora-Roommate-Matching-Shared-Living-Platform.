@@ -1,4 +1,5 @@
 import type { Prisma } from '../../generated/prisma/client.js';
+import { presenceSelect } from './presence-views.js';
 
 export const participant = (userId: string): Prisma.ConnectionWhereInput => ({
   status: 'ACCEPTED',
@@ -13,17 +14,20 @@ export const participant = (userId: string): Prisma.ConnectionWhereInput => ({
   },
 });
 
-export const personSelect = {
-  profile: { select: { displayName: true, avatarUrl: true } },
-} as const;
+export const personSelect = () =>
+  ({
+    ...presenceSelect(),
+    profile: { select: { displayName: true, avatarUrl: true } },
+  }) as const;
 
-export const connectionInclude = {
-  sender: { select: personSelect },
-  receiver: { select: personSelect },
-} as const;
+export const connectionInclude = () =>
+  ({
+    sender: { select: personSelect() },
+    receiver: { select: personSelect() },
+  }) as const;
 
 export type ConversationRow = Prisma.ConversationGetPayload<{
-  include: { connection: { include: typeof connectionInclude } };
+  include: { connection: { include: ReturnType<typeof connectionInclude> } };
 }>;
 
 export const messageSelect = {

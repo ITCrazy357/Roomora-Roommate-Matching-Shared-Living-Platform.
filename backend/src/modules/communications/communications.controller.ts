@@ -23,6 +23,7 @@ import { AuthGuard, AdminAccountAccess } from '../auth/auth.guard.js';
 import { ConversationsService } from './conversations.service.js';
 import { NotificationsService } from './notifications.service.js';
 import { UpdatesService } from './updates.service.js';
+import { PresenceService } from './presence.service.js';
 import { sendMessageAttachment, type MessageFiles } from './message-media.js';
 import { MessageUploadFilter } from './message-upload.filter.js';
 import {
@@ -37,6 +38,7 @@ import {
   ReadMessagesDto,
   SendMessageDto,
   TypingDto,
+  PresenceHeartbeatDto,
 } from './dto/communications.dto.js';
 
 @Controller()
@@ -46,11 +48,19 @@ export class CommunicationsController {
     private readonly conversations: ConversationsService,
     private readonly notifications: NotificationsService,
     private readonly updates: UpdatesService,
+    private readonly presence: PresenceService,
   ) {}
   @Sse('updates')
   @AdminAccountAccess()
   stream(@Req() req: AuthenticatedRequest) {
     return this.updates.stream(req.auth);
+  }
+  @Post('presence/heartbeat')
+  heartbeat(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: PresenceHeartbeatDto,
+  ) {
+    return this.presence.heartbeat(req.auth, dto.idleSeconds);
   }
   @Get('conversations') list(
     @Req() req: AuthenticatedRequest,

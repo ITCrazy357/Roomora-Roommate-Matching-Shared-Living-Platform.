@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import type { Prisma, Conversation } from '../../generated/prisma/client.js';
 import { participant, type ConversationRow } from './conversation-views.js';
+import { presenceView } from './presence-views.js';
 
 @Injectable()
 export class ConversationAccessService {
@@ -36,11 +37,11 @@ export class ConversationAccessService {
   }
 
   view(row: ConversationRow, userId: string) {
-    const profile = (
+    const person =
       row.connection.senderId === userId
         ? row.connection.receiver
-        : row.connection.sender
-    ).profile;
+        : row.connection.sender;
+    const profile = person.profile;
     return {
       id: row.id,
       connectionId: row.connectionId,
@@ -51,6 +52,7 @@ export class ConversationAccessService {
         userId: this.otherUser(row, userId),
         displayName: profile?.displayName ?? 'Thành viên Roomora',
         avatarUrl: profile?.avatarUrl ?? null,
+        presence: presenceView(person),
       },
     };
   }

@@ -21,6 +21,7 @@ import { AreaMap } from "../listings/area-map";
 import { MessageMedia } from "./message-media";
 import { MessageComposer } from "./message-composer";
 import { MessageActions } from "./message-actions";
+import { PresenceStatus } from "./presence-status";
 
 function mergeMessages(old: Message[], items: Message[]) {
   const rows = new Map(old.map((item) => [item.number, item]));
@@ -185,13 +186,32 @@ export function MessageThread({ id }: { id: string }) {
     <>
       <Card className="message-thread">
         <header className="message-heading">
-          <div>
-            <h2>{detail.person.displayName}</h2>
-            <p className="text-muted">
-              {connected
-                ? "Đã kết nối · tin nhắn tự cập nhật"
-                : "Đang kết nối lại…"}
-            </p>
+          <div className="message-peer">
+            <span className="presence-avatar">
+              <span className="conversation-avatar" aria-hidden="true">
+                {detail.person.avatarUrl ? (
+                  <Image
+                    src={detail.person.avatarUrl}
+                    alt=""
+                    width={44}
+                    height={44}
+                    unoptimized
+                  />
+                ) : (
+                  detail.person.displayName.charAt(0)
+                )}
+              </span>
+              <PresenceStatus presence={detail.person.presence} compact />
+            </span>
+            <div>
+              <h2>{detail.person.displayName}</h2>
+              <PresenceStatus presence={detail.person.presence} />
+              <p className="text-muted">
+                {connected
+                  ? "Đã kết nối · tin nhắn tự cập nhật"
+                  : "Đang kết nối lại…"}
+              </p>
+            </div>
           </div>
           <Link className="text-link" href={`/ho-so/${detail.person.userId}`}>
             Hồ sơ →

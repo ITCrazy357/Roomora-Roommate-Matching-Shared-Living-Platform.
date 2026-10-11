@@ -1,4 +1,5 @@
 "use client";
+import { FocusPanel } from "../focus-panel";
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "../auth-provider";
@@ -146,7 +147,10 @@ export function ConnectionActions({
             Mở hộp thư
           </Link>
           {confirmDisconnect ? (
-            <div className="person-disconnect-confirm">
+            <FocusPanel
+              className="person-disconnect-confirm"
+              label="Xác nhận ngắt kết nối"
+            >
               <p>
                 Ngắt kết nối với {person.displayName}? Hai bên sẽ không thể nhắn
                 tin; lịch hẹn sắp tới sẽ bị hủy. Tin nhắn cũ được giữ lại và có
@@ -168,7 +172,7 @@ export function ConnectionActions({
                   Giữ kết nối
                 </Button>
               </div>
-            </div>
+            </FocusPanel>
           ) : (
             <Button
               variant="secondary"
@@ -405,10 +409,12 @@ export function PersonDetails({
                       : "Xem bản đồ khu vực"}
                   </Button>
                   {openMapId === listing.id && (
-                    <AreaMap
-                      latitude={listing.latitude}
-                      longitude={listing.longitude}
-                    />
+                    <FocusPanel label="Bản đồ khu vực phòng">
+                      <AreaMap
+                        latitude={listing.latitude}
+                        longitude={listing.longitude}
+                      />
+                    </FocusPanel>
                   )}
                 </>
               )}

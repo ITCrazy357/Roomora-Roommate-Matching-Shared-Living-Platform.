@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { usePanelFocus } from "../use-panel-focus";
 import { apiFetch } from "@/lib/api";
 import {
   Listing,
@@ -23,9 +24,11 @@ import { ListingContent } from "./listing-content";
 
 function ModerationDetail({
   id,
+  selected,
   onReviewed,
 }: {
   id: string;
+  selected: boolean;
   onReviewed: () => void;
 }) {
   const [listing, setListing] = useState<Listing | null>(null);
@@ -33,6 +36,7 @@ function ModerationDetail({
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
   const [retry, setRetry] = useState(0);
+  const panel = usePanelFocus(selected && listing ? id : null);
   useEffect(() => {
     const controller = new AbortController();
     apiFetch<Listing>(`/admin/listings/${id}`, { signal: controller.signal })
@@ -86,7 +90,13 @@ function ModerationDetail({
       <LoadingState />
     );
   return (
-    <div className="moderation-detail">
+    <div
+      ref={panel}
+      tabIndex={-1}
+      role="region"
+      aria-label="Chi tiết tin cần kiểm duyệt"
+      className="moderation-detail focus-panel"
+    >
       <Card>
         <span className="badge">{listingStatuses[listing.status]}</span>
         <h2>{listing.title}</h2>
@@ -298,6 +308,7 @@ export function ListingModeration() {
             <ModerationDetail
               key={id}
               id={id}
+              selected={selected === id}
               onReviewed={() => {
                 setSelected(null);
                 setRetry((value) => value + 1);

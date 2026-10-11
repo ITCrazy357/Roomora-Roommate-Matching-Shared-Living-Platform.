@@ -32,12 +32,16 @@ export class ExpenseBalancesService {
       async (tx) => {
         const house = await this.access.finance(tx, userId, houseId);
         const all = await this.calculate(tx, houseId);
-        const unsettledCount = await tx.expense.count({
+        const openExpenses = await tx.expense.count({
           where: {
             houseId,
             status: { in: ['ACTIVE', 'ADJUSTMENT_REQUIRED'] },
           },
         });
+        const openCorrections = await tx.expenseCorrection.count({
+          where: { houseId, settledAt: null },
+        });
+        const unsettledCount = openExpenses + openCorrections;
         const hasExpenses = await tx.expense.count({
           where: { houseId, status: { not: 'CANCELLED' } },
         });
@@ -159,7 +163,11 @@ export class ExpenseBalancesService {
           'Quyết toán khi toàn bộ công nợ đã bằng 0',
         );
       }
-      if (rows.length) {
+      const corrections = await tx.expenseCorrection.updateMany({
+        where: { houseId, settledAt: null },
+        data: { settledAt: new Date() },
+      });
+      if (rows.length || corrections.count) {
         const members = await tx.houseMember.findMany({
           where: { houseId, leftAt: null },
           select: { userId: true },
@@ -174,7 +182,7 @@ export class ExpenseBalancesService {
           );
       }
       await this.events.signal(tx, houseId);
-      return { settled: rows.length };
+      return { settled: rows.length + corrections.count };
     });
   }
 }

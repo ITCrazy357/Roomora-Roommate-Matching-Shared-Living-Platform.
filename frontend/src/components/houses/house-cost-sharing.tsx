@@ -1,4 +1,5 @@
 "use client";
+import { FocusPanel } from "../focus-panel";
 import { useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { categories, type ExpenseCategory } from "@/lib/household";
@@ -194,7 +195,10 @@ function PeriodCard({
         </Button>
       )}
       {proposal && canPropose && (
-        <div className="sharing-form-panel">
+        <FocusPanel
+          className="sharing-form-panel"
+          label="Đề xuất tỷ lệ chia chi phí"
+        >
           <SharingProposalForm
             key={round.id}
             houseId={houseId}
@@ -205,7 +209,7 @@ function PeriodCard({
               reload();
             }}
           />
-        </div>
+        </FocusPanel>
       )}
       {period.kind === "MONTHLY" && !agreed && (
         <p className="sharing-fallback-note">
@@ -224,35 +228,37 @@ function PeriodCard({
         </Button>
       )}
       {reopen && owner && (
-        <form
-          className="house-form sharing-form-panel"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            if (
-              await action(`periods/${period.id}/reopen`, {
-                roundId: round.id,
-                deadlineAt: new Date(`${deadline}:00+07:00`).toISOString(),
-              })
-            )
-              setReopen(false);
-          }}
-        >
-          <Input
-            id={`sharing-deadline-${period.id}`}
-            label="Hạn mới (giờ Việt Nam)"
-            type="datetime-local"
-            required
-            value={deadline}
-            onChange={(event) => setDeadline(event.target.value)}
-          />
-          <p className="text-muted">
-            Vòng mới cần mọi thành viên bỏ phiếu lại. Chỉ đặt hạn trong tháng
-            của kỳ đang xét.
-          </p>
-          <Button type="submit" disabled={pending}>
-            Mở lại bình chọn
-          </Button>
-        </form>
+        <FocusPanel label="Mở vòng bình chọn mới / gia hạn">
+          <form
+            className="house-form sharing-form-panel"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (
+                await action(`periods/${period.id}/reopen`, {
+                  roundId: round.id,
+                  deadlineAt: new Date(`${deadline}:00+07:00`).toISOString(),
+                })
+              )
+                setReopen(false);
+            }}
+          >
+            <Input
+              id={`sharing-deadline-${period.id}`}
+              label="Hạn mới (giờ Việt Nam)"
+              type="datetime-local"
+              required
+              value={deadline}
+              onChange={(event) => setDeadline(event.target.value)}
+            />
+            <p className="text-muted">
+              Vòng mới cần mọi thành viên bỏ phiếu lại. Chỉ đặt hạn trong tháng
+              của kỳ đang xét.
+            </p>
+            <Button type="submit" disabled={pending}>
+              Mở lại bình chọn
+            </Button>
+          </form>
+        </FocusPanel>
       )}
       <details
         className="sharing-history-toggle"

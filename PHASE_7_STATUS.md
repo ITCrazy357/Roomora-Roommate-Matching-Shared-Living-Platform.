@@ -1,6 +1,6 @@
 # Phase 7 — Chi phí, công nợ và chat Nhà chung
 
-Cập nhật 10/10/2026. Đã triển khai backend và frontend theo `backend/room.todo`.
+Cập nhật 11/10/2026. Đã triển khai backend và frontend theo `backend/room.todo`.
 
 ## Nhà chung
 
@@ -29,7 +29,10 @@ Cập nhật 10/10/2026. Đã triển khai backend và frontend theo `backend/ro
 - Bổ sung minh chứng: migration `20261010170000_payment_transfer_proofs` đã deploy lên PostgreSQL local; 17 kiểm thử chi phí HTTP/PostgreSQL, build backend/frontend và lint đã qua. Edge trên bản production kiểm tra chọn/bỏ/đổi hình thức/tải/xem ảnh, xác nhận/quyết toán, focus khung ảnh và bố cục form/khung ảnh ở 320/390/430/768/820/1024/1366/1920 px; không tràn ngang, không lỗi JavaScript. Đây là kiểm tra kích thước bằng Edge, chưa kiểm tra trên thiết bị Safari/iOS thật.
 - Mọi thao tác ghi tài chính khóa hàng nhà trong transaction để tránh hai thao tác cùng dùng một số dư. Khi có thanh toán chờ, tạo/sửa/hủy khoản chi và thay biên nhận bị chặn; cần xử lý thanh toán chờ trước.
 - Người tạo khoản chi hoặc trưởng nhà được sửa/hủy. Các thao tác cần phiên bản hiện tại; sửa/hủy cần lý do, giữ lịch sử trước/sau và người thực hiện.
-- Chỉ trưởng nhà được chốt quyết toán, khi toàn bộ số dư bằng 0 và không có thanh toán chờ. Điều chỉnh khoản đã chốt mở lại khoản đó, giữ thanh toán đã xác nhận và tính lại phần nợ phát sinh. Hủy cũng giữ lịch sử/thanh toán và tính lại số dư.
+- Chỉ trưởng nhà được chốt quyết toán, khi toàn bộ số dư bằng 0 và không có thanh toán chờ. Khoản đã chốt chỉ được xem lịch sử/biên nhận; API chặn sửa, hủy và thay biên nhận bằng `EXPENSE_SETTLED`.
+- **Điều chỉnh sau chốt** là luồng riêng, chỉ người tạo khoản chi hoặc trưởng nhà đang ở trong nhà được ghi. Giữ nguyên khoản gốc, phần chia, phiên bản, ảnh và thanh toán đã xác nhận. Mỗi điều chỉnh lưu lý do, người ghi, trước/sau và chênh lệch đã chi/phần chịu của từng người; tăng/giảm tiền, đổi người trả/phần chia hoặc nhập 0 để đảo khoản ghi sai. Khoản có quy tắc chia đã thống nhất giữ snapshot gốc. Giảm tiền có thể tạo công nợ hoàn lại, không tự xác nhận tiền đã hoàn.
+- Điều chỉnh nối tiếp dựa trên nội dung của lần gần nhất, có phiên bản/clientId chống ghi đè hoặc ghi trùng. Bản điều chỉnh chỉ được xem; sửa sai bằng điều chỉnh mới. Chốt đợt mới đóng các điều chỉnh chưa chốt cùng khoản chi mới, không chạm khoản gốc đã chốt. Báo cáo/CSV/PDF ghi chênh lệch vào tháng ghi nhận điều chỉnh; tổng khoản gốc ở kỳ cũ được giữ. Migration `20261011020000_immutable_settled_expenses` đã deploy trên PostgreSQL local.
+- Kiểm chứng 11/10/2026: 90 HTTP/PostgreSQL E2E liên quan và 68 unit test qua; build backend/frontend, TypeScript toàn bộ source/test và lint không có lỗi (backend còn 5 cảnh báo comparator cũ trong test). Edge kiểm tra khóa thao tác, xem lịch sử/biên nhận, ghi chênh lệch âm, hoàn tiền, xác nhận qua SSE, chốt cả khoản mới/điều chỉnh và tải lại; tải CSV/PDF thật giữ số âm và tiếng Việt. Form/danh sách/báo cáo không tràn ngang tại 320/390/430/768/820/1024/1366/1920 px; không lỗi JavaScript. Script/ảnh tại `.verification/settled-corrections-browser.mjs` và `settled-*.png`; chưa kiểm tra trên Safari/iOS thật.
 - Thành viên đã rời vẫn truy cập các khoản chi liên quan, số dư cá nhân và thanh toán liên quan, có thể trả nợ/xác nhận nhận tiền ở nhà cũ. Không có quyền tạo/sửa chi phí hay đọc chat của nhà cũ.
 - Người ngoài ứng dụng được biểu diễn bằng người tham gia sổ chi phí, không phải tài khoản hoặc thành viên nhà. Trưởng nhà thêm/đánh dấu đã rời; lịch sử và nợ vẫn giữ. Nếu người nhận không dùng app, trưởng nhà ghi nhận thủ công sau khi kiểm tra với họ; giao diện ghi rõ điều này. Trưởng nhà cuối cùng vẫn quản lý các xác nhận thủ công liên quan tới người ngoài app sau khi nhà lưu trữ.
 - Biên nhận tải lên chỉ nhận JPEG/PNG/WebP thật, tối đa 5 MB/25 triệu pixel; chuyển JPEG, giảm kích thước, bỏ metadata. Dữ liệu lưu riêng trong PostgreSQL, đọc qua API kiểm tra quyền với `no-store`. Không dùng URL công khai cho ảnh mới.
@@ -38,6 +41,7 @@ Cập nhật 10/10/2026. Đã triển khai backend và frontend theo `backend/ro
 
 ## Các màn hình và API chính
 
+- Các nút mở form/lịch sử/chi tiết dùng chung xử lý focus và cuộn khi nội dung nằm ngoài vùng nhìn. Áp dụng cho tài chính, việc nhà, mua chung, chi phí định kỳ, bình chọn, lịch hẹn, đối chiếu kết nối, bản đồ và kiểm duyệt tin. Giữ focus/vị trí cuộn khi dữ liệu cập nhật; hỗ trợ giảm chuyển động. Edge kiểm tra các form Nhà chung ở 390/1366 px, đóng lịch sử trả về nút mở, giữ ô nhập qua SSE; chi tiết/đổi lịch hẹn và đối chiếu/ngắt kết nối ở 390 px. Form đề xuất lịch hẹn không tràn ngang ở 320/390/430/768/820/1024/1366/1920 px. Build frontend và lint qua, không lỗi JavaScript trong các luồng kiểm tra. Bằng chứng: `.verification/panel-focus-report.json`.
 - Nhà chung có các tab Tổng quan, Thành viên, Chat chung, Chi phí, Công nợ & Quyết toán, Thông tin nhà; dùng theme coral/cream chung.
 - `/nha-chung/lich-su` liệt kê các sổ đã tham gia; `/nha-chung/[id]/chi-phi` mở lịch sử/công nợ, gồm nhà đã rời.
 - `/houses/:houseId/messages`: GET/POST; `/:id`: PATCH/DELETE.

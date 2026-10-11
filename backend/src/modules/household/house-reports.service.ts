@@ -4,6 +4,10 @@ import { HouseAccessService } from '../houses/house-access.service.js';
 import { calculateHouseBalances } from '../expenses/expense-ledger.js';
 import { settlementTransfers } from '../expenses/expense-calculations.js';
 import { expenseInclude, expenseView } from '../expenses/expense-views.js';
+import {
+  correctionInclude,
+  correctionView,
+} from '../expenses/expense-corrections.service.js';
 import { dateOnly } from './household-access.service.js';
 import type { ReportQueryDto } from './dto/household.dto.js';
 
@@ -52,6 +56,11 @@ export class HouseReportsService {
           orderBy: [{ spentOn: 'asc' }, { id: 'asc' }],
         });
         const balances = await calculateHouseBalances(tx, houseId);
+        const corrections = await tx.expenseCorrection.findMany({
+          where: { houseId, recordedOn: { gte: from, lt: to } },
+          include: correctionInclude,
+          orderBy: [{ recordedOn: 'asc' }, { id: 'asc' }],
+        });
         const categories = Object.entries(categoryLabels).map(
           ([category, label]) => ({ category, label, amount: 0, count: 0 }),
         );
@@ -79,18 +88,35 @@ export class HouseReportsService {
           for (const split of row.splits)
             memberMap.get(split.participantId)!.owed += split.amount;
         }
-        const unsettledCount = await tx.expense.count({
+        for (const correction of corrections) {
+          total += correction.amountDelta;
+          const category = categories.find(
+            (item) => item.category === correction.expense.category,
+          )!;
+          category.amount += correction.amountDelta;
+          category.count++;
+          for (const share of correction.shares) {
+            memberMap.get(share.participantId)!.paid += share.paidDelta;
+            memberMap.get(share.participantId)!.owed += share.owedDelta;
+          }
+        }
+        const openExpenses = await tx.expense.count({
           where: { houseId, status: { in: ['ACTIVE', 'ADJUSTMENT_REQUIRED'] } },
         });
+        const openCorrections = await tx.expenseCorrection.count({
+          where: { houseId, settledAt: null },
+        });
+        const unsettledCount = openExpenses + openCorrections;
         return {
           houseName: house.name,
           month: query.month,
           generatedAt: new Date(),
           total,
-          count: rows.length,
+          count: rows.length + corrections.length,
           categories,
           members,
           expenses: rows.map(expenseView),
+          corrections: corrections.map(correctionView),
           ledger: {
             balances,
             transfers: settlementTransfers(balances),
@@ -112,14 +138,14 @@ export class HouseReportsService {
       ['Thời điểm xuất (UTC)', report.generatedAt.toISOString()],
       ['Tổng chi phí trong kỳ (VNĐ)', report.total],
       [
-        'Chi phí theo ngày phát sinh; loại khoản đã hủy. Công nợ là toàn bộ sổ tại thời điểm xuất.',
+        'Chi phí theo ngày phát sinh; điều chỉnh sau chốt tính chênh lệch tại ngày ghi nhận. Công nợ là toàn bộ sổ tại thời điểm xuất.',
       ],
       [],
       [
         'NGÀY',
         'KHOẢN CHI',
         'DANH MỤC',
-        'NGƯỜI ĐÃ TRẢ',
+        'NGƯỜI ĐÃ TRẢ / NGƯỜI GHI ĐIỀU CHỈNH',
         'SỐ TIỀN (VNĐ)',
         'TRẠNG THÁI',
       ],
@@ -130,6 +156,14 @@ export class HouseReportsService {
         row.payer.displayName,
         row.amount,
         row.status === 'SETTLED' ? 'Đã quyết toán' : 'Chưa quyết toán',
+      ]),
+      ...report.corrections.map((row) => [
+        row.recordedOn.toISOString().slice(0, 10),
+        `Điều chỉnh #${row.version}: ${row.expense.title} · ${row.reason}`,
+        categoryLabels[row.expense.category],
+        `Ghi bởi ${row.createdByName}`,
+        row.amountDelta,
+        row.settledAt ? 'Đã quyết toán' : 'Chưa quyết toán',
       ]),
       [],
       ['DANH MỤC', 'TỔNG TIỀN (VNĐ)'],

@@ -146,6 +146,7 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       where: { expense: { houseId } },
     });
     await prisma.debtPayment.deleteMany({ where: { houseId } });
+    await prisma.expenseCorrection.deleteMany({ where: { houseId } });
     await prisma.expense.deleteMany({ where: { houseId } });
     await prisma.houseParticipant.deleteMany({
       where: { houseId, userId: null },
@@ -400,7 +401,7 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
     ).body;
     expect(history.at(-1).action).toBe('CANCEL');
   });
-  it('settles only at zero debt and adjusts settled expenses without deleting confirmed payments', async () => {
+  it('locks settled expenses and records differences separately without changing confirmed payments', async () => {
     const row = await create();
     await post(0, base() + '/settle').expect(409);
     const payment = (
@@ -426,8 +427,42 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       version: settled.version,
       reason: 'Điều chỉnh số tiền trên hóa đơn thật',
     };
-    const updated = (await patch(0, row.id, body).expect(200)).body;
-    expect(updated.status).toBe('ACTIVE');
+    expect((await patch(0, row.id, body).expect(409)).body.code).toBe(
+      'EXPENSE_SETTLED',
+    );
+    expect(
+      (
+        await post(0, base() + `/${row.id}/cancel`, {
+          version: settled.version,
+          reason: 'Không được hủy khoản đã chốt',
+        }).expect(409)
+      ).body.code,
+    ).toBe('EXPENSE_SETTLED');
+    const before = await prisma.expense.findUniqueOrThrow({
+      where: { id: row.id },
+      include: { splits: true },
+    });
+    const updated = (
+      await post(0, base() + '/corrections', {
+        expenseId: row.id,
+        expenseVersion: settled.version,
+        correctionVersion: 0,
+        clientId: randomUUID(),
+        reason: body.reason,
+        amount: body.amount,
+        payerId: ids[0],
+        splitMode: 'CUSTOM',
+        splits: body.splits,
+      }).expect(201)
+    ).body;
+    expect(updated.amountDelta).toBe(200);
+    expect(updated.settledAt).toBeNull();
+    expect(
+      await prisma.expense.findUniqueOrThrow({
+        where: { id: row.id },
+        include: { splits: true },
+      }),
+    ).toEqual(before);
     expect(
       (await balances()).find((person) => person.id === ids[1])!.balance,
     ).toBe(-100);
@@ -442,8 +477,361 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
     expect(history.map((change: { action: string }) => change.action)).toEqual([
       'CREATE',
       'SETTLE',
-      'ADJUST_SETTLED',
+      'POST_SETTLEMENT_CORRECTION',
     ]);
+  });
+
+  async function closedExpense(overrides: object = {}) {
+    const row = await create({ ...expenseBody(), ...overrides });
+    const payment = (
+      await post(1, base() + '/payments', {
+        ...paymentBody(),
+        method: 'CASH',
+      }).expect(201)
+    ).body;
+    await post(0, base() + `/payments/${payment.id}`, {
+      version: 1,
+      action: 'confirm',
+    }).expect(201);
+    await post(0, base() + '/settle').expect(201);
+    return (await agents[0].get(base()).expect(200)).body.items.find(
+      (item: { id: string }) => item.id === row.id,
+    );
+  }
+  const correctionBody = (
+    row: { id: string; version: number },
+    amount = 800,
+    correctionVersion = 0,
+  ) => ({
+    expenseId: row.id,
+    expenseVersion: row.version,
+    correctionVersion,
+    clientId: randomUUID(),
+    reason: 'Đối chiếu lại hóa đơn sau quyết toán',
+    payerId: ids[0],
+    amount,
+    splitMode: 'CUSTOM',
+    splits: [
+      { participantId: ids[0], amount: amount / 2 },
+      { participantId: ids[1], amount: amount / 2 },
+    ],
+  });
+
+  it('keeps settled receipts readable and prevents replacement even with a valid version', async () => {
+    const row = await closedExpense();
+    const photo = await sharp({
+      create: { width: 10, height: 10, channels: 3, background: '#fff' },
+    })
+      .png()
+      .toBuffer();
+    await prisma.expenseReceipt.create({
+      data: { expenseId: row.id, mimeType: 'image/png', data: photo },
+    });
+    const response = await agents[0]
+      .post(base() + `/${row.id}/receipt`)
+      .set('Origin', origin)
+      .field('version', row.version)
+      .attach('receipt', photo, 'receipt.png')
+      .expect(409);
+    expect(response.body.code).toBe('EXPENSE_SETTLED');
+    await agents[1].get(base() + `/${row.id}/receipt`).expect(200);
+    expect(
+      Buffer.from(
+        (
+          await prisma.expenseReceipt.findUniqueOrThrow({
+            where: { expenseId: row.id },
+          })
+        ).data,
+      ),
+    ).toEqual(photo);
+  });
+
+  it('creates refund debt after a reduction and settles the correction without reopening its source', async () => {
+    const row = await closedExpense();
+    const correction = (
+      await post(0, base() + '/corrections', correctionBody(row)).expect(201)
+    ).body;
+    expect(correction.amountDelta).toBe(-200);
+    const transfer = (await agents[0].get(base() + '/settlements').expect(200))
+      .body[0];
+    expect(transfer).toMatchObject({
+      payerId: ids[0],
+      recipientId: ids[1],
+      amount: 100,
+    });
+    expect(
+      (await agents[0].get(base() + '/balances').expect(200)).body,
+    ).toMatchObject({ isSettled: false, unsettledCount: 1 });
+    await post(0, base() + '/settle').expect(409);
+    const refund = (
+      await post(0, base() + '/payments', {
+        clientId: randomUUID(),
+        recipientId: ids[1],
+        amount: 100,
+        method: 'CASH',
+      }).expect(201)
+    ).body;
+    await post(1, base() + `/payments/${refund.id}`, {
+      version: 1,
+      action: 'confirm',
+    }).expect(201);
+    expect((await post(0, base() + '/settle').expect(201)).body.settled).toBe(
+      1,
+    );
+    expect((await post(0, base() + '/settle').expect(201)).body.settled).toBe(
+      0,
+    );
+    expect(
+      (await agents[0].get(base() + '/balances').expect(200)).body.isSettled,
+    ).toBe(true);
+    expect(
+      await prisma.expense.findUniqueOrThrow({ where: { id: row.id } }),
+    ).toMatchObject({ amount: 1000, status: 'SETTLED', version: row.version });
+    expect(
+      (
+        await prisma.expenseCorrection.findUniqueOrThrow({
+          where: { id: correction.id },
+        })
+      ).settledAt,
+    ).not.toBeNull();
+  });
+
+  it('chains corrections from the latest target, supports reversal and safely retries old requests', async () => {
+    const row = await closedExpense();
+    const body = correctionBody(row, 800);
+    const first = (await post(0, base() + '/corrections', body).expect(201))
+      .body;
+    const second = (
+      await post(
+        0,
+        base() + '/corrections',
+        correctionBody(row, 1200, 1),
+      ).expect(201)
+    ).body;
+    expect(second).toMatchObject({
+      amountDelta: 400,
+      version: 2,
+      oldSnapshot: { amount: 800 },
+    });
+    expect(
+      (await post(0, base() + '/corrections', body).expect(201)).body.id,
+    ).toBe(first.id);
+    expect(
+      (
+        await post(0, base() + '/corrections', {
+          ...body,
+          reason: 'Lý do gửi lại khác',
+        }).expect(409)
+      ).body.code,
+    ).toBe('CORRECTION_RETRY_CHANGED');
+    expect(
+      (
+        await post(
+          0,
+          base() + '/corrections',
+          correctionBody(row, 600, 0),
+        ).expect(409)
+      ).body.code,
+    ).toBe('CORRECTION_CHANGED');
+    const reverse = (
+      await post(0, base() + '/corrections', correctionBody(row, 0, 2)).expect(
+        201,
+      )
+    ).body;
+    expect(reverse.amountDelta).toBe(-1200);
+    expect(
+      (await balances()).find((person) => person.id === ids[0])!.balance,
+    ).toBe(-500);
+    expect(
+      (await balances()).find((person) => person.id === ids[1])!.balance,
+    ).toBe(500);
+    expect(
+      (await agents[0].get(base() + '/corrections?limit=1&page=2').expect(200))
+        .body,
+    ).toMatchObject({ total: 3, pages: 3 });
+    expect(reverse).not.toHaveProperty('contentHash');
+  });
+
+  it('corrects payer and custom shares even when the expense total is unchanged', async () => {
+    const row = await closedExpense();
+    const result = (
+      await post(0, base() + '/corrections', {
+        ...correctionBody(row, 1000),
+        payerId: ids[1],
+        splits: [
+          { participantId: ids[0], amount: 400 },
+          { participantId: ids[1], amount: 600 },
+        ],
+      }).expect(201)
+    ).body;
+    expect(result.amountDelta).toBe(0);
+    expect(
+      (await balances()).find((person) => person.id === ids[0])!.balance,
+    ).toBe(-900);
+    expect(
+      (await balances()).find((person) => person.id === ids[1])!.balance,
+    ).toBe(900);
+    expect(
+      (await agents[0].get(base() + '/balances').expect(200)).body.isSettled,
+    ).toBe(false);
+  });
+
+  it('checks correction permissions, source status, no-op and participant validation', async () => {
+    const active = await create();
+    expect(
+      (
+        await post(0, base() + '/corrections', correctionBody(active)).expect(
+          409,
+        )
+      ).body.code,
+    ).toBe('EXPENSE_NOT_SETTLED');
+    await clearFinance();
+    const row = await closedExpense();
+    await post(2, base() + '/corrections', correctionBody(row)).expect(403);
+    await post(3, base() + '/corrections', correctionBody(row)).expect(404);
+    expect(
+      (
+        await post(
+          0,
+          base() + '/corrections',
+          correctionBody(row, 1000),
+        ).expect(400)
+      ).body.code,
+    ).toBe('CORRECTION_NO_CHANGE');
+    await post(0, base() + '/corrections', {
+      ...correctionBody(row),
+      payerId: ids[3],
+    }).expect(400);
+    await post(0, base() + '/corrections', {
+      ...correctionBody(row),
+      amount: -1,
+    }).expect(400);
+    await post(0, base() + '/corrections', {
+      ...correctionBody(row),
+      reason: '',
+    }).expect(400);
+    await post(0, base() + '/corrections', {
+      ...correctionBody(row),
+      splits: [{ participantId: ids[0], amount: 1 }],
+    }).expect(400);
+  });
+
+  it('serializes competing corrections and refuses changes while payment confirmation is pending', async () => {
+    const row = await closedExpense();
+    const results = await Promise.all([
+      post(0, base() + '/corrections', correctionBody(row, 1200)),
+      post(0, base() + '/corrections', correctionBody(row, 1400)),
+    ]);
+    expect(
+      results.map((result) => result.status).sort((a, b) => a - b),
+    ).toEqual([201, 409]);
+    const payment = (
+      await post(1, base() + '/payments', {
+        ...paymentBody(100),
+        method: 'CASH',
+      }).expect(201)
+    ).body;
+    expect(
+      (
+        await post(
+          0,
+          base() + '/corrections',
+          correctionBody(row, 800, 1),
+        ).expect(409)
+      ).body.code,
+    ).toBe('PAYMENT_PENDING');
+    await post(1, base() + `/payments/${payment.id}`, {
+      version: 1,
+      action: 'cancel',
+    }).expect(201);
+    await post(0, base() + '/corrections', correctionBody(row, 800, 1)).expect(
+      201,
+    );
+    expect(
+      (await balances()).reduce((sum, person) => sum + person.balance, 0),
+    ).toBe(0);
+  });
+
+  it('keeps corrections visible to affected former members without permitting them to write', async () => {
+    const row = await closedExpense();
+    await post(1, `/api/v1/houses/${houseId}/leave`).expect(201);
+    try {
+      await post(0, base() + '/corrections', correctionBody(row)).expect(201);
+      const unrelated = await create({
+        ...expenseBody(),
+        title: 'Khoản riêng của trưởng nhà',
+        amount: 100,
+        splits: [{ participantId: ids[0], amount: 100 }],
+      });
+      const visible = (await agents[1].get(base() + '/corrections').expect(200))
+        .body;
+      expect(visible.total).toBe(1);
+      expect(visible.items[0].expenseId).toBe(row.id);
+      await agents[1].get(base() + `/${row.id}/history`).expect(200);
+      await agents[1].get(base() + `/${unrelated.id}/history`).expect(404);
+      await post(
+        1,
+        base() + '/corrections',
+        correctionBody(row, 600, 1),
+      ).expect(404);
+      expect(
+        (await agents[1].get(base() + '/balances').expect(200)).body.balances,
+      ).toEqual([expect.objectContaining({ id: ids[1], balance: 100 })]);
+    } finally {
+      await prisma.houseMember.update({
+        where: { houseId_userId: { houseId, userId: ids[1] } },
+        data: { leftAt: null },
+      });
+      await prisma.houseParticipant.update({
+        where: { houseId_id: { houseId, id: ids[1] } },
+        data: { leftAt: null },
+      });
+    }
+  });
+
+  it('preserves past monthly totals and exports signed corrections in their recording month', async () => {
+    const today = vietnamDate(new Date());
+    const past = new Date(`${today.slice(0, 7)}-01T00:00:00Z`);
+    past.setUTCMonth(past.getUTCMonth() - 1);
+    const spentOn = past.toISOString().slice(0, 10);
+    const row = await closedExpense({ spentOn, category: 'GROCERIES' });
+    await post(0, base() + '/corrections', correctionBody(row)).expect(201);
+    const reportPath = `/api/v1/houses/${houseId}/household/reports`;
+    const old = (
+      await agents[0]
+        .get(`${reportPath}?month=${spentOn.slice(0, 7)}`)
+        .expect(200)
+    ).body;
+    expect(old).toMatchObject({ total: 1000, count: 1, corrections: [] });
+    const current = (
+      await agents[0]
+        .get(`${reportPath}?month=${today.slice(0, 7)}`)
+        .expect(200)
+    ).body;
+    expect(current).toMatchObject({
+      total: -200,
+      count: 1,
+      ledger: { isSettled: false },
+    });
+    expect(
+      current.categories.find(
+        (category: { category: string }) => category.category === 'GROCERIES',
+      ).amount,
+    ).toBe(-200);
+    expect(
+      current.members.find(
+        (person: { participantId: string }) => person.participantId === ids[0],
+      ),
+    ).toMatchObject({ paid: -200, owed: -100 });
+    const csv = await agents[0]
+      .get(`${reportPath}/export?month=${today.slice(0, 7)}`)
+      .expect(200);
+    expect(csv.text).toContain('Điều chỉnh #1');
+    expect(csv.text).toContain('"-200"');
+    const pdf = await agents[0]
+      .get(`${reportPath}/pdf?month=${today.slice(0, 7)}`)
+      .expect(200);
+    expect(pdf.headers['content-type']).toContain('application/pdf');
   });
   it('stores receipt images privately, strips metadata and checks the expense version', async () => {
     const row = await create();

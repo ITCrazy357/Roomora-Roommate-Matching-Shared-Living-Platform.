@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { usePanelFocus } from "../use-panel-focus";
 import { useAuth } from "../auth-provider";
 import {
   Button,
@@ -66,7 +67,9 @@ export function RoommateBrowser() {
   const isCurrentResult = result.requestKey === requestKey;
   const data = isCurrentResult ? result.data : undefined;
   const person = data?.items.find((person) => person.userId === selectedUserId);
-  const panel = useRef<HTMLDivElement>(null);
+  const panel = usePanelFocus(
+    person?.userId === selectedUserId ? selectedUserId : null,
+  );
   useEffect(() => {
     const controller = new AbortController();
     apiFetch<PeoplePage>(requestPath, { signal: controller.signal })
@@ -111,10 +114,6 @@ export function RoommateBrowser() {
       .catch(() => {});
     return () => controller.abort();
   }, [user]);
-  useEffect(() => {
-    if (selectedUserId)
-      panel.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [selectedUserId]);
   function search(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const fields = new FormData(event.currentTarget);
@@ -351,7 +350,13 @@ export function RoommateBrowser() {
               </Card>
             ))}
           </div>
-          <div ref={panel} className="people-detail-panel">
+          <div
+            ref={panel}
+            className="people-detail-panel focus-panel"
+            tabIndex={-1}
+            role="region"
+            aria-label="Đối chiếu người ở ghép"
+          >
             {person ? (
               <PersonDetails
                 key={person.userId}

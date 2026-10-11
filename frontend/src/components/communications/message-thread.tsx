@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { FocusPanel } from "../focus-panel";
 import Link from "next/link";
 import Image from "next/image";
 import { ApiError, apiFetch, apiUrl } from "@/lib/api";
@@ -317,7 +318,7 @@ export function MessageThread({ id }: { id: string }) {
           </Link>
         </Card>
         {proposing && (
-          <Card>
+          <FocusPanel className="card" label="Đề xuất lịch hẹn">
             <AppointmentForm
               conversationId={id}
               rooms={detail.listings}
@@ -327,7 +328,7 @@ export function MessageThread({ id }: { id: string }) {
               }}
               onCancel={() => setProposing(false)}
             />
-          </Card>
+          </FocusPanel>
         )}
         {detail.listings.map((room) => (
           <Card key={room.id} className="conversation-room">
@@ -373,7 +374,7 @@ export function MessageThread({ id }: { id: string }) {
                     : "Xem bản đồ khu vực"}
                 </Button>
                 {openMapId === room.id && (
-                  <>
+                  <FocusPanel label="Bản đồ khu vực phòng">
                     <AreaMap
                       latitude={room.latitude}
                       longitude={room.longitude}
@@ -382,7 +383,7 @@ export function MessageThread({ id }: { id: string }) {
                       Ghim chỉ thể hiện khu vực gần phòng (khoảng 1 km), không
                       phải địa chỉ chính xác.
                     </p>
-                  </>
+                  </FocusPanel>
                 )}
               </>
             )}

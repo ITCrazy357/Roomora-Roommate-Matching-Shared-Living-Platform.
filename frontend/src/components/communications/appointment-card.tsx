@@ -1,4 +1,5 @@
 "use client";
+import { FocusPanel } from "../focus-panel";
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "../auth-provider";
@@ -98,16 +99,18 @@ export function AppointmentCard({
       {item.note && <p className="appointment-note">{item.note}</p>}
       {error && <ErrorState message={error} />}
       {editing ? (
-        <AppointmentForm
-          conversationId={item.conversationId}
-          rooms={[]}
-          appointment={item}
-          onDone={() => {
-            setEditing(false);
-            onChange();
-          }}
-          onCancel={() => setEditing(false)}
-        />
+        <FocusPanel label="Đổi lịch hẹn">
+          <AppointmentForm
+            conversationId={item.conversationId}
+            rooms={[]}
+            appointment={item}
+            onDone={() => {
+              setEditing(false);
+              onChange();
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        </FocusPanel>
       ) : (
         <div className="communication-actions">
           {item.status === "PENDING" &&

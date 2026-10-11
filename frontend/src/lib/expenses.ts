@@ -14,6 +14,7 @@ export interface Participant {
   isGuest: boolean;
 }
 export interface Expense {
+  corrections: { version: number; newSnapshot: CorrectionSnapshot }[];
   sharingPeriodId: string | null;
   sharingSnapshot: import("./cost-sharing").SharingSnapshot | null;
   category: import("./household").ExpenseCategory;
@@ -38,6 +39,36 @@ export interface Expense {
     userId: string | null;
     displayName: string;
     amount: number;
+  }[];
+}
+export interface CorrectionSnapshot {
+  amount: number;
+  payerId: string;
+  splitMode: "EQUAL" | "CUSTOM";
+  splits: { participantId: string; amount: number }[];
+}
+export interface ExpenseCorrection {
+  id: string;
+  expenseId: string;
+  expense: {
+    id: string;
+    title: string;
+    category: import("./household").ExpenseCategory;
+  };
+  version: number;
+  reason: string;
+  amountDelta: number;
+  oldSnapshot: CorrectionSnapshot;
+  newSnapshot: CorrectionSnapshot;
+  recordedOn: string;
+  createdAt: string;
+  createdByName: string;
+  settledAt: string | null;
+  shares: {
+    participantId: string;
+    paidDelta: number;
+    owedDelta: number;
+    participant: Participant;
   }[];
 }
 export interface Balance extends Participant {
@@ -139,6 +170,16 @@ export function expenseError(error: unknown) {
       EXPENSE_FORBIDDEN:
         "Chỉ người tạo khoản chi hoặc trưởng nhà được thực hiện thao tác này.",
       EXPENSE_CHANGED: "Khoản chi đã thay đổi. Tải lại trước khi tiếp tục.",
+      EXPENSE_SETTLED:
+        "Khoản chi đã chốt, chỉ được xem. Hãy dùng Điều chỉnh sau chốt để ghi chênh lệch riêng.",
+      EXPENSE_NOT_SETTLED:
+        "Chỉ dùng điều chỉnh sau chốt cho khoản đã quyết toán.",
+      CORRECTION_CHANGED:
+        "Khoản này có điều chỉnh mới. Đóng form và chọn lại trước khi tiếp tục.",
+      CORRECTION_RETRY_CHANGED:
+        "Nội dung gửi lại khác điều chỉnh đã lưu. Tải lại để kiểm tra.",
+      CORRECTION_NO_CHANGE:
+        "Chưa có thay đổi về số tiền, người trả hoặc phần chia.",
       EXPENSE_RETRY_CHANGED:
         "Lần gửi lại có nội dung khác. Hãy tải lại để kiểm tra khoản đã lưu.",
       EXPENSE_SPLIT_AMOUNT_MISMATCH: "Tổng tiền chia phải bằng tổng khoản chi.",

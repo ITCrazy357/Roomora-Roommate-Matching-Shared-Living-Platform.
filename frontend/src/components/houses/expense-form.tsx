@@ -224,9 +224,7 @@ export function ExpenseForm({
     <form className="house-form expense-form" onSubmit={submit}>
       <h2>
         {expense
-          ? expense.status === "SETTLED"
-            ? "Điều chỉnh khoản đã quyết toán"
-            : "Chỉnh sửa khoản chi"
+          ? "Chỉnh sửa khoản chi"
           : recurringDraft
             ? "Xác nhận khoản định kỳ"
             : "Ghi khoản chi"}
@@ -432,11 +430,7 @@ export function ExpenseForm({
             maxLength={1000}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            hint={
-              expense.status === "SETTLED"
-                ? "Khoản sẽ mở lại. Các thanh toán đã xác nhận vẫn được giữ để tính công nợ sau điều chỉnh."
-                : "Lưu cùng thông tin trước và sau khi sửa."
-            }
+            hint="Lưu cùng thông tin trước và sau khi sửa."
           />
         )}
       </fieldset>

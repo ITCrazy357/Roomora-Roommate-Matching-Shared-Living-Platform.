@@ -82,6 +82,7 @@ export interface HouseReport {
     isGuest: boolean;
   }[];
   expenses: Expense[];
+  corrections: import("./expenses").ExpenseCorrection[];
   ledger: {
     balances: Balance[];
     transfers: Transfer[];

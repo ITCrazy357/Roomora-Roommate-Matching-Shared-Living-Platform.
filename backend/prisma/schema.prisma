@@ -193,6 +193,7 @@ model User {
 
   createdExpenses     Expense[]           @relation("ExpenseCreator")
   expenseAdjustments  ExpenseAdjustment[] @relation("ExpenseAdjustmentCreator")
+  expenseCorrections  ExpenseCorrection[]
   houseParticipants   HouseParticipant[]
   houseMessages       HouseMessage[]
   housePollVotes      HousePollVote[]
@@ -276,6 +277,7 @@ model House {
   announcements HouseAnnouncement[]
 
   expenses            Expense[]
+  expenseCorrections  ExpenseCorrection[]
   debtPayments        DebtPayment[]
   participants        HouseParticipant[]
   messages            HouseMessage[]
@@ -698,6 +700,7 @@ model Expense {
 
   splits          ExpenseSplit[]
   adjustments     ExpenseAdjustment[]
+  corrections     ExpenseCorrection[]
   receipt         ExpenseReceipt?
   recurringDraft  RecurringExpenseDraft?
   sharingPeriodId String?                @map("sharing_period_id") @db.Uuid
@@ -848,6 +851,7 @@ model HouseParticipant {
   user                  User?              @relation(fields: [userId], references: [id], onDelete: Restrict)
   paidExpenses          Expense[]          @relation("ExpensePayer")
   splits                ExpenseSplit[]
+  correctionShares      ExpenseCorrectionShare[]
   paymentsMade          DebtPayment[]      @relation("DebtPaymentsMade")
   paymentsReceived      DebtPayment[]      @relation("DebtPaymentsReceived")
   debtReminder          DebtReminder?
@@ -859,6 +863,46 @@ model HouseParticipant {
   @@id([houseId, id])
   @@unique([houseId, userId])
   @@map("house_participants")
+}
+
+// Append-only differences against a closed expense; the original stays unchanged.
+model ExpenseCorrection {
+  id            String @id @default(uuid()) @db.Uuid
+  houseId       String @map("house_id") @db.Uuid
+  expenseId     String @map("expense_id") @db.Uuid
+  createdById   String @map("created_by_id") @db.Uuid
+  clientId      String @map("client_id") @db.VarChar(100)
+  contentHash   String @map("content_hash") @db.VarChar(64)
+  version       Int
+  reason        String @db.VarChar(1000)
+  amountDelta   Int @map("amount_delta")
+  oldSnapshot   Json @map("old_snapshot")
+  newSnapshot   Json @map("new_snapshot")
+  recordedOn    DateTime @map("recorded_on") @db.Date
+  createdAt     DateTime @default(now()) @map("created_at")
+  settledAt     DateTime? @map("settled_at")
+  house         House @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  expense       Expense @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+  createdBy     User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  shares        ExpenseCorrectionShare[]
+
+  @@unique([expenseId, version])
+  @@unique([houseId, createdById, clientId])
+  @@index([houseId, recordedOn])
+  @@map("expense_corrections")
+}
+
+model ExpenseCorrectionShare {
+  correctionId  String @map("correction_id") @db.Uuid
+  houseId       String @map("house_id") @db.Uuid
+  participantId String @map("participant_id") @db.Uuid
+  paidDelta     Int @map("paid_delta")
+  owedDelta     Int @map("owed_delta")
+  correction    ExpenseCorrection @relation(fields: [correctionId], references: [id], onDelete: Cascade)
+  participant   HouseParticipant @relation(fields: [houseId, participantId], references: [houseId, id], onDelete: Restrict)
+
+  @@id([correctionId, participantId])
+  @@map("expense_correction_shares")
 }
 
 enum CostSharingMode {

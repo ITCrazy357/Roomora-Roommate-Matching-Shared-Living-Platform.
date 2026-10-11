@@ -1,7 +1,12 @@
 import { BadRequestException } from '@nestjs/common';
 import type { CreateExpenseDto } from './dto/expenses.dto.js';
 
-export function expenseSplits(input: CreateExpenseDto) {
+export function expenseSplits(
+  input: Pick<
+    CreateExpenseDto,
+    'amount' | 'splitMode' | 'participantIds' | 'splits'
+  >,
+) {
   let splits: { participantId: string; amount: number }[];
 
   if (input.splitMode === 'EQUAL') {

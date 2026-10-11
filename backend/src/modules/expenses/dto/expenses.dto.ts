@@ -23,6 +23,7 @@ import {
 import {
   ExpenseSplitMode,
   ExpenseCategory,
+  ExpenseStatus,
   PaymentMethod,
 } from '../../../generated/prisma/enums.js';
 const trim = ({ value }: { value: unknown }) =>
@@ -90,6 +91,35 @@ export class CancelExpenseDto extends ExpenseVersionDto {
 export class ExpenseQueryDto {
   @Type(() => Number) @IsInt() @Min(1) @Max(10000) page = 1;
   @Type(() => Number) @IsInt() @Min(1) @Max(50) limit = 20;
+}
+export class ExpenseListQueryDto extends ExpenseQueryDto {
+  @IsOptional() @IsEnum(ExpenseStatus) status?: ExpenseStatus;
+}
+
+export class CreateExpenseCorrectionDto {
+  @IsUUID() expenseId!: string;
+  @IsInt() @Min(1) expenseVersion!: number;
+  @IsInt() @Min(0) correctionVersion!: number;
+  @Transform(trim) @IsString() @Length(1, 100) clientId!: string;
+  @Transform(trim) @IsString() @Length(3, 1000) reason!: string;
+  @IsUUID() payerId!: string;
+  // Zero reverses the expense; signed ledger differences are computed server-side.
+  @IsInt() @Min(0) @Max(2_000_000_000) amount!: number;
+  @IsEnum(ExpenseSplitMode) splitMode!: ExpenseSplitMode;
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ArrayUnique()
+  @IsUUID('all', { each: true })
+  participantIds?: string[];
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => ExpenseSplitDto)
+  splits?: ExpenseSplitDto[];
 }
 export class CreateDebtPaymentDto {
   @IsOptional() @IsUUID() payerId?: string;

@@ -17,6 +17,10 @@ import {
 
 function CategoryChart({ data }: { data: HouseReport }) {
   const rows = data.categories.filter((row) => row.count > 0);
+  const positiveTotal = rows.reduce(
+    (sum, row) => sum + Math.max(0, row.amount),
+    0,
+  );
   return (
     <Card className="house-panel household-report-categories">
       <div className="household-section-heading">
@@ -51,12 +55,17 @@ function CategoryChart({ data }: { data: HouseReport }) {
                 strokeWidth="22"
               />
               {rows.map((row, index) => {
-                const length = data.total ? (row.amount / data.total) * 100 : 0;
-                const start = data.total
+                const length = positiveTotal
+                  ? (Math.max(0, row.amount) / positiveTotal) * 100
+                  : 0;
+                const start = positiveTotal
                   ? (rows
                       .slice(0, index)
-                      .reduce((sum, item) => sum + item.amount, 0) /
-                      data.total) *
+                      .reduce(
+                        (sum, item) => sum + Math.max(0, item.amount),
+                        0,
+                      ) /
+                      positiveTotal) *
                     100
                   : 0;
                 return (
@@ -84,7 +93,7 @@ function CategoryChart({ data }: { data: HouseReport }) {
             <div>
               <small>Tổng trong tháng</small>
               <strong>{money(data.total)}</strong>
-              <span>{data.count} khoản chi</span>
+              <span>{data.count} khoản chi / điều chỉnh</span>
             </div>
           </div>
           <div className="household-category-legend">
@@ -104,13 +113,19 @@ function CategoryChart({ data }: { data: HouseReport }) {
                 <div className="report-bar" aria-hidden="true">
                   <span
                     style={{
-                      width: `${data.total ? (row.amount / data.total) * 100 : 0}%`,
+                      width: `${positiveTotal ? (Math.max(0, row.amount) / positiveTotal) * 100 : 0}%`,
                     }}
                   />
                 </div>
               </div>
             ))}
           </div>
+          {data.corrections.length > 0 && (
+            <p className="text-muted">
+              Tổng đã gồm chênh lệch điều chỉnh sau chốt. Biểu đồ tỷ trọng chỉ
+              thể hiện số tiền dương.
+            </p>
+          )}
         </>
       )}
     </Card>
@@ -214,7 +229,7 @@ export function HouseReports({ houseId }: { houseId: string }) {
               detail={`Kỳ ${data.month.split("-").reverse().join("/")}`}
             />
             <HouseholdMetric
-              label="Khoản chi đã ghi"
+              label="Khoản chi / điều chỉnh"
               value={data.count}
               icon="report"
               tone="info"
@@ -230,7 +245,7 @@ export function HouseReports({ houseId }: { houseId: string }) {
             <HouseholdMetric
               label="Người có chi phí"
               value={
-                data.members.filter((row) => row.paid > 0 || row.owed > 0)
+                data.members.filter((row) => row.paid !== 0 || row.owed !== 0)
                   .length
               }
               icon="people"
@@ -285,7 +300,7 @@ export function HouseReports({ houseId }: { houseId: string }) {
                           <div className="report-bar" aria-hidden="true">
                             <span
                               style={{
-                                width: `${data.total ? (row.paid / data.total) * 100 : 0}%`,
+                                width: `${data.total > 0 ? Math.min(100, Math.max(0, (row.paid / data.total) * 100)) : 0}%`,
                               }}
                             />
                           </div>
@@ -312,7 +327,7 @@ export function HouseReports({ houseId }: { houseId: string }) {
                 <h2>Khoản chi trong kỳ</h2>
               </div>
               <span className="household-status household-tone-brand">
-                {data.count} khoản
+                {data.count} khoản chi / điều chỉnh
               </span>
             </div>
             {data.count === 0 ? (
@@ -359,6 +374,24 @@ export function HouseReports({ houseId }: { houseId: string }) {
                           >
                             {expenseLabels[row.status]}
                           </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {data.corrections.map((row) => (
+                      <tr key={row.id}>
+                        <td>{houseDate(row.recordedOn)}</td>
+                        <th scope="row">
+                          Điều chỉnh #{row.version}: {row.expense.title}
+                          <p className="text-muted">{row.reason}</p>
+                        </th>
+                        <td>{categories[row.expense.category]}</td>
+                        <td>Ghi bởi {row.createdByName}</td>
+                        <td className="household-money">
+                          {row.amountDelta > 0 ? "+" : ""}
+                          {money(row.amountDelta)}
+                        </td>
+                        <td>
+                          {row.settledAt ? "Đã quyết toán" : "Chưa quyết toán"}
                         </td>
                       </tr>
                     ))}

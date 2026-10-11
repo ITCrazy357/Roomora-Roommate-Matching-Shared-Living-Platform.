@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { FocusPanel } from "../focus-panel";
 import { apiFetch } from "@/lib/api";
 import { communicationError, type Message } from "@/lib/communications";
 import { Button, Textarea } from "../ui";
@@ -54,38 +55,42 @@ export function MessageActions({
   return (
     <div className="message-actions">
       {editing ? (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void save(false);
-          }}
-        >
-          <Textarea
-            id={`edit-message-${message.id}`}
-            label="Chỉnh sửa tin nhắn"
-            value={text}
-            maxLength={2000}
-            rows={3}
-            disabled={pending}
-            onChange={(event) => setText(event.target.value)}
-          />
-          <Button
-            type="submit"
-            disabled={pending || (!text.trim() && !message.attachments.length)}
-          >
-            Lưu
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={pending}
-            onClick={() => {
-              setEditing(false);
-              setError("");
+        <FocusPanel label="Chỉnh sửa tin nhắn">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save(false);
             }}
           >
-            Hủy
-          </Button>
-        </form>
+            <Textarea
+              id={`edit-message-${message.id}`}
+              label="Chỉnh sửa tin nhắn"
+              value={text}
+              maxLength={2000}
+              rows={3}
+              disabled={pending}
+              onChange={(event) => setText(event.target.value)}
+            />
+            <Button
+              type="submit"
+              disabled={
+                pending || (!text.trim() && !message.attachments.length)
+              }
+            >
+              Lưu
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={pending}
+              onClick={() => {
+                setEditing(false);
+                setError("");
+              }}
+            >
+              Hủy
+            </Button>
+          </form>
+        </FocusPanel>
       ) : (
         <>
           {!!message.text && (

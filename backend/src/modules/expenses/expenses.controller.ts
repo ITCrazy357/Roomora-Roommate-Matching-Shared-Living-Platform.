@@ -23,6 +23,8 @@ import {
   CreateDebtPaymentDto,
   CreateExpenseDto,
   ExpenseQueryDto,
+  ExpenseListQueryDto,
+  CreateExpenseCorrectionDto,
   UpdateExpenseDto,
   CancelExpenseDto,
   PaymentActionDto,
@@ -50,7 +52,7 @@ export class ExpensesController {
   @Get() list(
     @Req() req: AuthenticatedRequest,
     @Param('houseId', ParseUUIDPipe) houseId: string,
-    @Query() query: ExpenseQueryDto,
+    @Query() query: ExpenseListQueryDto,
   ) {
     return this.expenses.list(req.auth.userId, houseId, query);
   }
@@ -66,6 +68,20 @@ export class ExpensesController {
     @Param('houseId', ParseUUIDPipe) houseId: string,
   ) {
     return this.expenses.balances(req.auth.userId, houseId);
+  }
+  @Get('corrections') corrections(
+    @Req() req: AuthenticatedRequest,
+    @Param('houseId', ParseUUIDPipe) houseId: string,
+    @Query() query: ExpenseQueryDto,
+  ) {
+    return this.expenses.corrections(req.auth.userId, houseId, query);
+  }
+  @Post('corrections') correct(
+    @Req() req: AuthenticatedRequest,
+    @Param('houseId', ParseUUIDPipe) houseId: string,
+    @Body() dto: CreateExpenseCorrectionDto,
+  ) {
+    return this.expenses.correct(req.auth.userId, houseId, dto);
   }
   @Get('settlements') settlements(
     @Req() req: AuthenticatedRequest,

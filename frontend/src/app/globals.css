@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "./theme.css";
 
+.focus-panel {
+  scroll-margin-block: 24px;
+}
+.focus-panel:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+}
+
 .household-item h3 {
   margin: 0;
   overflow-wrap: anywhere;

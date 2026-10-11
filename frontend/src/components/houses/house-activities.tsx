@@ -8,6 +8,7 @@ import { houseDate, type House } from "@/lib/houses";
 import { Button, Card, ErrorState, LoadingState, Select } from "../ui";
 import { Pagination } from "../communications/pagination";
 import { ActivityForm } from "./activity-form";
+import { FocusPanel } from "../focus-panel";
 import { ExpenseForm } from "./expense-form";
 import { useHouseholdData } from "./use-household-data";
 import { vietnamDate } from "./repayment-promise-form";
@@ -149,7 +150,11 @@ export function HouseActivities({
         </p>
       )}
       {form && (
-        <Card className="house-panel">
+        <FocusPanel
+          className="card house-panel"
+          label={shopping ? "Ghi / sửa món cần mua" : "Ghi / sửa việc nhà"}
+          focusKey={form}
+        >
           <ActivityForm
             key={form === "new" ? "new" : form.id}
             path={path}
@@ -164,10 +169,14 @@ export function HouseActivities({
               reload();
             }}
           />
-        </Card>
+        </FocusPanel>
       )}
       {expense && (
-        <Card className="house-panel">
+        <FocusPanel
+          className="card house-panel"
+          label="Ghi khoản chi cho món đã mua"
+          focusKey={expense}
+        >
           <p className="finance-note">
             Kiểm tra sổ chi phí để tránh ghi lại món đã được người khác ghi
             nhận.
@@ -191,7 +200,7 @@ export function HouseActivities({
               setNotice("Đã ghi khoản chi. Xem trong tab Chi phí.");
             }}
           />
-        </Card>
+        </FocusPanel>
       )}
       {loadError && (
         <ErrorState

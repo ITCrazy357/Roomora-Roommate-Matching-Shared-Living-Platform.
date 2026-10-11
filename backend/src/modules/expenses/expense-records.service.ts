@@ -13,11 +13,12 @@ import type {
   CreateExpenseDto,
   UpdateExpenseDto,
   CancelExpenseDto,
-  ExpenseQueryDto,
+  ExpenseListQueryDto,
 } from './dto/expenses.dto.js';
 import { expenseSplits } from './expense-calculations.js';
 import { vietnamDate } from './expense-promises.service.js';
 import { CostSharingRulesService } from '../cost-sharing/cost-sharing-rules.service.js';
+import type { CorrectionSnapshot } from './expense-corrections.service.js';
 import {
   sharingAmounts,
   type SharingShare,
@@ -245,7 +246,7 @@ export class ExpenseRecordsService {
         userId,
         previous,
         updated,
-        previous.status === 'SETTLED' ? 'ADJUST_SETTLED' : 'EDIT',
+        'EDIT',
         dto.reason,
       );
       await this.events.signal(tx, houseId);
@@ -280,7 +281,7 @@ export class ExpenseRecordsService {
         userId,
         previous,
         updated,
-        previous.status === 'SETTLED' ? 'CANCEL_SETTLED' : 'CANCEL',
+        'CANCEL',
         dto.reason,
       );
       await this.events.signal(tx, houseId);
@@ -288,18 +289,24 @@ export class ExpenseRecordsService {
     });
   }
 
-  async list(userId: string, houseId: string, query: ExpenseQueryDto) {
+  async list(userId: string, houseId: string, query: ExpenseListQueryDto) {
     return this.prisma.$transaction(
       async (tx) => {
         const house = await this.access.finance(tx, userId, houseId);
         const where: Prisma.ExpenseWhereInput = {
           houseId,
+          ...(query.status ? { status: query.status } : {}),
           ...(!house.active
             ? {
                 OR: [
                   { payer: { userId } },
                   { createdById: userId },
                   { splits: { some: { participant: { userId } } } },
+                  {
+                    corrections: {
+                      some: { shares: { some: { participant: { userId } } } },
+                    },
+                  },
                 ],
               }
             : {}),
@@ -328,14 +335,50 @@ export class ExpenseRecordsService {
 
   async adjustments(userId: string, houseId: string, id: string) {
     return this.prisma.$transaction(async (tx) => {
-      await this.expenseAccess.expense(tx, userId, houseId, id);
-      return tx.expenseAdjustment.findMany({
+      const expense = await this.expenseAccess.expense(tx, userId, houseId, id);
+      const history = await tx.expenseAdjustment.findMany({
         where: { expenseId: id },
         orderBy: [{ version: 'asc' }, { createdAt: 'asc' }],
         include: {
           createdBy: { select: { profile: { select: { displayName: true } } } },
         },
       });
+      const corrections = await tx.expenseCorrection.findMany({
+        where: { expenseId: id },
+        orderBy: { version: 'asc' },
+        include: {
+          createdBy: { select: { profile: { select: { displayName: true } } } },
+        },
+      });
+      return [
+        ...history,
+        ...corrections.map((correction) => {
+          const oldSnapshot =
+            correction.oldSnapshot as unknown as CorrectionSnapshot;
+          const newSnapshot =
+            correction.newSnapshot as unknown as CorrectionSnapshot;
+          return {
+            id: correction.id,
+            action: 'POST_SETTLEMENT_CORRECTION',
+            version: correction.version,
+            reason: correction.reason,
+            createdAt: correction.createdAt,
+            createdBy: correction.createdBy,
+            oldAmount: oldSnapshot.amount,
+            newAmount: newSnapshot.amount,
+            oldSnapshot: {
+              ...oldSnapshot,
+              title: expense.title,
+              status: 'SETTLED',
+            },
+            newSnapshot: {
+              ...newSnapshot,
+              title: expense.title,
+              status: 'SETTLED',
+            },
+          };
+        }),
+      ];
     });
   }
 }

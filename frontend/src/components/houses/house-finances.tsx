@@ -18,12 +18,15 @@ import {
   type ExpenseChange,
   type BalancePage,
   type RepaymentPromise,
+  type ExpenseCorrection,
 } from "@/lib/expenses";
 import { formatTime, type Page } from "@/lib/communications";
 import { useUpdates } from "../communications/updates-provider";
 import { Pagination } from "../communications/pagination";
 import { Button, Card, ErrorState, Input, LoadingState, Textarea } from "../ui";
 import { ExpenseForm } from "./expense-form";
+import { FocusPanel } from "../focus-panel";
+import { ExpenseCorrectionForm } from "./expense-correction-form";
 import { PaymentForm } from "./payment-form";
 import { RepaymentPromiseForm, vietnamDate } from "./repayment-promise-form";
 
@@ -36,6 +39,7 @@ interface FinanceData {
   isSettled: boolean;
   unsettledCount: number;
   repaymentPromises: RepaymentPromise[];
+  corrections: Page<ExpenseCorrection>;
 }
 export function HouseFinances({
   houseId,
@@ -50,6 +54,8 @@ export function HouseFinances({
   const [data, setData] = useState<FinanceData | null>(null);
   const [page, setPage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
+  const [correctionPage, setCorrectionPage] = useState(1);
+  const [showCorrectionForm, setShowCorrectionForm] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -74,20 +80,27 @@ export function HouseFinances({
     const controller = new AbortController();
     async function load() {
       try {
-        const [expenses, balances, transfers, payments] = await Promise.all([
-          apiFetch<ExpensePage>(`${path}?page=${page}`, {
-            signal: controller.signal,
-          }),
-          apiFetch<BalancePage>(`${path}/balances`, {
-            signal: controller.signal,
-          }),
-          apiFetch<Transfer[]>(`${path}/settlements`, {
-            signal: controller.signal,
-          }),
-          apiFetch<Page<Payment>>(`${path}/payments?page=${paymentPage}`, {
-            signal: controller.signal,
-          }),
-        ]);
+        const [expenses, balances, transfers, payments, corrections] =
+          await Promise.all([
+            apiFetch<ExpensePage>(`${path}?page=${page}`, {
+              signal: controller.signal,
+            }),
+            apiFetch<BalancePage>(`${path}/balances`, {
+              signal: controller.signal,
+            }),
+            apiFetch<Transfer[]>(`${path}/settlements`, {
+              signal: controller.signal,
+            }),
+            apiFetch<Page<Payment>>(`${path}/payments?page=${paymentPage}`, {
+              signal: controller.signal,
+            }),
+            apiFetch<Page<ExpenseCorrection>>(
+              `${path}/corrections?page=${correctionPage}`,
+              {
+                signal: controller.signal,
+              },
+            ),
+          ]);
         const participants = expenses.active
           ? (
               await apiFetch<{ items: Participant[] }>(`${path}/participants`, {
@@ -105,6 +118,7 @@ export function HouseFinances({
             unsettledCount: balances.unsettledCount,
             repaymentPromises: balances.repaymentPromises,
             participants,
+            corrections,
           });
           setLoadError("");
         }
@@ -117,7 +131,7 @@ export function HouseFinances({
     }
     void load();
     return () => controller.abort();
-  }, [path, page, paymentPage, refresh, revision]);
+  }, [path, page, paymentPage, correctionPage, refresh, revision]);
   useEffect(() => {
     if (receipt) {
       imageTitle.current?.focus({ preventScroll: true });
@@ -133,6 +147,7 @@ export function HouseFinances({
 
   function changed() {
     setForm(null);
+    setShowCorrectionForm(false);
     setTransfer(null);
     setPromiseTransfer(null);
     setCancelExpense(null);
@@ -221,6 +236,18 @@ export function HouseFinances({
   const ledgerOwner = data.expenses.ownerId === userId;
   const owner = data.expenses.active && ledgerOwner;
   const active = data.expenses.active;
+  const lockedForm =
+    form &&
+    form !== "new" &&
+    data.expenses.items.some(
+      (expense) => expense.id === form.id && expense.status === "SETTLED",
+    );
+  const lockedCancellation =
+    cancelExpense &&
+    data.expenses.items.some(
+      (expense) =>
+        expense.id === cancelExpense.id && expense.status === "SETTLED",
+    );
   const canSettle =
     owner &&
     data.unsettledCount > 0 &&
@@ -259,11 +286,24 @@ export function HouseFinances({
             <Button
               onClick={() => {
                 setForm("new");
+                setShowCorrectionForm(false);
                 setTransfer(null);
                 setPromiseTransfer(null);
               }}
             >
               ＋ Ghi khoản chi
+            </Button>
+          )}
+          {active && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowCorrectionForm(true);
+                setForm(null);
+                setCancelExpense(null);
+              }}
+            >
+              Điều chỉnh sau chốt
             </Button>
           )}
           {owner && (
@@ -286,12 +326,34 @@ export function HouseFinances({
       </Card>
       {data.isSettled && (
         <p className="success-state" role="status">
-          Đã chốt quyết toán. Lịch sử được giữ; ghi khoản chi mới sẽ bắt đầu
-          phần chưa chốt.
+          Đã chốt quyết toán. Khoản đã chốt chỉ được xem, không thể sửa, hủy
+          hoặc thay biên nhận. Khoản chi mới và điều chỉnh riêng sẽ bắt đầu đợt
+          mới.
         </p>
       )}
+      {showCorrectionForm && active && (
+        <FocusPanel className="card house-panel" label="Điều chỉnh sau chốt">
+          <ExpenseCorrectionForm
+            houseId={houseId}
+            userId={userId}
+            ownerId={data.expenses.ownerId}
+            participants={data.participants}
+            onCancel={() => setShowCorrectionForm(false)}
+            onSaved={() => {
+              changed();
+              setNotice(
+                "Đã ghi điều chỉnh riêng vào đợt mới. Khoản đã chốt được giữ nguyên.",
+              );
+            }}
+          />
+        </FocusPanel>
+      )}
       {promiseTransfer && (
-        <Card className="house-panel">
+        <FocusPanel
+          className="card house-panel"
+          label="Hẹn ngày trả tiền"
+          focusKey={promiseTransfer}
+        >
           <RepaymentPromiseForm
             key={`${promiseTransfer.payerId}:${promiseTransfer.recipientId}`}
             houseId={houseId}
@@ -307,10 +369,20 @@ export function HouseFinances({
             }}
             onCancel={() => setPromiseTransfer(null)}
           />
-        </Card>
+        </FocusPanel>
       )}
-      {form && active && (
-        <Card className="house-panel">
+      {lockedForm && (
+        <p className="finance-note" role="status">
+          Khoản chi vừa được chốt. Dùng Điều chỉnh sau chốt nếu cần ghi chênh
+          lệch.
+        </p>
+      )}
+      {form && active && !lockedForm && (
+        <FocusPanel
+          className="card house-panel"
+          label={form === "new" ? "Ghi khoản chi" : "Chỉnh sửa khoản chi"}
+          focusKey={form}
+        >
           <ExpenseForm
             key={form === "new" ? "new" : `${form.id}:${form.version}`}
             houseId={houseId}
@@ -323,10 +395,14 @@ export function HouseFinances({
               setRefresh((value) => value + 1);
             }}
           />
-        </Card>
+        </FocusPanel>
       )}
       {transfer && (
-        <Card className="house-panel">
+        <FocusPanel
+          className="card house-panel"
+          label="Ghi nhận đã trả tiền"
+          focusKey={transfer}
+        >
           <PaymentForm
             key={`${transfer.payerId}:${transfer.recipientId}`}
             houseId={houseId}
@@ -334,10 +410,14 @@ export function HouseFinances({
             onSaved={changed}
             onCancel={() => setTransfer(null)}
           />
-        </Card>
+        </FocusPanel>
       )}
-      {cancelExpense && (
-        <Card className="house-panel">
+      {cancelExpense && !lockedCancellation && (
+        <FocusPanel
+          className="card house-panel"
+          label="Hủy khoản chi"
+          focusKey={cancelExpense}
+        >
           <form
             className="house-form"
             onSubmit={(event) => {
@@ -374,10 +454,14 @@ export function HouseFinances({
               </Button>
             </div>
           </form>
-        </Card>
+        </FocusPanel>
       )}
       {history && (
-        <Card className="house-panel">
+        <FocusPanel
+          className="card house-panel"
+          label={`Lịch sử · ${history.expense.title}`}
+          focusKey={history}
+        >
           <div className="house-row">
             <h2>Lịch sử · {history.expense.title}</h2>
             <Button variant="secondary" onClick={() => setHistory(null)}>
@@ -387,10 +471,18 @@ export function HouseFinances({
           {history.items.map((item) => (
             <article className="expense-history" key={item.id}>
               <strong>
-                Phiên bản {item.version} ·{" "}
-                {item.createdBy.profile?.displayName ?? "Thành viên Roomora"}
+                {item.action === "POST_SETTLEMENT_CORRECTION"
+                  ? `Điều chỉnh riêng #${item.version}`
+                  : `Phiên bản ${item.version}`}{" "}
+                · {item.createdBy.profile?.displayName ?? "Thành viên Roomora"}
               </strong>
               <p>{item.reason}</p>
+              {item.action === "POST_SETTLEMENT_CORRECTION" && (
+                <p className="text-muted">
+                  Nội dung điều chỉnh được ghi riêng; khoản gốc đã chốt được giữ
+                  nguyên.
+                </p>
+              )}
               <small>{formatTime(item.createdAt)}</small>
               <div className="expense-history-values">
                 <div>
@@ -423,7 +515,7 @@ export function HouseFinances({
               )}
             </article>
           ))}
-        </Card>
+        </FocusPanel>
       )}
       {receipt && (
         <Card className="house-panel receipt-preview">
@@ -534,13 +626,14 @@ export function HouseFinances({
                   )}
                   {active &&
                     expense.status !== "CANCELLED" &&
+                    expense.status !== "SETTLED" &&
                     (owner || expense.createdById === userId) && (
                       <>
                         <Button
                           variant="secondary"
                           onClick={() => setForm(expense)}
                         >
-                          {expense.status === "SETTLED" ? "Điều chỉnh" : "Sửa"}
+                          Sửa
                         </Button>
                         <Button
                           variant="secondary"
@@ -554,6 +647,18 @@ export function HouseFinances({
                       </>
                     )}
                 </div>
+                {expense.status === "SETTLED" && (
+                  <p className="text-muted">
+                    Khoản đã chốt · Chỉ xem và đối chiếu.
+                    {expense.corrections.length > 0 && (
+                      <>
+                        {" "}
+                        Có {expense.corrections[0].version} điều chỉnh riêng;
+                        khoản gốc được giữ nguyên.
+                      </>
+                    )}
+                  </p>
+                )}
               </Card>
             ))}
           </div>
@@ -562,6 +667,61 @@ export function HouseFinances({
             pages={data.expenses.pages}
             onChange={setPage}
           />
+          {data.corrections.total > 0 && (
+            <section className="house-stack" aria-label="Điều chỉnh sau chốt">
+              <h2>Điều chỉnh sau chốt</h2>
+              {data.corrections.items.map((correction) => (
+                <Card
+                  className={`house-panel expense-card status-${correction.settledAt ? "settled" : "active"}`}
+                  key={correction.id}
+                >
+                  <span
+                    className={`finance-status status-${correction.settledAt ? "settled" : "active"}`}
+                  >
+                    {correction.settledAt ? "Đã quyết toán" : "Chưa quyết toán"}
+                  </span>
+                  <div className="house-row">
+                    <h3>
+                      Điều chỉnh #{correction.version} ·{" "}
+                      {correction.expense.title}
+                    </h3>
+                    <strong className="finance-money">
+                      {correction.amountDelta > 0 ? "+" : ""}
+                      {money(correction.amountDelta)}
+                    </strong>
+                  </div>
+                  <p>
+                    {money(correction.oldSnapshot.amount)} →{" "}
+                    {money(correction.newSnapshot.amount)}
+                  </p>
+                  <p className="house-preline">{correction.reason}</p>
+                  <p className="text-muted">
+                    Ghi bởi {correction.createdByName} ·{" "}
+                    {formatTime(correction.createdAt)}
+                  </p>
+                  <div className="expense-split-list">
+                    {correction.shares.map((share) => (
+                      <span key={share.participantId}>
+                        {share.participant.displayName}: đã chi{" "}
+                        {share.paidDelta > 0 ? "+" : ""}
+                        {money(share.paidDelta)}, phần chịu{" "}
+                        {share.owedDelta > 0 ? "+" : ""}
+                        {money(share.owedDelta)}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-muted">
+                    Chỉ xem. Sửa sai bằng một điều chỉnh mới.
+                  </p>
+                </Card>
+              ))}
+              <Pagination
+                page={data.corrections.page}
+                pages={data.corrections.pages}
+                onChange={setCorrectionPage}
+              />
+            </section>
+          )}
           {owner && (
             <Card className="house-panel">
               <h2>Người tham gia ngoài ứng dụng</h2>

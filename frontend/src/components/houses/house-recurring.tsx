@@ -14,6 +14,7 @@ import { Button, Card, ErrorState, LoadingState } from "../ui";
 import { Pagination } from "../communications/pagination";
 import { ExpenseForm } from "./expense-form";
 import { RecurringRuleForm } from "./recurring-rule-form";
+import { FocusPanel } from "../focus-panel";
 import { useHouseholdData } from "./use-household-data";
 import {
   HouseholdHero,
@@ -127,7 +128,11 @@ export function HouseRecurring({
         </p>
       )}
       {form && (
-        <Card className="house-panel">
+        <FocusPanel
+          className="card house-panel"
+          label="Ghi / sửa quy tắc chi phí định kỳ"
+          focusKey={form}
+        >
           <RecurringRuleForm
             key={form === "new" ? "new" : form.id}
             houseId={house.id}
@@ -143,10 +148,14 @@ export function HouseRecurring({
               reload();
             }}
           />
-        </Card>
+        </FocusPanel>
       )}
       {draft && (
-        <Card className="house-panel">
+        <FocusPanel
+          className="card house-panel"
+          label="Xác nhận khoản chi định kỳ"
+          focusKey={draft}
+        >
           <ExpenseForm
             key={draft.id}
             houseId={house.id}
@@ -160,7 +169,7 @@ export function HouseRecurring({
               reload();
             }}
           />
-        </Card>
+        </FocusPanel>
       )}
       <Card className="house-panel household-drafts">
         <div className="household-section-heading">

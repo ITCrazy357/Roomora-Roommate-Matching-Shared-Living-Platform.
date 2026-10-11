@@ -234,6 +234,29 @@
 .expense-card.status-cancelled {
   border-left-color: var(--border-strong);
 }
+.correction-shares {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+.correction-share {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.correction-share > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.correction-share input[type="checkbox"] {
+  accent-color: var(--primary-action);
+}
+.correction-share .field {
+  margin-top: 8px;
+}
 .finance-status.status-confirmed,
 .finance-status.status-settled {
   background: var(--success-soft);

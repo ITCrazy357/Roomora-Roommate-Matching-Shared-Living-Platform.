@@ -203,13 +203,22 @@ export function renderReportPdf(report: Report): Promise<Buffer> {
     table(
       ['Ngày', 'Khoản chi / Danh mục', 'Người trả', 'Số tiền', 'Trạng thái'],
       [0.13, 0.29, 0.22, 0.19, 0.17],
-      report.expenses.map((row) => [
-        date(row.spentOn),
-        `${row.title}\n${categoryLabels[row.category]}`,
-        person(row.payer),
-        money(row.amount),
-        statuses[row.status],
-      ]),
+      [
+        ...report.expenses.map((row) => [
+          date(row.spentOn),
+          `${row.title}\n${categoryLabels[row.category]}`,
+          person(row.payer),
+          money(row.amount),
+          statuses[row.status],
+        ]),
+        ...report.corrections.map((row) => [
+          date(row.recordedOn),
+          `Điều chỉnh #${row.version}: ${row.expense.title}\n${row.reason}`,
+          `Ghi bởi ${row.createdByName}`,
+          money(row.amountDelta),
+          row.settledAt ? 'Đã quyết toán' : 'Chưa quyết toán',
+        ]),
+      ],
     );
 
     section(

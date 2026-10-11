@@ -8,7 +8,7 @@ Controller → Service chính → Service phụ → Prisma / service dùng chung
 
 | Service chính          | Service phụ theo nhiệm vụ                                                                                                                                                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ExpensesService`      | `ExpenseRecordsService`, `ExpenseParticipantsService`, `ExpenseBalancesService`, `ExpensePaymentsService`, `ExpenseReceiptsService`, `ExpensePromisesService`                   |
+| `ExpensesService`      | `ExpenseRecordsService`, `ExpenseCorrectionsService` (điều chỉnh sau chốt), `ExpenseParticipantsService`, `ExpenseBalancesService`, `ExpensePaymentsService`, `ExpenseReceiptsService`, `ExpensePromisesService` |
 | `AuthService`          | `AuthAccountsService` (đăng ký/đăng nhập/tài khoản), `AuthVerificationService` (xác minh email), `AuthRecoveryService` (khôi phục mật khẩu), `SessionService` (phiên đăng nhập) |
 | `HousesService`        | `HouseDetailsService` (thông tin nhà), `HouseMembershipsService` (tạo/chuyển trưởng nhà/rời nhà), `HouseInvitesService` (lời mời), `HouseAnnouncementsService` (thông báo nhà)  |
 | `HouseChatService`     | `HouseChatMessagesService` (tin nhắn/tệp), `HouseChatPollsService` (bình chọn)                                                                                                  |

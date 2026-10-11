@@ -187,8 +187,8 @@ Trạng thái bổ sung 10/10/2026:
   Migration chat_files_house_polls đã deploy; 40 kiểm thử chat HTTP/PostgreSQL qua.
   Edge kiểm tra tạo/bỏ/đổi/đóng bình chọn, SSE, tải tệp đúng nội dung và tên,
   bố cục bình chọn/xem trước/tin có tệp không tràn ngang ở 320–1920 px.
-- Nút thêm tệp hiện có chữ "Thêm tệp" trên thanh công cụ chat cá nhân/chung,
-  dễ nhận ra hơn biểu tượng kẹp giấy đơn lẻ; đã kiểm tra mở trình chọn và gửi/tải thực tế.
+- Chat cá nhân/chung bỏ nút "Chọn ghi âm" trên thanh công cụ; nút thêm tệp dùng icon
+  kẹp giấy nằm cạnh nút tải ảnh ở hàng dưới. Giữ nút micro và bình chọn trong chat chung.
 - Service chi phí đã tách theo khoản chi, người tham gia, số dư/quyết toán,
   thanh toán, biên nhận và ngày hẹn trả. Controller gọi ExpensesService làm đầu mối;
   service chính inject các service phụ, quyền và lịch sử/SSE dùng chung.
@@ -199,7 +199,7 @@ Trạng thái bổ sung 10/10/2026:
 - Đã hoàn thành backend và frontend khoản chi, chia đều/chia cụ thể, ảnh biên nhận riêng tư,
   số dư, gợi ý bù trừ, thanh toán chờ người nhận xác nhận và chốt quyết toán.
 - Sau quyết toán có thông báo cho thành viên; nút chuyển "Đã chốt" và bị khóa,
-  giữ sau tải lại trang. Khoản chi mới/điều chỉnh mở lại trạng thái chưa chốt.
+  giữ sau tải lại trang. Khoản chi mới/điều chỉnh riêng bắt đầu đợt chưa chốt.
 - Nhắc nợ email mỗi 7 ngày theo từng người/nhà, loại tiền đã ghi trả chờ xác nhận;
   hủy mail chưa gửi khi trả đủ. Người đang nợ được hẹn ngày trả (từ hôm nay đến 30 ngày tới),
   sửa/hủy có kiểm tra phiên bản; người nhận nhận thông báo, người ngoài app qua trưởng nhà.
@@ -218,12 +218,28 @@ Trạng thái bổ sung 10/10/2026:
   Edge kiểm tra chọn/bỏ/tải/xem ảnh, xác nhận/quyết toán và bố cục 320–1920 px không tràn ngang.
 - Chia tiền theo VNĐ nguyên, phần dư phân bổ nhất quán; gửi lại khoản chi/thanh toán
   cùng clientId không tạo bản ghi trùng. Sửa/hủy cần lý do và lưu lịch sử trước/sau.
-  Điều chỉnh khoản đã quyết toán giữ nguyên các thanh toán đã xác nhận và tính lại nợ.
+  Khoản đã quyết toán chỉ được xem lịch sử/biên nhận, không sửa/hủy/thay biên nhận.
+  Điều chỉnh sau chốt ghi bản riêng có lý do, người ghi và nội dung trước/sau;
+  chỉ chênh lệch đã chi/phần chịu vào đợt mới, giữ nguyên khoản gốc và thanh toán cũ.
+  Có thể tăng/giảm tiền, đổi người trả/phần chia hoặc nhập 0 để đảo khoản ghi sai;
+  khoản có quy tắc đã thống nhất giữ cách chia gốc. Điều chỉnh tiếp dựa trên lần gần nhất.
+  Điều chỉnh đã ghi chỉ được xem; sửa sai bằng điều chỉnh mới. Chốt cả khoản mới và
+  điều chỉnh khi toàn bộ số dư bằng 0, không có thanh toán chờ; không chốt lại khoản gốc.
+  Báo cáo/CSV/PDF ghi chênh lệch vào ngày điều chỉnh, giữ tổng khoản gốc của kỳ cũ.
+  Migration bổ sung: 20261011020000_immutable_settled_expenses.
+  Kiểm chứng khóa/điều chỉnh: 90 E2E HTTP/PostgreSQL liên quan và 68 unit test qua;
+  build backend/frontend, TypeScript và lint không có lỗi. Edge kiểm tra hoàn tiền,
+  chốt lại, tải CSV/PDF đúng chênh lệch âm và responsive 320–1920 px không tràn ngang.
 - Người ở cùng không dùng app được thêm vào sổ chi phí, không tạo tài khoản/quyền chat.
   Với người nhận ngoài app, trưởng nhà ghi nhận thủ công sau khi kiểm tra với họ;
   giao diện ghi rõ đây là xác nhận thủ công.
 - Thành viên rời nhà vẫn xem được lịch sử liên quan và trả/xác nhận nợ cũ qua Lịch sử công nợ.
   Có thanh toán đang chờ thì phải xác nhận/từ chối/hủy trước khi thay đổi khoản chi.
+- Nút mở form/lịch sử/chi tiết chuyển focus và cuộn tới nội dung khi nằm ngoài màn hình.
+  Áp dụng cho tài chính, việc nhà, mua chung, chi phí định kỳ, bình chọn, lịch hẹn,
+  đối chiếu kết nối và kiểm duyệt tin. Không tự chuyển focus khi dữ liệu cập nhật.
+  Edge đã kiểm tra các form Nhà chung ở 390/1366 px, trả focus khi đóng lịch sử,
+  giữ ô nhập/vị trí cuộn qua SSE và hỗ trợ giảm chuyển động. Build frontend và lint qua.
 - Kiểm chứng: migration đã deploy lên PostgreSQL local; 58 kiểm thử HTTP/PostgreSQL
   của chi phí, chat, Nhà chung và tin đăng đã qua. Build backend/frontend, TypeScript/lint qua.
   Trình duyệt thật đã kiểm tra các luồng chính và responsive 1440/390/320 px.

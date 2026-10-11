@@ -34,6 +34,11 @@ export class ExpenseAccessService {
                 { payer: { userId } },
                 { createdById: userId },
                 { splits: { some: { participant: { userId } } } },
+                {
+                  corrections: {
+                    some: { shares: { some: { participant: { userId } } } },
+                  },
+                },
               ],
             }
           : {}),
@@ -45,6 +50,17 @@ export class ExpenseAccessService {
   }
 
   editable(userId: string, ownerId: string, row: ExpenseRow, version: number) {
+    this.authorized(userId, ownerId, row, version);
+    if (row.status === 'SETTLED')
+      throw new ConflictException({ code: 'EXPENSE_SETTLED' });
+  }
+
+  authorized(
+    userId: string,
+    ownerId: string,
+    row: ExpenseRow,
+    version: number,
+  ) {
     if (userId !== ownerId && userId !== row.createdById)
       throw new ForbiddenException({ code: 'EXPENSE_FORBIDDEN' });
     if (row.version !== version || row.status === 'CANCELLED')

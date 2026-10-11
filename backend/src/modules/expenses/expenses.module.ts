@@ -17,10 +17,17 @@ import { ExpenseAccessService } from './expense-access.service.js';
 import { ExpenseEventsService } from './expense-events.service.js';
 import { ExpenseRemindersService } from './expense-reminders.service.js';
 import { ExpensePromisesService } from './expense-promises.service.js';
+import { ExpenseCorrectionsService } from './expense-corrections.service.js';
 import { CostSharingModule } from '../cost-sharing/cost-sharing.module.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule, HousesModule, CommunicationsModule, CostSharingModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    HousesModule,
+    CommunicationsModule,
+    CostSharingModule,
+  ],
   controllers: [ExpensesController, FinanceHistoryController],
   exports: [ExpenseRecordsService],
   providers: [
@@ -34,6 +41,7 @@ import { CostSharingModule } from '../cost-sharing/cost-sharing.module.js';
     ExpenseEventsService,
     ExpenseRemindersService,
     ExpensePromisesService,
+    ExpenseCorrectionsService,
   ],
 })
 export class ExpensesModule {}

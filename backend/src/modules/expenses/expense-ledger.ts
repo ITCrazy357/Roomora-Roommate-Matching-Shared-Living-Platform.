@@ -42,6 +42,20 @@ export async function calculateHouseBalances(
     for (const split of expense.splits)
       rows.get(split.participantId)!.owed += split.amount;
   }
+  const corrections = await tx.expenseCorrection.findMany({
+    where: { houseId },
+    select: {
+      shares: {
+        select: { participantId: true, paidDelta: true, owedDelta: true },
+      },
+    },
+  });
+  for (const correction of corrections) {
+    for (const share of correction.shares) {
+      rows.get(share.participantId)!.paid += share.paidDelta;
+      rows.get(share.participantId)!.owed += share.owedDelta;
+    }
+  }
   for (const payment of payments) {
     if (payment.status === 'CONFIRMED') {
       rows.get(payment.payerId)!.sent += payment.amount;

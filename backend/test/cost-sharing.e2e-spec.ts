@@ -141,6 +141,8 @@ describe('Monthly cost sharing (real HTTP and PostgreSQL)', () => {
     await prisma.expenseAdjustment.deleteMany({
       where: { expense: { houseId } },
     });
+    await prisma.debtPayment.deleteMany({ where: { houseId } });
+    await prisma.expenseCorrection.deleteMany({ where: { houseId } });
     await prisma.expense.deleteMany({ where: { houseId } });
     await prisma.costSharingPeriod.deleteMany({ where: { houseId } });
     await prisma.costSharingSetting.deleteMany({ where: { houseId } });
@@ -402,7 +404,7 @@ describe('Monthly cost sharing (real HTTP and PostgreSQL)', () => {
     ).body;
     row = await agree(row);
     const monthly = await open();
-    expect(monthly.fallbackSnapshot.periodId).toBe(row.id);
+    expect(monthly.fallbackSnapshot).toMatchObject({ periodId: row.id });
     await expire(monthly);
     expect((await period()).status).toBe('FALLBACK');
     const expense = (await post(0, expenses(), input()).expect(201)).body;
@@ -452,7 +454,7 @@ describe('Monthly cost sharing (real HTTP and PostgreSQL)', () => {
       expense = (await post(0, expenses(), body).expect(201)).body;
     expect(expense.sharingPeriodId).toBe(row.id);
     expect(
-      expense.splits
+      (expense.splits as { participantId: string; amount: number }[])
         .map((s: { participantId: string; amount: number }) => [
           s.participantId,
           s.amount,
@@ -469,6 +471,68 @@ describe('Monthly cost sharing (real HTTP and PostgreSQL)', () => {
     expect(retry.id).toBe(expense.id);
     const manual = (await post(0, expenses(), input('OTHER')).expect(201)).body;
     expect(manual.sharingPeriodId).toBeNull();
+  });
+  it('preserves the agreed weighted snapshot when correcting a closed expense', async () => {
+    let period = await open();
+    await vote(0, period, 'WEIGHTED').expect(201);
+    period = (
+      await post(
+        1,
+        base() + `/periods/${period.id}/proposals`,
+        proposal(period),
+      ).expect(201)
+    ).body;
+    await agree(period, 'AGREE');
+    const expense = (await post(0, expenses(), input()).expect(201)).body;
+    for (const [index, amount] of [
+      [1, 300],
+      [2, 200],
+    ]) {
+      const payment = (
+        await post(index, expenses() + '/payments', {
+          clientId: randomUUID(),
+          recipientId: ids[0],
+          amount,
+          method: 'CASH',
+        }).expect(201)
+      ).body;
+      await post(0, expenses() + `/payments/${payment.id}`, {
+        version: 1,
+        action: 'confirm',
+      }).expect(201);
+    }
+    await post(0, expenses() + '/settle', {}).expect(201);
+    const original = await prisma.expense.findUniqueOrThrow({
+      where: { id: expense.id },
+    });
+    // A later unresolved period must not replace the original agreed allocation.
+    await prisma.costSharingPeriod.update({
+      where: { id: period.id },
+      data: { status: 'UNRESOLVED' },
+    });
+    const correction = (
+      await post(0, expenses() + '/corrections', {
+        expenseId: expense.id,
+        expenseVersion: original.version,
+        correctionVersion: 0,
+        clientId: randomUUID(),
+        reason: 'Hóa đơn thực tế tăng sau khi đã chốt',
+        amount: 1101,
+        payerId: ids[0],
+        splitMode: 'EQUAL',
+        participantIds: [ids[0]],
+      }).expect(201)
+    ).body;
+    expect(correction.newSnapshot.splits).toEqual(
+      expect.arrayContaining([
+        { participantId: ids[0], amount: 551 },
+        { participantId: ids[1], amount: 330 },
+        { participantId: ids[2], amount: 220 },
+      ]),
+    );
+    expect(
+      await prisma.expense.findUniqueOrThrow({ where: { id: expense.id } }),
+    ).toEqual(original);
   });
   it('preserves old manual expenses when enabling the monthly rule', async () => {
     const body = input(),
@@ -508,7 +572,7 @@ describe('Monthly cost sharing (real HTTP and PostgreSQL)', () => {
       where: { houseId_id: { houseId, id: ids[2] } },
       data: { leftAt: new Date() },
     });
-    expect((await period()).membershipChanged).toBe(true);
+    expect(await period()).toMatchObject({ membershipChanged: true });
     await post(0, expenses(), input()).expect(409);
     await vote(2, row).expect(404);
     const next = (

@@ -363,36 +363,15 @@ export function MessageComposer<T extends Message = Message>({
       <div className="composer-shortcuts">
         <div className="composer-shortcut-actions">
           {shortcuts}
-          <Button
-            variant="secondary"
-            disabled={pending || recording || startingRecording}
-            onClick={() =>
-              onCreatePoll ? onCreatePoll() : audioInput.current?.click()
-            }
-          >
-            {onCreatePoll ? "Tạo bình chọn" : "Chọn ghi âm"}
-          </Button>
-          <Button
-            variant="secondary"
-            className="composer-attach"
-            aria-label="Thêm tệp"
-            title="Thêm tệp (tối đa 4 tệp, tổng 5 MB)"
-            disabled={
-              pending || recording || startingRecording || files.length >= 4
-            }
-            onClick={() => fileInput.current?.click()}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              aria-hidden="true"
+          {onCreatePoll && (
+            <Button
+              variant="secondary"
+              disabled={pending || recording || startingRecording}
+              onClick={onCreatePoll}
             >
-              <path d="m8 13 7-7a3 3 0 0 1 4 4L9 20a5 5 0 0 1-7-7L13 2m-6 13 8-8" />
-            </svg>
-            Thêm tệp
-          </Button>
+              Tạo bình chọn
+            </Button>
+          )}
         </div>
         <small>Enter gửi · Shift + Enter xuống dòng</small>
       </div>
@@ -520,6 +499,26 @@ export function MessageComposer<T extends Message = Message>({
             <rect x="3" y="3" width="18" height="18" rx="3" />
             <circle cx="8.5" cy="8.5" r="1.5" />
             <path d="m3 17 5-5 4 4 3-3 6 6" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="composer-icon"
+          aria-label="Thêm tệp"
+          title="Thêm tệp (tối đa 4 tệp, tổng 5 MB)"
+          disabled={
+            pending || recording || startingRecording || files.length >= 4
+          }
+          onClick={() => fileInput.current?.click()}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            aria-hidden="true"
+          >
+            <path d="m8 13 7-7a3 3 0 0 1 4 4L9 20a5 5 0 0 1-7-7L13 2m-6 13 8-8" />
           </svg>
         </button>
         <button

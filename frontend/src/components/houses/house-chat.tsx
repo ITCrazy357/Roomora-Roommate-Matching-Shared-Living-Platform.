@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { FocusPanel } from "../focus-panel";
 import { apiFetch } from "@/lib/api";
 import { houseError } from "@/lib/houses";
 import { formatTime } from "@/lib/communications";
@@ -213,15 +214,17 @@ export function HouseChat({
           </div>
           {sendError && <ErrorState message={sendError} />}
           {creatingPoll && (
-            <HousePollForm
-              houseId={houseId}
-              onCancel={() => setCreatingPoll(false)}
-              onSaved={(row) => {
-                stayAtBottom.current = true;
-                setMessages((old) => merge(old ?? [], [row]));
-                setCreatingPoll(false);
-              }}
-            />
+            <FocusPanel label="Tạo cuộc bình chọn">
+              <HousePollForm
+                houseId={houseId}
+                onCancel={() => setCreatingPoll(false)}
+                onSaved={(row) => {
+                  stayAtBottom.current = true;
+                  setMessages((old) => merge(old ?? [], [row]));
+                  setCreatingPoll(false);
+                }}
+              />
+            </FocusPanel>
           )}
           <MessageComposer<HouseMessage>
             path={path}

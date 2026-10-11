@@ -4,6 +4,8 @@ import type {
   UpdateExpenseDto,
   CancelExpenseDto,
   ExpenseQueryDto,
+  ExpenseListQueryDto,
+  CreateExpenseCorrectionDto,
   CreateDebtPaymentDto,
   PaymentActionDto,
   ExpenseVersionDto,
@@ -15,6 +17,7 @@ import { ExpenseParticipantsService } from './expense-participants.service.js';
 import { ExpensePaymentsService } from './expense-payments.service.js';
 import { ExpenseReceiptsService } from './expense-receipts.service.js';
 import { ExpensePromisesService } from './expense-promises.service.js';
+import { ExpenseCorrectionsService } from './expense-corrections.service.js';
 
 @Injectable()
 export class ExpensesService {
@@ -25,6 +28,7 @@ export class ExpensesService {
     private readonly paymentsService: ExpensePaymentsService,
     private readonly receipts: ExpenseReceiptsService,
     private readonly promises: ExpensePromisesService,
+    private readonly correctionsService: ExpenseCorrectionsService,
   ) {}
 
   create(userId: string, houseId: string, dto: CreateExpenseDto) {
@@ -39,8 +43,16 @@ export class ExpensesService {
     return this.records.cancel(userId, houseId, id, dto);
   }
 
-  list(userId: string, houseId: string, query: ExpenseQueryDto) {
+  list(userId: string, houseId: string, query: ExpenseListQueryDto) {
     return this.records.list(userId, houseId, query);
+  }
+
+  correct(userId: string, houseId: string, dto: CreateExpenseCorrectionDto) {
+    return this.correctionsService.create(userId, houseId, dto);
+  }
+
+  corrections(userId: string, houseId: string, query: ExpenseQueryDto) {
+    return this.correctionsService.list(userId, houseId, query);
   }
 
   adjustments(userId: string, houseId: string, id: string) {

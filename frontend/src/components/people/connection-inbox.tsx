@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { usePanelFocus } from "../use-panel-focus";
 import { useAuth } from "../auth-provider";
 import {
   Button,
@@ -32,7 +33,6 @@ export function ConnectionInbox({
   initialTab?: ConnectionTab;
 }) {
   const { user, loading } = useAuth();
-  const panel = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<ConnectionTab>(initialTab);
   const [page, setPage] = useState(1);
   const [refreshCount, setRefreshCount] = useState(0);
@@ -53,10 +53,9 @@ export function ConnectionInbox({
     (item): item is Person =>
       "connection" in item && item.userId === selectedUserId,
   );
-  useEffect(() => {
-    if (selectedUserId)
-      panel.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [selectedUserId]);
+  const panel = usePanelFocus(
+    person?.userId === selectedUserId ? selectedUserId : null,
+  );
   useEffect(() => {
     if (!user) return;
     const controller = new AbortController();
@@ -224,7 +223,13 @@ export function ConnectionInbox({
               </Card>
             ))}
           </div>
-          <div ref={panel} className="people-detail-panel">
+          <div
+            ref={panel}
+            className="people-detail-panel focus-panel"
+            tabIndex={-1}
+            role="region"
+            aria-label="Đối chiếu người ở ghép"
+          >
             {person ? (
               <PersonDetails
                 key={person.userId}

@@ -18,6 +18,11 @@ export const expenseInclude = {
     include: { participant: { select: personSelect } },
   },
   receipt: { select: { expenseId: true } },
+  corrections: {
+    orderBy: { version: 'desc' },
+    take: 1,
+    select: { version: true, newSnapshot: true },
+  },
 } as const;
 
 export const paymentInclude = {

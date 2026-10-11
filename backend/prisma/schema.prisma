@@ -210,6 +210,7 @@ model User {
   recurringExpenses   RecurringExpense[]
   adminActions        AdminAction[]
   systemAnnouncements SystemAnnouncement[]
+  serviceOrders       ServiceOrder[]
 
   @@index([role, lockedAt, createdAt])
   @@map("users")
@@ -217,6 +218,10 @@ model User {
 
 model Listing {
   id                String             @id @default(uuid()) @db.Uuid
+  boostUntil        DateTime?          @map("boost_until")
+  postingRound      Int                @default(1) @map("posting_round")
+  serviceOrders     ServiceOrder[]
+  boosts            ListingBoost[]
   appointments      Appointment[]
   ownerId           String             @map("owner_id") @db.Uuid
   status            ListingStatus      @default(DRAFT)
@@ -266,6 +271,7 @@ model Listing {
   @@index([status, provinceCode, wardCode, rent])
   @@index([ownerId, updatedAt])
   @@index([amenities], type: Gin)
+  @@index([status, boostUntil])
   @@map("listings")
 }
 
@@ -458,6 +464,7 @@ enum NotificationType {
   MESSAGE
   APPOINTMENT
   HOUSE
+  SERVICE
 }
 
 model Conversation {
@@ -1259,4 +1266,86 @@ model HousePollVote {
   @@id([pollId, userId])
   @@index([pollId, optionId])
   @@map("house_poll_votes")
+}
+
+enum ServiceOrderStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
+model ServiceOrder {
+  id                String                @id @default(uuid()) @db.Uuid
+  userId            String                @map("user_id") @db.Uuid
+  listingId         String                @map("listing_id") @db.Uuid
+  postingRound      Int                   @default(1) @map("posting_round")
+  clientId          String                @map("client_id") @db.Uuid
+  planCode          String                @map("plan_code") @db.VarChar(50)
+  planName          String                @map("plan_name") @db.VarChar(150)
+  amount            Int
+  durationDays      Int                   @map("duration_days")
+  buyerName         String                @map("buyer_name") @db.VarChar(100)
+  buyerEmail        String                @map("buyer_email") @db.VarChar(320)
+  listingTitle      String                @map("listing_title") @db.VarChar(150)
+  status            ServiceOrderStatus    @default(PENDING)
+  provider          String                @default("MOMO_SANDBOX") @db.VarChar(30)
+  providerOrderCode String?               @unique @map("provider_order_code") @db.VarChar(16)
+  providerLinkId    String?               @map("provider_link_id") @db.VarChar(32)
+  providerTransId   String?               @map("provider_trans_id") @db.VarChar(128)
+  payUrl            String?               @map("pay_url") @db.VarChar(2000)
+  checkoutLeaseAt   DateTime?             @map("checkout_lease_at")
+  expiresAt         DateTime              @map("expires_at")
+  paidAt            DateTime?             @map("paid_at")
+  resultCode        Int?                  @map("result_code")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  listing           Listing               @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  boost             ListingBoost?
+  refund            ServiceRefundRequest?
+  events            ServicePaymentEvent[]
+
+  @@unique([userId, clientId])
+  @@unique([provider, providerTransId])
+  @@index([userId, createdAt, id])
+  @@index([status, expiresAt])
+  @@index([listingId, postingRound, status])
+  @@map("service_orders")
+}
+
+model ListingBoost {
+  id        String       @id @default(uuid()) @db.Uuid
+  orderId   String       @unique @map("order_id") @db.Uuid
+  listingId String       @map("listing_id") @db.Uuid
+  startsAt  DateTime     @map("starts_at")
+  endsAt    DateTime     @map("ends_at")
+  order     ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  listing   Listing      @relation(fields: [listingId], references: [id], onDelete: Restrict)
+
+  @@index([listingId, endsAt])
+  @@map("listing_boosts")
+}
+
+model ServiceRefundRequest {
+  id        String       @id @default(uuid()) @db.Uuid
+  orderId   String       @unique @map("order_id") @db.Uuid
+  reason    String       @db.VarChar(1000)
+  createdAt DateTime     @default(now()) @map("created_at")
+  order     ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@map("service_refund_requests")
+}
+
+model ServicePaymentEvent {
+  id         String       @id @default(uuid()) @db.Uuid
+  orderId    String       @map("order_id") @db.Uuid
+  signature  String       @unique @db.VarChar(64)
+  resultCode Int          @map("result_code")
+  transId    String       @map("trans_id") @db.VarChar(128)
+  receivedAt DateTime     @default(now()) @map("received_at")
+  order      ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, receivedAt])
+  @@map("service_payment_events")
 }

@@ -3,16 +3,10 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import type { DesiredLocation } from "@/lib/profile";
-import { Select } from "./ui";
+import { SearchableSelect } from "./searchable-select";
 import { ProfileIcon } from "./profile-icon";
 
 type Unit = { code: string; name: string };
-const normalize = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .toLowerCase();
 
 export function LocationPicker({
   value,
@@ -31,7 +25,6 @@ export function LocationPicker({
   const [wards, setWards] = useState<Unit[]>([]);
   const [province, setProvince] = useState("");
   const [ward, setWard] = useState("");
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -91,7 +84,6 @@ export function LocationPicker({
     setProvince("");
     setWard("");
     setWards([]);
-    setSearch("");
     setError("");
     onUnadded(false);
   }
@@ -99,66 +91,40 @@ export function LocationPicker({
   return (
     <div className="location-picker">
       <div className="form-grid">
-        <Select
+        <SearchableSelect
           id="province"
           label="Tỉnh / thành phố"
           value={province}
+          placeholder="Chọn tỉnh / thành phố"
+          options={provinces}
           disabled={disabled || !provinces.length || value.length >= 5}
-          onChange={(event) => {
-            setProvince(event.target.value);
+          onChange={(code) => {
+            setProvince(code);
             setWard("");
             setWards([]);
-            setSearch("");
             setError("");
-            setLoading(Boolean(event.target.value));
-            onUnadded(Boolean(event.target.value));
+            setLoading(Boolean(code));
+            onUnadded(Boolean(code));
           }}
-        >
-          <option value="">Chọn tỉnh / thành phố</option>
-          {provinces.map((item) => (
-            <option key={item.code} value={item.code}>
-              {item.name}
-            </option>
-          ))}
-        </Select>
-        <Select
+        />
+        <SearchableSelect
           id="ward"
           label="Phường / xã"
           value={ward}
+          placeholder={
+            loading ? "Đang tải phường / xã…" : "Chọn tỉnh / thành phố trước"
+          }
+          options={
+            province
+              ? [{ code: "", name: "Toàn tỉnh / thành phố" }, ...wards]
+              : []
+          }
           disabled={disabled || !province || loading || !wards.length}
-          onChange={(event) => setWard(event.target.value)}
-        >
-          <option value="">
-            {loading
-              ? "Đang tải phường / xã…"
-              : province
-                ? "Toàn tỉnh / thành phố"
-                : "Chọn tỉnh / thành phố trước"}
-          </option>
-          {wards
-            .filter((item) => normalize(item.name).includes(normalize(search)))
-            .map((item) => (
-              <option key={item.code} value={item.code}>
-                {item.name}
-              </option>
-            ))}
-        </Select>
+          onChange={setWard}
+        />
       </div>
       {province && (
         <div className="location-search-row">
-          <label className="visually-hidden" htmlFor="wardSearch">
-            Tìm nhanh phường / xã
-          </label>
-          <input
-            id="wardSearch"
-            placeholder="Gõ tên để lọc phường / xã…"
-            value={search}
-            disabled={disabled || loading}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setWard("");
-            }}
-          />
           <button
             type="button"
             className="button button-secondary"

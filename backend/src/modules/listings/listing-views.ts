@@ -1,6 +1,7 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 
 export const details = {
+  serviceOrders: { where: { status: 'PAID' }, select: { postingRound: true } },
   photos: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
   owner: {
     select: {

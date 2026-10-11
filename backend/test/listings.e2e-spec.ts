@@ -212,18 +212,18 @@ describe('Phase 3 listings (real PostgreSQL)', () => {
         type,
         area: form.area,
         rent: form.rent,
-        deposit: form.deposit,
-        electricityCost: form.electricityCost,
-        waterCost: form.waterCost,
-        internetCost: form.internetCost,
+        deposit: type === 'ROOM_WANTED' ? 0 : form.deposit,
+        electricityCost: type === 'ROOM_WANTED' ? 0 : form.electricityCost,
+        waterCost: type === 'ROOM_WANTED' ? 0 : form.waterCost,
+        internetCost: type === 'ROOM_WANTED' ? 0 : form.internetCost,
         otherCost: form.otherCost,
         description: form.description,
-        costNote: form.costNote,
+        costNote: type === 'ROOM_WANTED' ? '' : form.costNote,
         amenities: form.amenities,
         roommateNote: form.roommateNote,
         smokingPreference: form.smokingPreference,
-        latitude: 21.03,
-        longitude: 105.82,
+        latitude: type === 'ROOM_WANTED' ? null : 21.03,
+        longitude: type === 'ROOM_WANTED' ? null : 105.82,
       });
       expect(detail.photos).toHaveLength(1);
       expect(detail).not.toHaveProperty('privateAddress');
@@ -263,6 +263,128 @@ describe('Phase 3 listings (real PostgreSQL)', () => {
       isFull: false,
       status: 'DRAFT',
     });
+  });
+
+  it('publishes a roommate request without a room, coordinates, availability date or photo', async () => {
+    const listing = await draft({
+      type: 'ROOMMATE',
+      title: form.title,
+      description: form.description,
+      rent: form.rent,
+      provinceCode: form.provinceCode,
+      wardCode: form.wardCode,
+    });
+    const sent = (
+      await owner
+        .post(`/api/v1/listings/${listing.id}/submit`)
+        .set('Origin', origin)
+        .send({ version: listing.version })
+        .expect(201)
+    ).body;
+    const approved = (
+      await admin
+        .post(`/api/v1/admin/listings/${listing.id}/review`)
+        .set('Origin', origin)
+        .send({ version: sent.version, decision: 'PUBLISHED' })
+        .expect(201)
+    ).body;
+    expect(approved).toMatchObject({
+      type: 'ROOMMATE',
+      latitude: null,
+      availableFrom: null,
+      privateAddress: '',
+    });
+    await reader.get(`/api/v1/listings/${listing.id}`).expect(200);
+  });
+
+  it('clears room-only data when updating a rental to a wanted listing', async () => {
+    const room = await published({ ...form, type: 'ROOM_RENTAL' });
+    const wanted = (
+      await owner
+        .put(`/api/v1/listings/${room.id}`)
+        .set('Origin', origin)
+        .send({
+          ...form,
+          type: 'ROOM_WANTED',
+          desiredResidents: 2,
+          version: room.version,
+        })
+        .expect(200)
+    ).body;
+    expect(wanted).toMatchObject({
+      latitude: null,
+      longitude: null,
+      availableFrom: null,
+      privateAddress: '',
+      deposit: 0,
+      electricityCost: 0,
+      waterCost: 0,
+      internetCost: 0,
+      currentResidents: 0,
+      desiredResidents: 2,
+    });
+    const sent = (
+      await owner
+        .post(`/api/v1/listings/${room.id}/submit`)
+        .set('Origin', origin)
+        .send({ version: wanted.version })
+        .expect(201)
+    ).body;
+    await admin
+      .post(`/api/v1/admin/listings/${room.id}/review`)
+      .set('Origin', origin)
+      .send({ version: sent.version, decision: 'PUBLISHED' })
+      .expect(201);
+    expect(
+      (await reader.get(`/api/v1/listings/${room.id}`).expect(200)).body
+        .latitude,
+    ).toBeNull();
+  });
+
+  it('still requires actual room information for a rental', async () => {
+    const listing = await draft({
+      type: 'ROOM_RENTAL',
+      title: form.title,
+      description: form.description,
+      rent: form.rent,
+      provinceCode: form.provinceCode,
+      wardCode: form.wardCode,
+    });
+    expect(
+      (
+        await owner
+          .post(`/api/v1/listings/${listing.id}/submit`)
+          .set('Origin', origin)
+          .send({ version: listing.version })
+          .expect(400)
+      ).body.code,
+    ).toBe('LISTING_INCOMPLETE');
+  });
+
+  it('does not expose obsolete room fields stored on older wanted listings', async () => {
+    const listing = await published({ ...form, type: 'ROOM_WANTED' });
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: {
+        latitude: form.latitude,
+        longitude: form.longitude,
+        privateAddress: form.privateAddress,
+        availableFrom: new Date(form.availableFrom),
+        deposit: form.deposit,
+      },
+    });
+    expect(
+      (await reader.get(`/api/v1/listings/${listing.id}`).expect(200)).body,
+    ).toMatchObject({
+      latitude: null,
+      longitude: null,
+      availableFrom: null,
+      deposit: 0,
+    });
+    expect(
+      (await owner.get(`/api/v1/listings/mine/${listing.id}`).expect(200)).body
+        .privateAddress,
+    ).toBe('');
   });
 
   it('persists partial drafts but validates complete submissions and locations', async () => {

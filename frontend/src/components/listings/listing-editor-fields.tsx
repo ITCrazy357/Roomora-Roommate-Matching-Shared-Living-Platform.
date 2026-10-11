@@ -26,7 +26,6 @@ interface Props {
   setWards: (wards: LocationUnit[]) => void;
   locationError: string;
   pending: boolean;
-  locate: () => void;
   selectLocation: (latitude: number, longitude: number) => void;
   upload: (files: FileList | null) => Promise<void>;
   removePhoto: (id: string) => Promise<void>;
@@ -43,7 +42,6 @@ export function ListingEditorFields({
   setWards,
   locationError,
   pending,
-  locate,
   selectLocation,
   upload,
   removePhoto,
@@ -101,7 +99,7 @@ export function ListingEditorFields({
               <strong>{label}</strong>
               <span>
                 {type === "ROOMMATE"
-                  ? "Bạn có chỗ ở và muốn tìm thêm người cùng nhà."
+                  ? "Tìm người cùng ở hoặc cùng thuê một chỗ ở phù hợp."
                   : type === "ROOM_WANTED"
                     ? "Đăng điều kiện phòng bạn muốn tìm để người có phòng hoặc cần bàn giao liên hệ."
                     : "Bạn có phòng để cho thuê hoặc muốn bàn giao phòng đang thuê."}
@@ -122,7 +120,9 @@ export function ListingEditorFields({
         <h2>
           {form.type === "ROOM_WANTED"
             ? "Mô tả phòng bạn muốn tìm"
-            : "Kể về căn phòng của bạn"}
+            : form.type === "ROOMMATE"
+              ? "Mô tả nhu cầu ở ghép"
+              : "Kể về căn phòng của bạn"}
         </h2>
         <Input
           id="title"
@@ -137,7 +137,9 @@ export function ListingEditorFields({
           label={
             form.type === "ROOM_WANTED"
               ? "Nhu cầu tìm phòng"
-              : "Mô tả căn phòng"
+              : form.type === "ROOMMATE"
+                ? "Nhu cầu ở ghép hoặc thông tin chỗ ở"
+                : "Mô tả căn phòng"
           }
           value={form.description}
           rows={7}
@@ -154,7 +156,9 @@ export function ListingEditorFields({
             "area",
             form.type === "ROOM_WANTED"
               ? "Diện tích mong muốn (m², tùy chọn)"
-              : "Diện tích (m²)",
+              : form.type === "ROOMMATE"
+                ? "Diện tích (m², nếu đã có phòng)"
+                : "Diện tích (m²)",
             1,
             10000,
           )}
@@ -163,7 +167,7 @@ export function ListingEditorFields({
               "availableSlots",
               form.type === "ROOM_RENTAL"
                 ? "Số phòng còn trống"
-                : "Số chỗ còn trống",
+                : "Số người muốn tìm thêm",
               1,
               20,
             )}
@@ -176,13 +180,19 @@ export function ListingEditorFields({
               1,
               20,
             )}
-          <Input
-            id="availableFrom"
-            label="Ngày có thể dọn vào"
-            type="date"
-            value={form.availableFrom}
-            onChange={(event) => change("availableFrom", event.target.value)}
-          />
+          {form.type !== "ROOM_WANTED" && (
+            <Input
+              id="availableFrom"
+              label={
+                form.type === "ROOMMATE"
+                  ? "Ngày có thể dọn vào (nếu đã có phòng)"
+                  : "Ngày có thể dọn vào"
+              }
+              type="date"
+              value={form.availableFrom}
+              onChange={(event) => change("availableFrom", event.target.value)}
+            />
+          )}
         </div>
         {form.type === "ROOMMATE" && (
           <p className="text-muted">
@@ -289,31 +299,36 @@ export function ListingEditorFields({
         {form.type !== "ROOM_WANTED" && (
           <Input
             id="privateAddress"
-            label="Địa chỉ cụ thể (riêng tư)"
+            label={
+              form.type === "ROOMMATE"
+                ? "Địa chỉ cụ thể (riêng tư, nếu đã có phòng)"
+                : "Địa chỉ cụ thể (riêng tư)"
+            }
             value={form.privateAddress}
             maxLength={300}
             hint="Chỉ chủ tin và admin được xem. Không đưa địa chỉ cụ thể vào tiêu đề, mô tả hoặc ảnh."
             onChange={(event) => change("privateAddress", event.target.value)}
           />
         )}
-        <h3>
-          {form.type === "ROOM_WANTED"
-            ? "Khu vực muốn tìm trên bản đồ (tùy chọn)"
-            : "Vị trí khu vực trên bản đồ"}
-        </h3>
-        <p className="text-muted">
-          Kéo bản đồ để chọn khu vực dưới ghim. Vị trí công khai được làm tròn
-          đến khoảng 1 km.
-        </p>
-        <Button variant="secondary" onClick={locate} disabled={pending}>
-          Lấy vị trí khu vực hiện tại
-        </Button>
-        <RoomMap
-          latitude={form.latitude === "" ? null : Number(form.latitude)}
-          longitude={form.longitude === "" ? null : Number(form.longitude)}
-          disabled={pending}
-          onChange={selectLocation}
-        />
+        {form.type !== "ROOM_WANTED" && (
+          <>
+            <h3>
+              {form.type === "ROOMMATE"
+                ? "Vị trí hoặc khu vực mong muốn (tùy chọn)"
+                : "Vị trí khu vực trên bản đồ"}
+            </h3>
+            <p className="text-muted">
+              Kéo bản đồ để chọn khu vực dưới ghim. Vị trí công khai được làm
+              tròn đến khoảng 1 km.
+            </p>
+            <RoomMap
+              latitude={form.latitude === "" ? null : Number(form.latitude)}
+              longitude={form.longitude === "" ? null : Number(form.longitude)}
+              disabled={pending}
+              onChange={selectLocation}
+            />
+          </>
+        )}
       </div>
     );
 
@@ -323,7 +338,9 @@ export function ListingEditorFields({
         <h2>
           {form.type === "ROOM_WANTED"
             ? "Tiện ích & Điều kiện mong muốn"
-            : "Ảnh thực tế & Tiêu chí"}
+            : form.type === "ROOMMATE"
+              ? "Ảnh chỗ ở (nếu có) & Tiêu chí"
+              : "Ảnh thực tế & Tiêu chí"}
         </h2>
         {form.type !== "ROOM_WANTED" && (
           <>
@@ -372,7 +389,9 @@ export function ListingEditorFields({
           <legend>
             {form.type === "ROOM_WANTED"
               ? "Tiện ích mong muốn"
-              : "Tiện ích có sẵn"}
+              : form.type === "ROOMMATE"
+                ? "Tiện ích có sẵn hoặc mong muốn"
+                : "Tiện ích có sẵn"}
           </legend>
           {Object.entries(amenities).map(([key, label]) => (
             <label key={key}>

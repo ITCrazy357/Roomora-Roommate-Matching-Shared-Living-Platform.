@@ -132,8 +132,8 @@ export function ListingEditor({ id }: { id?: string }) {
     setForm({
       ...formFromListing(saved),
       // Keep the chosen pin in this editor; the server stores a rounded area.
-      latitude: form.latitude,
-      longitude: form.longitude,
+      latitude: saved.type === "ROOM_WANTED" ? "" : form.latitude,
+      longitude: saved.type === "ROOM_WANTED" ? "" : form.longitude,
     });
     setDirty(false);
     // Keep the saved draft in the URL so a reload can continue it.
@@ -256,29 +256,6 @@ export function ListingEditor({ id }: { id?: string }) {
     setError("");
     setNotice("");
   }
-  function locate() {
-    if (!navigator.geolocation) {
-      setError(
-        "Trình duyệt không hỗ trợ xác định vị trí. Bạn có thể chọn trực tiếp trên bản đồ.",
-      );
-      return;
-    }
-    setPending(true);
-    setError("");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        selectLocation(position.coords.latitude, position.coords.longitude);
-        setPending(false);
-      },
-      () => {
-        setError(
-          "Không lấy được vị trí. Cho phép truy cập vị trí hoặc chọn trực tiếp trên bản đồ.",
-        );
-        setPending(false);
-      },
-      { timeout: 10000, maximumAge: 60000, enableHighAccuracy: false },
-    );
-  }
 
   if (!loaded)
     return (
@@ -306,7 +283,6 @@ export function ListingEditor({ id }: { id?: string }) {
     ? {
         ...listing,
         ...formInput(form),
-        availableFrom: form.availableFrom || null,
         provinceName:
           provinces.find((item) => item.code === form.provinceCode)?.name ??
           listing.provinceName,
@@ -407,7 +383,6 @@ export function ListingEditor({ id }: { id?: string }) {
                 setWards={setWards}
                 locationError={locationError}
                 pending={pending}
-                locate={locate}
                 selectLocation={selectLocation}
                 upload={upload}
                 removePhoto={removePhoto}
@@ -463,10 +438,12 @@ export function ListingEditor({ id }: { id?: string }) {
                 <dt>Diện tích</dt>
                 <dd>{form.area || "—"} m²</dd>
               </div>
-              <div>
-                <dt>Ảnh đã lưu</dt>
-                <dd>{listing?.photos.length ?? 0} / 8</dd>
-              </div>
+              {form.type !== "ROOM_WANTED" && (
+                <div>
+                  <dt>Ảnh đã lưu</dt>
+                  <dd>{listing?.photos.length ?? 0} / 8</dd>
+                </div>
+              )}
               <div>
                 <dt>Khu vực</dt>
                 <dd>{preview ? listingLocation(preview) : "Chưa chọn"}</dd>

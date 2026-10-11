@@ -62,3 +62,37 @@ describe('Google environment validation', () => {
     ).toBe('a'.repeat(64));
   });
 });
+
+describe('Payment gateway configuration', () => {
+  const base = { FRONTEND_ORIGIN: 'http://localhost:3000' };
+  const payos = {
+    PAYOS_CLIENT_ID: 'test-client',
+    PAYOS_API_KEY: 'test-api',
+    PAYOS_CHECKSUM_KEY: 'test-checksum',
+  };
+  it('defaults to MoMo sandbox and accepts fully configured PayOS', () => {
+    expect(validateEnvironment(base).BILLING_PAYMENT_PROVIDER).toBe(
+      'MOMO_SANDBOX',
+    );
+    expect(
+      validateEnvironment({
+        ...base,
+        ...payos,
+        BILLING_PAYMENT_PROVIDER: 'PAYOS',
+      }).BILLING_PAYMENT_PROVIDER,
+    ).toBe('PAYOS');
+  });
+  it.each(['PAYOS_CLIENT_ID', 'PAYOS_API_KEY', 'PAYOS_CHECKSUM_KEY'])(
+    'rejects incomplete PayOS settings: %s',
+    (key) => {
+      expect(() =>
+        validateEnvironment({ ...base, [key]: 'test-only' }),
+      ).toThrow('Cần cấu hình đủ PAYOS');
+    },
+  );
+  it('rejects unknown payment providers', () => {
+    expect(() =>
+      validateEnvironment({ ...base, BILLING_PAYMENT_PROVIDER: 'OTHER' }),
+    ).toThrow('BILLING_PAYMENT_PROVIDER');
+  });
+});

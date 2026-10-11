@@ -1,76 +1,67 @@
 # Bản đồ Roomora — Leaflet và Geoapify
 
-Roomora dùng Leaflet để hiển thị bản đồ và Geoapify để tải ảnh bản đồ
-OpenStreetMap (`osm-carto`). Cùng component `RoomMap` phục vụ chọn vị trí
-khi đăng tin và xem vị trí khu vực trong chi tiết tin.
+Roomora giữ Leaflet và ảnh bản đồ OpenStreetMap `osm-carto` của Geoapify.
+`RoomMap` dùng chung cho chọn vị trí và xem khu vực công khai.
 
-## API key
+## Cấu hình
 
-Trong `frontend/.env.local`, thêm hoặc cập nhật biến này, giữ nguyên các biến khác:
+Đặt khóa ở **backend/.env**:
 
 ```dotenv
-NEXT_PUBLIC_GEOAPIFY_MAPS_API_KEY=YOUR_API_KEY
+GEOAPIFY_API_KEY=YOUR_API_KEY
 ```
 
-Không cần Google Maps API key hoặc Map ID. Không ảnh hưởng cấu hình Google
-OAuth hiện có ở phần đăng nhập.
+Lấy khóa tại [Geoapify MyProjects](https://myprojects.geoapify.com/).
+Khởi động lại backend sau khi thay đổi biến môi trường. Không cần Google Maps key.
+Không đặt khóa trong `NEXT_PUBLIC_*`: frontend chỉ gọi API Roomora, backend gọi
+Geoapify và không trả khóa hoặc URL chứa khóa về trình duyệt.
 
-Lấy khóa tại [Geoapify MyProjects](https://myprojects.geoapify.com/): đăng ký,
-bấm **Create a project**, mở project và sao chép khóa đầy đủ tại **API keys**.
-Tham khảo [hướng dẫn Geoapify](https://www.geoapify.com/get-started-with-maps-api/).
+Khóa cũ `NEXT_PUBLIC_GEOAPIFY_MAPS_API_KEY` không còn được dùng. Chuyển giá trị
+sang backend và xóa biến cũ; build lại frontend để áp dụng mã mới.
+Nếu khóa bị giới hạn theo referrer của trình duyệt, cấu hình lại quyền dùng
+từ máy chủ tại Geoapify. Không đưa khóa hoặc file môi trường lên Git.
 
-Dừng rồi chạy lại frontend bằng `npm run dev`. Bản production cần đặt biến
-trước `npm run build`, vì Next.js đưa `NEXT_PUBLIC_*` vào bundle lúc build.
-Các file `.env*` vẫn chỉ nằm ở máy local và được Git bỏ qua.
+## Theo loại tin
 
-Khóa này dùng trong trình duyệt nên sẽ có trong URL tải ảnh bản đồ.
-Ở **API keys**, có thể giới hạn khóa theo website/referrer; thêm đúng địa chỉ
-frontend đang chạy, chẳng hạn `http://localhost:3000` hoặc domain HTTPS production.
-Không gửi khóa vào cuộc trò chuyện hoặc đưa file môi trường lên Git.
+- **Tìm phòng:** chỉ chọn tỉnh/phường mong muốn; không bản đồ, địa chỉ riêng
+  hoặc ngày có thể dọn vào của một phòng cụ thể.
+- **Tìm người ghép phòng:** có thể chọn khu vực mong muốn hoặc vị trí chỗ ở.
+  Tọa độ, địa chỉ phòng, diện tích, ngày dọn vào và ảnh không bắt buộc nếu chưa có phòng.
+- **Cho thuê phòng:** cần thông tin phòng, ngày dọn vào, địa chỉ riêng, tọa độ
+  và ít nhất một ảnh trước khi gửi duyệt.
 
-## Sử dụng
+## Thao tác
 
-- Đến bước **Chi phí & Vị trí**, ghim nằm cố định ở giữa. Kéo bản đồ để đưa
-  vị trí phòng đến dưới ghim; vị trí được chọn khi bản đồ dừng di chuyển.
-  Tỉnh/phường vẫn chọn riêng, không tự xác minh từ ghim.
-- Dùng nút **Lấy vị trí khu vực hiện tại** khi đang ở gần phòng. Trình duyệt
-  cần được cấp quyền vị trí; triển khai bằng HTTPS. Permissions-Policy cho
-  phép geolocation cùng origin (`self`).
-- Có thể dùng phím mũi tên để di chuyển bản đồ, `+`/`−` để phóng to/thu nhỏ,
-  vị trí tại tâm tự cập nhật sau khi di chuyển. **Chọn vị trí tại tâm** cũng
-  cho phép chọn tâm hiện tại khi chưa di chuyển bản đồ. Khi bấm nút, thông
-  báo **Đã chọn vị trí tại tâm bản đồ.** hiện trong 4 giây, kể cả chọn lại
-  vị trí đang dùng.
-- Lăn chuột trên bản đồ để zoom. Trên điện thoại, chụm/tách hai ngón tay
-  hoặc bấm `+`/`−`. Zoom quanh tâm để giữ nguyên vị trí đang chọn.
-- Chưa có khóa hoặc chưa tải được ảnh bản đồ: thông báo lỗi, vẫn cho lưu nháp.
-  Tải lại trang để thử lại. Cần chọn vị trí trước khi gửi duyệt.
-- Lưu nháp và mở lại tin để kiểm tra vị trí được giữ. Chi tiết công khai có
-  bản đồ xem khu vực, không có thao tác thay đổi ghim.
-- Trong phiên chỉnh sửa, bước 3 và bước 5 dùng cùng vị trí chính xác đang
-  chọn, kể cả sau khi lưu nháp. Database vẫn lưu vị trí làm tròn; khi tải lại
-  tin, bản đồ nhận vị trí đã lưu này. Bản đồ công khai chỉ hiển thị khu vực.
-- Bước 5 hiển thị lỗi hoặc thông báo gửi duyệt thành công cạnh nút gửi.
-  Sau khi gửi thành công, tin chuyển sang **Chờ duyệt**, nút đổi thành
-  **Đã gửi duyệt** và không cho gửi trùng khi chưa sửa tin.
+- Mở **Chi phí & Vị trí**. Kéo bản đồ, bấm vào bản đồ hoặc **Chọn vị trí tại tâm**.
+  Ghim tại tâm phản ánh vị trí được chọn; tọa độ hiện dưới bản đồ.
+- **Mở rộng bản đồ** dùng toàn bộ vùng màn hình; **Thu gọn bản đồ** hoặc Escape
+  đóng vùng mở rộng, giữ vị trí. Có giới hạn focus bàn phím trong vùng mở rộng.
+- Dùng +/−, bánh xe chuột, chụm/tách hai ngón tay để zoom. Phím mũi tên di
+  chuyển bản đồ. Nút điều khiển đủ lớn cho thao tác chạm.
+- **Tìm địa điểm hoặc khu vực** rồi chọn kết quả. Bản đồ chuyển đến địa điểm;
+  người dùng có thể tiếp tục điều chỉnh ghim. Tìm kiếm chỉ trả vị trí tại Việt Nam,
+  tối đa năm kết quả, không tự đổi tỉnh/phường hoặc địa chỉ riêng của form.
+- **Lấy vị trí hiện tại** chỉ gọi định vị sau khi người dùng bấm nút.
+  Trình duyệt cần quyền vị trí và HTTPS (localhost cũng dùng được).
+- Từ chối quyền, không tìm thấy địa điểm hoặc provider lỗi đều có thông báo.
+  Vẫn có thể **Nhập tọa độ thủ công** và **Áp dụng tọa độ**, kể cả khi không có khóa.
+- Ghim chính xác được giữ trong phiên chỉnh sửa sau khi lưu nháp. Backend
+  lưu hai chữ số thập phân, khoảng 1 km; mở lại tin sẽ nhận vị trí đã làm tròn.
+  Địa chỉ cụ thể chỉ chủ tin và admin được xem, không được gửi đi tìm kiếm tự động.
 
-## Hạn mức, lỗi và dữ liệu
+## API và hạn mức
 
-[Gói miễn phí Geoapify](https://www.geoapify.com/pricing/) hiện có 3.000
-credits/ngày, không cần thẻ, cho phép dùng production trong hạn mức và có
-ghi nguồn. Một lượt tải ảnh bản đồ tính 0,25 credits, không đồng nghĩa một
-lượt mở bản đồ; xem [Map Tiles](https://apidocs.geoapify.com/docs/maps/map-tiles/).
-Roomora hiển thị nguồn Geoapify và OpenStreetMap trong góc bản đồ.
+| API `/api/v1` | Nội dung |
+| --- | --- |
+| GET `/locations/map/config` | Chỉ trả `{ available }`, không trả khóa |
+| GET `/locations/map/search?q=...` | Chuỗi 2–200 ký tự, tên và tọa độ địa điểm |
+| GET `/locations/map/tiles/:z/:x/:y?retina=0` | Ảnh PNG, zoom 5–20, hỗ trợ `retina=1` |
 
-Nếu ảnh bản đồ trả `401/403`, kiểm tra khóa đầy đủ, quyền và giới hạn referrer
-của khóa. Nếu trả `429`, kiểm tra Usage & statistics/hạn mức. Không tải được
-ảnh cũng có thể do mạng hoặc phần mở rộng trình duyệt.
+Backend timeout provider sau 8 giây, cache tối đa 128 tile trong 5 phút.
+Ảnh chỉ được tải cho vùng đang xem; Leaflet được tải động trong trình duyệt
+và hủy map/listener khi rời component. Nguồn Geoapify/OpenStreetMap vẫn hiện trên bản đồ.
 
-Ảnh bản đồ chỉ được tải cho khu vực đang xem; không tải sẵn toàn bộ bản đồ.
-Leaflet được tải động khi mở component, hủy map/listener khi rời màn hình;
-ảnh chỉ cập nhật sau khi di chuyển bản đồ và giữ bộ đệm nhỏ.
-
-Geoapify nhận yêu cầu ảnh cho khu vực đang xem. Roomora không gửi địa chỉ
-riêng tư sang Geocoding API. Backend làm tròn vị trí đến hai chữ số thập
-phân trước khi lưu, khoảng 1 km; bản đồ công khai chỉ nhận vị trí đã làm
-tròn. Địa chỉ cụ thể vẫn chỉ chủ tin và admin được xem.
+Theo dõi hạn mức trong Geoapify Usage & statistics. Khi provider từ chối khóa
+hoặc hết hạn mức, API trả lỗi an toàn `MAP_UNAVAILABLE`, không kèm URL/khóa.
+Xem [Geocoding API](https://apidocs.geoapify.com/docs/geocoding/) và
+[Map Tiles API](https://apidocs.geoapify.com/docs/maps/map-tiles/).

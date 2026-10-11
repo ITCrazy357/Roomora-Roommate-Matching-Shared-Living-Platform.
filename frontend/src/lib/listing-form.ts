@@ -61,26 +61,30 @@ export function formFromListing(listing: Listing): ListingForm {
 }
 
 export function formInput(form: ListingForm) {
+  const wanted = form.type === "ROOM_WANTED";
   return {
     ...form,
     rent: form.rent === "" ? null : Number(form.rent),
     area: form.area === "" ? null : Number(form.area),
-    deposit: Number(form.deposit),
-    electricityCost: Number(form.electricityCost),
-    waterCost: Number(form.waterCost),
-    internetCost: Number(form.internetCost),
-    otherCost: Number(form.otherCost),
-    availableSlots: Number(form.availableSlots),
-    currentResidents: Number(form.currentResidents),
+    deposit: wanted ? 0 : Number(form.deposit),
+    electricityCost: wanted ? 0 : Number(form.electricityCost),
+    waterCost: wanted ? 0 : Number(form.waterCost),
+    internetCost: wanted ? 0 : Number(form.internetCost),
+    otherCost: wanted ? 0 : Number(form.otherCost),
+    costNote: wanted ? "" : form.costNote,
+    privateAddress: wanted ? "" : form.privateAddress,
+    availableSlots: wanted ? 1 : Number(form.availableSlots),
+    currentResidents:
+      form.type === "ROOMMATE" ? Number(form.currentResidents) : 0,
     desiredResidents:
       form.type === "ROOM_WANTED" && form.desiredResidents !== ""
         ? Number(form.desiredResidents)
         : null,
-    availableFrom: form.availableFrom || null,
+    availableFrom: wanted ? null : form.availableFrom || null,
     provinceCode: form.provinceCode || null,
     wardCode: form.wardCode || null,
-    latitude: form.latitude === "" ? null : Number(form.latitude),
-    longitude: form.longitude === "" ? null : Number(form.longitude),
+    latitude: wanted || form.latitude === "" ? null : Number(form.latitude),
+    longitude: wanted || form.longitude === "" ? null : Number(form.longitude),
     smokingPreference: form.smokingPreference || null,
     petPreference: form.petPreference || null,
     quietLevel: form.quietLevel || null,

@@ -137,6 +137,52 @@ export class ListingQueriesService {
       );
       rows = savedRows.map((row) => row.listing);
       total = count;
+    } else if (!privateData && !savedOrder && query.sort === 'newest') {
+      // Keep filters and pagination consistent: sponsored rows first only for newest.
+      [rows, total] = await this.prisma.$transaction(
+        async (tx) => {
+          const now = new Date();
+          const promoted = {
+            AND: [where, { boostUntil: { gt: now }, isFull: false }],
+          };
+          const regular = {
+            AND: [
+              where,
+              {
+                OR: [
+                  { boostUntil: null },
+                  { boostUntil: { lte: now } },
+                  { isFull: true },
+                ],
+              },
+            ],
+          };
+          const count = await tx.listing.count({ where });
+          const promotedCount = await tx.listing.count({ where: promoted });
+          const first =
+            skip < promotedCount
+              ? await tx.listing.findMany({
+                  where: promoted,
+                  include: details,
+                  orderBy,
+                  skip,
+                  take: query.limit,
+                })
+              : [];
+          const rest =
+            first.length < query.limit
+              ? await tx.listing.findMany({
+                  where: regular,
+                  include: details,
+                  orderBy,
+                  skip: Math.max(0, skip - promotedCount),
+                  take: query.limit - first.length,
+                })
+              : [];
+          return [[...first, ...rest], count];
+        },
+        { isolationLevel: 'RepeatableRead' },
+      );
     } else {
       [rows, total] = await this.prisma.$transaction(
         [

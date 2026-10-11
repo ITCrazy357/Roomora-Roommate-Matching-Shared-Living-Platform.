@@ -26,6 +26,7 @@ const labels = {
   MESSAGE: "Tin nhắn",
   APPOINTMENT: "Lịch hẹn",
   HOUSE: "Nhà chung",
+  SERVICE: "Dịch vụ",
 };
 export function Notifications() {
   return (

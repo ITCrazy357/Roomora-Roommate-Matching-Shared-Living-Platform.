@@ -401,6 +401,79 @@
   display: grid;
   gap: 10px;
 }
+.room-map-tools,
+.room-map-search {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.room-map-search label {
+  flex: 1 1 180px;
+  display: grid;
+  gap: 6px;
+}
+.room-map input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--foreground);
+}
+.room-map-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  height: 100dvh;
+  padding: 16px;
+  background: var(--surface);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  grid-template-rows: auto;
+  align-content: start;
+}
+.room-map-expanded .room-map-canvas {
+  height: max(260px, 48dvh);
+}
+.room-map-expanded .room-map-tools {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  background: var(--surface);
+  padding-bottom: 4px;
+}
+.room-map-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.room-map-results button {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  text-align: left;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.room-map-manual {
+  display: grid;
+  gap: 10px;
+}
+.room-map-manual summary {
+  cursor: pointer;
+  color: var(--primary-foreground);
+  padding: 8px 0;
+}
+.room-map-canvas .leaflet-bar a {
+  min-width: 40px;
+  min-height: 40px;
+  line-height: 40px;
+}
 .room-map-frame {
   position: relative;
   overflow: hidden;

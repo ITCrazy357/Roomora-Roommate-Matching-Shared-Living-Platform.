@@ -131,6 +131,9 @@ export function ListingCard({
       </div>
       <div className="listing-card-body">
         <span className="eyebrow">{listingTypes[listing.type]}</span>
+        {listing.sponsored && (
+          <span className="sponsored-label">Được tài trợ</span>
+        )}
         <p className="listing-area">
           {listingLocation(listing)}
           {listing.area !== null ? ` · ${listing.area} m²` : ""}
@@ -168,15 +171,30 @@ export function ListingCard({
           </p>
         )}
         <div className="listing-card-footer">
-          <span>
-            {listing.availableFrom
-              ? `Dọn vào ${listingDate(listing.availableFrom)}`
-              : "Ngày dọn vào: trao đổi thêm"}
-          </span>
+          {listing.type !== "ROOM_WANTED" && (
+            <span>
+              {listing.availableFrom
+                ? `Dọn vào ${listingDate(listing.availableFrom)}`
+                : "Ngày dọn vào: trao đổi thêm"}
+            </span>
+          )}
           <span>{listing.owner.displayName}</span>
         </div>
         {manage && (
           <div className="listing-actions">
+            {listing.paymentCompleted && (
+              <span className="badge">Đã thanh toán đợt đăng này</span>
+            )}
+            {listing.status === "PUBLISHED" &&
+              !listing.isFull &&
+              !listing.paymentCompleted && (
+                <ButtonLink
+                  href={`/dich-vu?listing=${listing.id}`}
+                  variant="secondary"
+                >
+                  Đẩy tin
+                </ButtonLink>
+              )}
             <ButtonLink
               href={`/tin-cua-toi/${listing.id}/chinh-sua`}
               variant="secondary"

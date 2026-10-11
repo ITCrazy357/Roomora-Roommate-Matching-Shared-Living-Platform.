@@ -17,11 +17,12 @@ export class ListingRulesService {
   ) {}
 
   formData(input: ListingInputDto) {
+    const wanted = input.type === 'ROOM_WANTED';
     const { provinceCode, wardCode, availableFrom, latitude, longitude } =
       input;
     if (
       (!provinceCode && wardCode) ||
-      (latitude === null) !== (longitude === null)
+      (!wanted && (latitude === null) !== (longitude === null))
     ) {
       throw new BadRequestException({
         code: 'LOCATION_INVALID',
@@ -41,25 +42,28 @@ export class ListingRulesService {
       title: input.title,
       description: input.description,
       rent: input.rent,
-      deposit: input.deposit,
-      electricityCost: input.electricityCost,
-      waterCost: input.waterCost,
-      internetCost: input.internetCost,
-      otherCost: input.otherCost,
-      costNote: input.costNote,
+      deposit: wanted ? 0 : input.deposit,
+      electricityCost: wanted ? 0 : input.electricityCost,
+      waterCost: wanted ? 0 : input.waterCost,
+      internetCost: wanted ? 0 : input.internetCost,
+      otherCost: wanted ? 0 : input.otherCost,
+      costNote: wanted ? '' : input.costNote,
       area: input.area,
-      availableSlots: input.availableSlots,
-      currentResidents: input.currentResidents,
+      availableSlots: wanted ? 1 : input.availableSlots,
+      currentResidents: input.type === 'ROOMMATE' ? input.currentResidents : 0,
       desiredResidents:
         input.type === 'ROOM_WANTED' ? input.desiredResidents : null,
-      availableFrom: availableFrom
-        ? new Date(`${availableFrom}T00:00:00Z`)
-        : null,
+      availableFrom:
+        !wanted && availableFrom
+          ? new Date(`${availableFrom}T00:00:00Z`)
+          : null,
       ...location,
-      privateAddress: input.privateAddress,
+      privateAddress: wanted ? '' : input.privateAddress,
       // About 1 km precision. The exact input is not persisted.
-      latitude: latitude === null ? null : Math.round(latitude * 100) / 100,
-      longitude: longitude === null ? null : Math.round(longitude * 100) / 100,
+      latitude:
+        wanted || latitude === null ? null : Math.round(latitude * 100) / 100,
+      longitude:
+        wanted || longitude === null ? null : Math.round(longitude * 100) / 100,
       amenities: input.amenities,
       roommateNote: input.roommateNote,
       smokingPreference: input.smokingPreference,
@@ -88,7 +92,7 @@ export class ListingRulesService {
   }
 
   requireComplete(listing: Listing) {
-    if (listing.type === 'ROOM_WANTED') {
+    if (listing.type !== 'ROOM_RENTAL') {
       if (
         listing.title.length < 10 ||
         listing.description.length < 30 ||
@@ -124,6 +128,7 @@ export class ListingRulesService {
   }
 
   publicView(listing: Listing) {
+    const wanted = listing.type === 'ROOM_WANTED';
     return {
       id: listing.id,
       type: listing.type,
@@ -132,24 +137,29 @@ export class ListingRulesService {
       title: listing.title,
       description: listing.description,
       status: listing.status,
+      sponsored:
+        listing.status === 'PUBLISHED' &&
+        !listing.isFull &&
+        !listing.owner.lockedAt &&
+        Boolean(listing.boostUntil && listing.boostUntil > new Date()),
       rent: listing.rent,
-      deposit: listing.deposit,
-      electricityCost: listing.electricityCost,
-      waterCost: listing.waterCost,
-      internetCost: listing.internetCost,
-      otherCost: listing.otherCost,
-      costNote: listing.costNote,
+      deposit: wanted ? 0 : listing.deposit,
+      electricityCost: wanted ? 0 : listing.electricityCost,
+      waterCost: wanted ? 0 : listing.waterCost,
+      internetCost: wanted ? 0 : listing.internetCost,
+      otherCost: wanted ? 0 : listing.otherCost,
+      costNote: wanted ? '' : listing.costNote,
       area: listing.area,
       availableSlots: listing.availableSlots,
       currentResidents: listing.currentResidents,
       desiredResidents: listing.desiredResidents,
-      availableFrom: listing.availableFrom,
+      availableFrom: wanted ? null : listing.availableFrom,
       provinceCode: listing.provinceCode,
       provinceName: listing.provinceName,
       wardCode: listing.wardCode,
       wardName: listing.wardName,
-      latitude: listing.latitude,
-      longitude: listing.longitude,
+      latitude: wanted ? null : listing.latitude,
+      longitude: wanted ? null : listing.longitude,
       amenities: listing.amenities,
       roommateNote: listing.roommateNote,
       smokingPreference: listing.smokingPreference,
@@ -175,7 +185,12 @@ export class ListingRulesService {
   privateView(listing: Listing) {
     return {
       ...this.publicView(listing),
-      privateAddress: listing.privateAddress,
+      postingRound: listing.postingRound,
+      paymentCompleted: listing.serviceOrders.some(
+        (order) => order.postingRound === listing.postingRound,
+      ),
+      privateAddress:
+        listing.type === 'ROOM_WANTED' ? '' : listing.privateAddress,
       rejectionReason: listing.rejectionReason,
       version: listing.version,
       submittedAt: listing.submittedAt,

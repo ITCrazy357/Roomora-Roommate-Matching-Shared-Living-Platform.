@@ -143,6 +143,49 @@ export function validateEnvironment(
       );
     }
   }
+  const momoPartner = optionalText('MOMO_PARTNER_CODE');
+  const momoAccess = optionalText('MOMO_ACCESS_KEY');
+  const momoSecret = optionalText('MOMO_SECRET_KEY');
+  const momoIpn = optionalText('MOMO_IPN_URL');
+  const momoSettings = [momoPartner, momoAccess, momoSecret, momoIpn];
+  if (momoSettings.some(Boolean) && !momoSettings.every(Boolean)) {
+    throw new Error(
+      'Cần cấu hình đủ MOMO_PARTNER_CODE, MOMO_ACCESS_KEY, MOMO_SECRET_KEY, MOMO_IPN_URL',
+    );
+  }
+  if (momoIpn) {
+    const url = new URL(momoIpn);
+    const local =
+      nodeEnv !== 'production' &&
+      url.protocol === 'http:' &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (
+      (url.protocol !== 'https:' && !local) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      url.pathname !== '/api/v1/services/momo/ipn'
+    ) {
+      throw new Error(
+        'MOMO_IPN_URL cần HTTPS và đường dẫn /api/v1/services/momo/ipn (HTTP chỉ dùng localhost)',
+      );
+    }
+  }
+  const payosClient = optionalText('PAYOS_CLIENT_ID');
+  const payosApi = optionalText('PAYOS_API_KEY');
+  const payosChecksum = optionalText('PAYOS_CHECKSUM_KEY');
+  const payosSettings = [payosClient, payosApi, payosChecksum];
+  if (payosSettings.some(Boolean) && !payosSettings.every(Boolean)) {
+    throw new Error(
+      'Cần cấu hình đủ PAYOS_CLIENT_ID, PAYOS_API_KEY và PAYOS_CHECKSUM_KEY',
+    );
+  }
+  const paymentProvider =
+    optionalText('BILLING_PAYMENT_PROVIDER') ?? 'MOMO_SANDBOX';
+  if (!['MOMO_SANDBOX', 'PAYOS'].includes(paymentProvider)) {
+    throw new Error('BILLING_PAYMENT_PROVIDER phải là MOMO_SANDBOX hoặc PAYOS');
+  }
   const cloudName = optionalText('CLOUDINARY_CLOUD_NAME');
   const cloudKey = optionalText('CLOUDINARY_API_KEY');
   const cloudSecret = optionalText('CLOUDINARY_API_SECRET');
@@ -168,6 +211,14 @@ export function validateEnvironment(
     GOOGLE_CLIENT_ID: googleClientId,
     GOOGLE_CLIENT_SECRET: googleClientSecret,
     GOOGLE_REDIRECT_URI: googleRedirectUri,
+    MOMO_PARTNER_CODE: momoPartner,
+    MOMO_ACCESS_KEY: momoAccess,
+    MOMO_SECRET_KEY: momoSecret,
+    MOMO_IPN_URL: momoIpn,
+    BILLING_PAYMENT_PROVIDER: paymentProvider,
+    PAYOS_CLIENT_ID: payosClient,
+    PAYOS_API_KEY: payosApi,
+    PAYOS_CHECKSUM_KEY: payosChecksum,
     SMTP_HOST: smtpHost,
     SMTP_PORT: smtpPort,
     SMTP_SECURE: booleanValue('SMTP_SECURE', false),
@@ -177,5 +228,6 @@ export function validateEnvironment(
     CLOUDINARY_CLOUD_NAME: cloudName,
     CLOUDINARY_API_KEY: cloudKey,
     CLOUDINARY_API_SECRET: cloudSecret,
+    GEOAPIFY_API_KEY: optionalText('GEOAPIFY_API_KEY'),
   };
 }

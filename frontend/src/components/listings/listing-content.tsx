@@ -51,7 +51,7 @@ export function ListingContent({
     listing.otherCost;
   return (
     <>
-      {listing.photos.length > 0 && (
+      {listing.type !== "ROOM_WANTED" && listing.photos.length > 0 && (
         <div className="listing-gallery">
           {listing.photos.map((photo, index) => (
             <div key={photo.id}>
@@ -84,12 +84,16 @@ export function ListingContent({
                 ],
               ]
             : []),
-          [
-            "Dọn vào",
-            listing.availableFrom
-              ? listingDate(listing.availableFrom)
-              : "Trao đổi thêm",
-          ],
+          ...(listing.type !== "ROOM_WANTED"
+            ? [
+                [
+                  "Dọn vào",
+                  listing.availableFrom
+                    ? listingDate(listing.availableFrom)
+                    : "Trao đổi thêm",
+                ],
+              ]
+            : []),
         ].map(([label, value]) => (
           <div key={label}>
             <span>{label}</span>
@@ -190,10 +194,12 @@ export function ListingContent({
                 : "Vị trí khu vực"}
             </h2>
             <p>{listingLocation(listing)}</p>
-            <AreaMap
-              latitude={listing.latitude}
-              longitude={listing.longitude}
-            />
+            {listing.type !== "ROOM_WANTED" && (
+              <AreaMap
+                latitude={listing.latitude}
+                longitude={listing.longitude}
+              />
+            )}
             <p className="listing-privacy">
               {listing.type === "ROOM_WANTED"
                 ? "Khu vực người đăng muốn tìm phòng; đây không phải địa chỉ của một phòng cụ thể."
@@ -222,11 +228,13 @@ export function ListingContent({
                   : `/ người / tháng · ${listing.currentResidents}/${listing.currentResidents + listing.availableSlots} người đang ở`}
             </p>
             <hr />
-            <p>
-              {listing.availableFrom
-                ? `Dọn vào ${listingDate(listing.availableFrom)}`
-                : "Ngày dọn vào: trao đổi thêm"}
-            </p>
+            {listing.type !== "ROOM_WANTED" && (
+              <p>
+                {listing.availableFrom
+                  ? `Dọn vào ${listingDate(listing.availableFrom)}`
+                  : "Ngày dọn vào: trao đổi thêm"}
+              </p>
+            )}
             {listing.type !== "ROOM_WANTED" && (
               <p>Tiền cọc: {money(listing.deposit)}</p>
             )}

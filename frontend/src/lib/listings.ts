@@ -85,6 +85,9 @@ export interface Listing {
     profilePublic: boolean;
   };
   saved?: boolean;
+  sponsored?: boolean;
+  paymentCompleted?: boolean;
+  postingRound?: number;
   reviews?: {
     id: string;
     decision: ListingStatus;
@@ -121,7 +124,7 @@ export function listingError(error: unknown) {
       LISTING_CHANGED:
         "Tin vừa thay đổi ở nơi khác. Tải lại trang để tiếp tục.",
       LISTING_INCOMPLETE:
-        "Chưa thể gửi duyệt. Cần tiêu đề, mô tả, ngân sách và khu vực. Tin có phòng cần thêm diện tích, ngày dọn vào, địa chỉ riêng, ghim khu vực và ảnh.",
+        "Chưa thể gửi duyệt. Cần tiêu đề, mô tả, ngân sách và khu vực. Tin cho thuê cần thêm diện tích, ngày dọn vào, địa chỉ riêng, ghim khu vực và ảnh.",
       LISTING_NOT_FOUND:
         "Tin không còn hiển thị hoặc bạn không có quyền truy cập.",
       PHOTO_LIMIT_REACHED: "Mỗi tin có tối đa 8 ảnh.",

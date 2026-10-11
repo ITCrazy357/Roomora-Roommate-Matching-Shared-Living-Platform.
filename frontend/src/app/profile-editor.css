@@ -518,6 +518,71 @@
   align-items: center;
   gap: 12px;
 }
+
+.searchable-select {
+  position: relative;
+  min-width: 0;
+}
+.searchable-select-input {
+  position: relative;
+}
+.searchable-select-input input {
+  width: 100%;
+  padding-right: 44px;
+}
+.searchable-select-input > button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.searchable-select-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  max-height: min(280px, 45dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 4px 0 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px var(--shadow-action);
+}
+.searchable-select-options button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  color: var(--foreground);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.searchable-select-options button:hover,
+.searchable-select-options button.is-active {
+  background: var(--surface-muted);
+}
+.searchable-select-options button[aria-selected="true"] {
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+.searchable-select-empty {
+  padding: 12px;
+  color: var(--muted);
+}
 .location-search-row input {
   min-width: 0;
   width: 100%;

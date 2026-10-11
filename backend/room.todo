@@ -60,8 +60,10 @@ Admin duyệt hoặc từ chối kèm lý do.
 Tìm kiếm, lọc theo khu vực, giá và tiện ích; sắp xếp, phân trang.
 Xem chi tiết và lưu tin yêu thích.
 Hiển thị vị trí khu vực trên bản đồ; hạn chế công khai địa chỉ riêng tư.
-Ghim cố định tại tâm, kéo bản đồ để chọn vị trí, không nhập tọa độ. Dùng Leaflet + Geoapify;
-cấu hình NEXT_PUBLIC_GEOAPIFY_MAPS_API_KEY theo docs/maps-setup.md.
+Ghim cố định tại tâm, kéo/bấm bản đồ để chọn vị trí; mở rộng, tìm địa điểm và định vị.
+Có nhập tọa độ thủ công khi provider lỗi. Dùng Leaflet + Geoapify; cấu hình
+GEOAPIFY_API_KEY ở backend theo docs/maps-setup.md, không đưa khóa vào frontend.
+Tìm phòng không có bản đồ/ngày dọn vào/địa chỉ riêng; tìm người ghép có thể chưa có phòng.
 
 Đơn giản hóa: ưu tiên loại tin “Có phòng, tìm người ở ghép”. Nhu cầu tìm phòng thể hiện qua hồ sơ; chưa làm bộ sưu tập và so sánh nhiều phòng.
 
@@ -336,6 +338,32 @@ Xuất biên nhận thanh toán dịch vụ; tách riêng tích hợp hóa đơn
 Hoàn thành khi: thanh toán thành công kích hoạt đúng gói; thông báo thanh toán gửi lặp không tạo thêm quyền lợi.
 
 Bảng quyết toán nhà chung và chứng từ mua dịch vụ Roomora là hai loại tài liệu riêng.
+
+Trạng thái 11/10/2026: Đã triển khai gói Đẩy tin 7 ngày (49.000đ thử nghiệm), trang dịch vụ,
+chọn tin, quyền lợi và lịch sử; MoMo sandbox captureWallet, xác thực chữ ký phản hồi/IPN,
+chống gửi trùng và cấp gói đúng một lần trong transaction. Tự hết hạn khi đọc, giữ bộ lọc/phân trang,
+gắn nhãn Được tài trợ; thanh toán đến chậm vẫn ghi nhận, tin không còn đủ điều kiện tạo yêu cầu hoàn tiền.
+Có thông báo, tiếp nhận yêu cầu hoàn tiền và biên nhận PDF tiếng Việt từ snapshot đơn, tách khỏi quyết toán nhà chung.
+Migration service_billing đã deploy lên PostgreSQL local. 241 E2E ban đầu và 69 unit test qua;
+bộ Phase 9 bổ sung có 43 kiểm thử đều qua cùng 13 kiểm thử listings; build backend/frontend và lint không lỗi (warning test cũ ghi trong status).
+Edge kiểm tra thao tác, PDF và responsive 320–1920 px không tràn ngang; không lỗi JavaScript.
+Chưa có thông tin merchant MoMo sandbox: gateway/callback trong kiểm thử được mô phỏng,
+chưa chứng minh giao dịch qua MoMo thật. Cần credentials và IPN HTTPS công khai để nghiệm thu tích hợp.
+Hoàn tiền mới tiếp nhận/chờ kiểm tra, chưa có admin xử lý hoặc gọi API refund; chưa tích hợp hóa đơn điện tử.
+Không đánh dấu toàn bộ Phase 9 hoàn thành. Xem PHASE_9_STATUS.md; src/modules/billing/README.md.
+
+Bổ sung PayOS 11/10/2026 trong lúc chờ xác thực MoMo: giữ giá 49.000đ/7 ngày,
+chọn cổng bằng BILLING_PAYMENT_PROVIDER, đơn cũ giữ cổng đã lưu. Tạo/khôi phục link PayOS,
+webhook HMAC-SHA256 và transaction chống cấp trùng dùng chung nghiệp vụ đẩy tin/hoàn tiền/PDF.
+PayOS không có sandbox riêng: QR/chuyển khoản dùng tiền thật; giao diện và PDF ghi đúng môi trường.
+Webhook đăng ký trên kênh PayOS: HTTPS /api/v1/services/payos/webhook, không dựa vào return URL.
+Cần URL HTTPS công khai và giao dịch do người dùng thực hiện để kiểm chứng tích hợp thực tế.
+
+Sửa nghiệp vụ 12/10/2026: chỉ thanh toán một lần mỗi tin/đợt đăng, kể cả gói đã hết hạn.
+Sửa nội dung/duyệt lại giữ đợt cũ; đóng tin kết thúc đợt và liên kết chờ, đăng lại dùng đợt mới.
+Khóa user → listing → order và unique index một đơn PENDING mỗi tin/đợt, dùng chung các cổng.
+Thanh toán thật đến muộn/trùng vẫn ghi PAID, tạo yêu cầu đối soát hoàn tiền, không cấp thêm boost.
+Khu vực mong muốn trong hồ sơ dùng combobox tỉnh/phường có tìm không dấu, giữ payload cũ.
 
 11. Phase 10 — Quản trị và hỗ trợ hoàn chỉnh
 

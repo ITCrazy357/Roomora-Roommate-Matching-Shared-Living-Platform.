@@ -102,6 +102,9 @@ function ListingDetailView({ id }: { id: string }) {
       <div className="listing-page-heading">
         <div>
           <h1>{listing.title || "Tin chưa có tiêu đề"}</h1>
+          {listing.sponsored && (
+            <span className="sponsored-label">Được tài trợ</span>
+          )}
           <p className="text-muted">
             {listingLocation(listing)} · {listingStatuses[listing.status]}
           </p>
@@ -119,6 +122,16 @@ function ListingDetailView({ id }: { id: string }) {
               : "Chỉ bạn và quản trị viên được xem nội dung chưa công khai."}
           </p>
           <div className="listing-actions">
+            {listing.paymentCompleted && (
+              <span className="badge">Đã thanh toán đợt đăng này</span>
+            )}
+            {listing.status === "PUBLISHED" &&
+              !listing.isFull &&
+              !listing.paymentCompleted && (
+                <ButtonLink href={`/dich-vu?listing=${listing.id}`}>
+                  Đẩy tin
+                </ButtonLink>
+              )}
             {listing.status === "PUBLISHED" && listing.type === "ROOMMATE" && (
               <Button variant="secondary" disabled={pending} onClick={setFull}>
                 {listing.isFull ? "Mở nhận người ở ghép" : "Đánh dấu đã đủ"}

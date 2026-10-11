@@ -85,7 +85,7 @@ export interface ConversationDetail extends Conversation {
 }
 export interface Notice {
   id: string;
-  type: "CONNECTION" | "MESSAGE" | "APPOINTMENT" | "HOUSE";
+  type: "CONNECTION" | "MESSAGE" | "APPOINTMENT" | "HOUSE" | "SERVICE";
   title: string;
   href: string;
   readAt: string | null;

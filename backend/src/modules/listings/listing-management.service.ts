@@ -63,11 +63,24 @@ export class ListingManagementService {
 
   async close(ownerId: string, id: string, version: number) {
     await this.rules.requireOwner(ownerId, id);
-    const result = await this.prisma.listing.updateMany({
-      where: { id, ownerId, version, status: { not: 'CLOSED' } },
-      data: { status: 'CLOSED', version: { increment: 1 } },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId}::uuid FOR UPDATE`;
+      const result = await tx.listing.updateMany({
+        where: { id, ownerId, version, status: { not: 'CLOSED' } },
+        // Closing ends this posting round. Edits and moderation keep its number.
+        data: {
+          status: 'CLOSED',
+          postingRound: { increment: 1 },
+          boostUntil: null,
+          version: { increment: 1 },
+        },
+      });
+      this.rules.requireChange(result.count);
+      await tx.serviceOrder.updateMany({
+        where: { listingId: id, status: 'PENDING' },
+        data: { status: 'EXPIRED', payUrl: null },
+      });
     });
-    this.rules.requireChange(result.count);
     return this.queries.getMine(ownerId, id);
   }
 

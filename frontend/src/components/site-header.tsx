@@ -19,6 +19,7 @@ const userMenu = [
   { href: "/lich-xem-phong", label: "Lịch hẹn" },
   { href: "/thong-bao", label: "Thông báo" },
   { href: "/tin-cua-toi", label: "Tin của tôi" },
+  { href: "/dich-vu", label: "Dịch vụ Roomora" },
   { href: "/da-luu", label: "Tin đã lưu" },
   { href: "/tai-khoan/cai-dat", label: "Cài đặt" },
 ];

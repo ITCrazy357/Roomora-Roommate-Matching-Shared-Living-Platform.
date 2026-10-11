@@ -1,0 +1,1170 @@
+import { ValidationPipe, type INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Test } from '@nestjs/testing';
+import { createHmac, randomUUID } from 'node:crypto';
+import request from 'supertest';
+import { AppModule } from '../src/app.module.js';
+import { PrismaService } from '../src/database/prisma.service.js';
+import { PasswordService } from '../src/modules/auth/password.service.js';
+import { BillingSchedulerService } from '../src/modules/billing/billing-scheduler.service.js';
+import { momoSignature } from '../src/modules/billing/momo-signature.js';
+import { ListingQueryDto } from '../src/modules/listings/dto/listing.dto.js';
+import { ListingQueriesService } from '../src/modules/listings/listing-queries.service.js';
+import { PaymentGatewayService } from '../src/modules/billing/payment-gateway.service.js';
+import type { ServiceOrder } from '../src/generated/prisma/client.js';
+
+describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
+  let app: INestApplication, prisma: PrismaService, config: ConfigService;
+  const userIds: string[] = [],
+    listingIds: string[] = [],
+    agents: ReturnType<typeof request.agent>[] = [];
+  const origin = 'http://localhost:3000',
+    prefix = 'billing-' + randomUUID();
+  const secret = 'test-only-secret-with-no-merchant-account',
+    access = 'test-access',
+    partner = 'ROOMORA_TEST';
+  const base = '/api/v1/services';
+  const post = (path: string, body?: object, index = 0) =>
+    agents[index]
+      .post(base + path)
+      .set('Origin', origin)
+      .send(body);
+  const create = async (listingId = listingIds[0], clientId = randomUUID()) =>
+    (await post('/orders', { listingId, clientId }).expect(201))
+      .body as ServiceOrder;
+  function signed(
+    order: ServiceOrder,
+    change: Record<string, string | number> = {},
+  ) {
+    const body = {
+      partnerCode: partner,
+      orderId: order.id,
+      requestId: order.id,
+      amount: order.amount,
+      orderInfo: order.planName,
+      orderType: 'momo_wallet',
+      transId: Math.floor(Math.random() * 1000000000000) + 1,
+      resultCode: 0,
+      message: 'Thành công',
+      payType: 'qr',
+      responseTime: Date.now(),
+      extraData: '',
+      ...change,
+    };
+    const b = body;
+    // Independent provider-side construction, following MoMo's published IPN string.
+    const raw = `accessKey=${access}&amount=${b.amount}&extraData=${b.extraData}&message=${b.message}&orderId=${b.orderId}&orderInfo=${b.orderInfo}&orderType=${b.orderType}&partnerCode=${b.partnerCode}&payType=${b.payType}&requestId=${b.requestId}&responseTime=${b.responseTime}&resultCode=${b.resultCode}&transId=${b.transId}`;
+    return {
+      ...body,
+      signature: createHmac('sha256', secret).update(raw).digest('hex'),
+    };
+  }
+  const ipn = (body: object) =>
+    request(app.getHttpServer())
+      .post(base + '/momo/ipn')
+      .send(body);
+  const get = async (id: string) =>
+    (await agents[0].get(base + '/orders/' + id).expect(200)).body;
+  beforeAll(async () => {
+    const fixture = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+    app = fixture.createNestApplication();
+    config = app.get(ConfigService);
+    for (const [key, value] of Object.entries({
+      NODE_ENV: 'test',
+      BILLING_PAYMENT_PROVIDER: 'MOMO_SANDBOX',
+      SMTP_HOST: '',
+      MOMO_PARTNER_CODE: partner,
+      MOMO_ACCESS_KEY: access,
+      MOMO_SECRET_KEY: secret,
+      MOMO_IPN_URL: 'https://example.test/api/v1/services/momo/ipn',
+    }))
+      config.set(key, value);
+    app.setGlobalPrefix('api/v1');
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
+    await app.listen(0, '127.0.0.1');
+    prisma = app.get(PrismaService);
+    const password = 'Roomora-' + randomUUID(),
+      passwordHash = await app.get(PasswordService).hash(password);
+    for (let i = 0; i < 3; i++) {
+      const id = randomUUID(),
+        email = `${prefix}-${i}@example.test`;
+      userIds.push(id);
+      await prisma.user.create({
+        data: {
+          id,
+          email,
+          passwordHash,
+          emailVerifiedAt: new Date(),
+          role: i === 2 ? 'ADMIN' : 'USER',
+          profile: { create: { displayName: `Người thử ${i}` } },
+        },
+      });
+      const agent = request.agent(app.getHttpServer());
+      agents.push(agent);
+      await agent
+        .post('/api/v1/auth/login')
+        .set('Origin', origin)
+        .send({ email, password })
+        .expect(200);
+    }
+    for (let i = 0; i < 3; i++) {
+      const row = await prisma.listing.create({
+        data: {
+          ownerId: userIds[i === 2 ? 1 : 0],
+          type: 'ROOM_WANTED',
+          status: 'PUBLISHED',
+          title: `${prefix} Tin tìm phòng ${i}`,
+          rent: 2000000 + i * 1000000,
+          publishedAt: new Date(Date.now() + i * 1000),
+        },
+      });
+      listingIds.push(row.id);
+    }
+  }, 30000);
+  async function clear() {
+    await prisma.servicePaymentEvent.deleteMany({
+      where: { order: { userId: { in: userIds } } },
+    });
+    await prisma.serviceRefundRequest.deleteMany({
+      where: { order: { userId: { in: userIds } } },
+    });
+    await prisma.listingBoost.deleteMany({
+      where: { listingId: { in: listingIds } },
+    });
+    await prisma.serviceOrder.deleteMany({
+      where: { userId: { in: userIds } },
+    });
+    await prisma.notification.deleteMany({
+      where: { userId: { in: userIds }, type: 'SERVICE' },
+    });
+    await prisma.listing.updateMany({
+      where: { id: { in: listingIds } },
+      data: {
+        boostUntil: null,
+        status: 'PUBLISHED',
+        isFull: false,
+        postingRound: 1,
+      },
+    });
+    for (const [index, id] of listingIds.entries()) {
+      await prisma.listing.update({
+        where: { id },
+        data: { publishedAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index)) },
+      });
+    }
+  }
+  beforeEach(async () => {
+    config.set('BILLING_PAYMENT_PROVIDER', 'MOMO_SANDBOX');
+    config.set('PAYOS_CLIENT_ID', '');
+    config.set('PAYOS_API_KEY', '');
+    config.set('PAYOS_CHECKSUM_KEY', '');
+    await clear();
+  });
+  afterEach(() => vi.restoreAllMocks());
+  afterAll(async () => {
+    if (prisma) {
+      await clear();
+      await prisma.listing.deleteMany({ where: { id: { in: listingIds } } });
+      await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    }
+    await app?.close();
+  });
+  it('catalog exposes one sandbox plan without secrets', async () => {
+    const response = await request(app.getHttpServer())
+      .get(base + '/catalog')
+      .expect(200);
+    expect(response.body).toEqual({
+      plan: {
+        code: 'BOOST_7_DAYS',
+        name: 'Đẩy tin 7 ngày',
+        amount: 49000,
+        durationDays: 7,
+        currency: 'VND',
+      },
+      sandbox: true,
+      provider: 'MOMO_SANDBOX',
+      paymentAvailable: true,
+      providers: { MOMO_SANDBOX: true, PAYOS: false },
+    });
+  });
+  it('requires login and separates admin from consumer purchasing', async () => {
+    await request(app.getHttpServer())
+      .get(base + '/orders')
+      .expect(401);
+    await post(
+      '/orders',
+      { listingId: listingIds[0], clientId: randomUUID() },
+      2,
+    ).expect(403);
+  });
+  it('preserves Origin protection on purchases while signed IPN needs no Origin', async () => {
+    await agents[0]
+      .post(base + '/orders')
+      .send({ listingId: listingIds[0], clientId: randomUUID() })
+      .expect(403);
+    const order = await create();
+    await ipn(signed(order)).expect(204);
+  });
+  it('takes price/duration on server and rejects injected payment fields', async () => {
+    await post('/orders', {
+      listingId: listingIds[0],
+      clientId: randomUUID(),
+      amount: 1,
+      status: 'PAID',
+    }).expect(400);
+    const order = await create();
+    expect(order.amount).toBe(49000);
+    expect(order.durationDays).toBe(7);
+    expect(order.status).toBe('PENDING');
+  });
+  it('cannot buy another user listing or inspect their order/refund/receipt', async () => {
+    await create();
+    await post('/orders', {
+      listingId: listingIds[2],
+      clientId: randomUUID(),
+    }).expect(404);
+    const order = await create();
+    await agents[1].get(base + '/orders/' + order.id).expect(404);
+    await post(`/orders/${order.id}/checkout`, {}, 1).expect(404);
+    await post(
+      `/orders/${order.id}/refund-request`,
+      { reason: 'Không phải đơn của tôi' },
+      1,
+    ).expect(404);
+    await agents[1].get(base + `/orders/${order.id}/receipt`).expect(404);
+  });
+  it.each(['DRAFT', 'PENDING', 'CLOSED', 'REJECTED'] as const)(
+    'rejects %s listing',
+    async (status) => {
+      await prisma.listing.update({
+        where: { id: listingIds[0] },
+        data: { status },
+      });
+      await post('/orders', {
+        listingId: listingIds[0],
+        clientId: randomUUID(),
+      }).expect(400);
+    },
+  );
+  it('rejects full listings and limits eligible options to own public listings', async () => {
+    await prisma.listing.update({
+      where: { id: listingIds[0] },
+      data: { isFull: true },
+    });
+    await post('/orders', {
+      listingId: listingIds[0],
+      clientId: randomUUID(),
+    }).expect(400);
+    const result = await agents[0].get(base + '/listings').expect(200);
+    expect(result.body.map((row: { id: string }) => row.id)).toEqual([
+      listingIds[1],
+    ]);
+  });
+  it('creates one order under concurrent retries, and rejects changed retry identity', async () => {
+    const clientId = randomUUID();
+    const replies = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        post('/orders', { listingId: listingIds[0], clientId }).expect(201),
+      ),
+    );
+    expect(new Set(replies.map((reply) => reply.body.id)).size).toBe(1);
+    await post('/orders', { listingId: listingIds[1], clientId }).expect(409);
+  });
+  it('reuses a pending listing order even with different client ids', async () => {
+    const first = await create();
+    const second = await create();
+    expect(first.id).toBe(second.id);
+  });
+  it('disabled gateway creates no order', async () => {
+    config.set('MOMO_SECRET_KEY', '');
+    try {
+      await post('/orders', {
+        listingId: listingIds[0],
+        clientId: randomUUID(),
+      }).expect(503);
+      expect(
+        await prisma.serviceOrder.count({ where: { userId: userIds[0] } }),
+      ).toBe(0);
+    } finally {
+      config.set('MOMO_SECRET_KEY', secret);
+    }
+  });
+  it('rejects forged or tampered signatures without writes', async () => {
+    const order = await create(),
+      body = signed(order);
+    await ipn({ ...body, signature: 'a'.repeat(64) }).expect(400);
+    await ipn({ ...body, amount: 1 }).expect(400);
+    expect(
+      await prisma.servicePaymentEvent.count({ where: { orderId: order.id } }),
+    ).toBe(0);
+    expect((await get(order.id)).status).toBe('PENDING');
+  });
+  it.each([
+    { amount: 1 },
+    { partnerCode: 'OTHER' },
+    { requestId: randomUUID() },
+    { orderInfo: 'Gói khác' },
+    { transId: 0 },
+    { amount: '49000' },
+    { responseTime: Date.now() + 86400000 },
+  ])('rejects signed mismatched fields %j', async (change) => {
+    const order = await create();
+    await ipn(signed(order, change)).expect(400);
+    expect((await get(order.id)).status).toBe('PENDING');
+  });
+  it('rejects an unknown signed order', async () => {
+    const order = await create(),
+      id = randomUUID();
+    await ipn(signed(order, { orderId: id, requestId: id })).expect(404);
+  });
+  it('rejects malformed signed UUID before querying the database', async () => {
+    const order = await create(),
+      id = '-'.repeat(36);
+    await ipn(signed(order, { orderId: id, requestId: id })).expect(400);
+  });
+  it('records late payment for a locked account without granting a boost', async () => {
+    const order = await create();
+    await prisma.user.update({
+      where: { id: userIds[0] },
+      data: {
+        lockedAt: new Date(),
+        lockReason: 'Khóa để kiểm thử thanh toán đến chậm',
+      },
+    });
+    try {
+      await ipn(signed(order)).expect(204);
+      const paid = await prisma.serviceOrder.findUniqueOrThrow({
+        where: { id: order.id },
+        include: { boost: true, refund: true },
+      });
+      expect(paid.status).toBe('PAID');
+      expect(paid.boost).toBeNull();
+      expect(paid.refund).not.toBeNull();
+    } finally {
+      await prisma.user.update({
+        where: { id: userIds[0] },
+        data: { lockedAt: null, lockReason: null },
+      });
+    }
+  });
+  it('does not notify a re-signed identical failure twice', async () => {
+    const order = await create();
+    await ipn(signed(order, { resultCode: 1006, transId: 0 })).expect(204);
+    await ipn(
+      signed(order, {
+        resultCode: 1006,
+        transId: 0,
+        responseTime: Date.now() + 1000,
+      }),
+    ).expect(204);
+    expect(
+      await prisma.notification.count({
+        where: { userId: userIds[0], type: 'SERVICE' },
+      }),
+    ).toBe(1);
+  });
+  it('activates exactly once under parallel duplicate callbacks', async () => {
+    const order = await create(),
+      body = signed(order);
+    await Promise.all(Array.from({ length: 8 }, () => ipn(body).expect(204)));
+    const paid = await get(order.id);
+    expect(paid.status).toBe('PAID');
+    expect(
+      new Date(paid.boost.endsAt).getTime() -
+        new Date(paid.boost.startsAt).getTime(),
+    ).toBe(7 * 86400000);
+    expect(
+      await prisma.listingBoost.count({ where: { orderId: order.id } }),
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({
+        where: { userId: userIds[0], type: 'SERVICE' },
+      }),
+    ).toBe(1);
+  });
+  it('a re-signed duplicate cannot extend the existing entitlement', async () => {
+    const order = await create(),
+      body = signed(order);
+    await ipn(body).expect(204);
+    const before = await get(order.id);
+    await ipn(
+      signed(order, { transId: body.transId, responseTime: Date.now() + 1000 }),
+    ).expect(204);
+    expect((await get(order.id)).boost.endsAt).toBe(before.boost.endsAt);
+  });
+  it('records failures and never lets them downgrade a paid order', async () => {
+    const order = await create();
+    await ipn(signed(order, { resultCode: 1006, transId: 0 })).expect(204);
+    expect((await get(order.id)).status).toBe('FAILED');
+    await ipn(signed(order)).expect(204);
+    const before = await get(order.id);
+    await ipn(signed(order, { resultCode: 1006, transId: 0 })).expect(204);
+    expect((await get(order.id)).boost.endsAt).toBe(before.boost.endsAt);
+  });
+  it.each([1000, 7000, 7002, 9000])(
+    'does not activate noncaptured result %s',
+    async (resultCode) => {
+      const order = await create();
+      await ipn(signed(order, { resultCode })).expect(204);
+      expect((await get(order.id)).status).toBe('PENDING');
+      expect((await get(order.id)).boost).toBeNull();
+    },
+  );
+  it('expires pending orders, then grants full duration for delayed success', async () => {
+    const order = await create();
+    await prisma.serviceOrder.update({
+      where: { id: order.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    await app.get(BillingSchedulerService).expire();
+    expect((await get(order.id)).status).toBe('EXPIRED');
+    await post(`/orders/${order.id}/checkout`).expect(409);
+    await ipn(signed(order)).expect(204);
+    expect((await get(order.id)).status).toBe('PAID');
+  });
+  it('late success for an ineligible listing records payment and refund request without boost', async () => {
+    const order = await create();
+    await prisma.listing.update({
+      where: { id: listingIds[0] },
+      data: { status: 'CLOSED' },
+    });
+    await ipn(signed(order)).expect(204);
+    await ipn(
+      signed(order, { transId: (await get(order.id)).providerTransId * 1 }),
+    ).expect(204);
+    const paid = await get(order.id);
+    expect(paid.status).toBe('PAID');
+    expect(paid.boost).toBeNull();
+    expect(paid.refund.reason).toContain('đối soát');
+  });
+  it('grants once and records a refund for concurrent late payments in the same round', async () => {
+    const first = await create();
+    await prisma.serviceOrder.update({
+      where: { id: first.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const second = await create();
+    await Promise.all([
+      ipn(signed(first)).expect(204),
+      ipn(signed(second)).expect(204),
+    ]);
+    const boosts = await prisma.listingBoost.findMany({
+      where: { listingId: listingIds[0] },
+      orderBy: { startsAt: 'asc' },
+    });
+    expect(boosts).toHaveLength(1);
+    const orders = await prisma.serviceOrder.findMany({
+      where: { id: { in: [first.id, second.id] } },
+      include: { refund: true },
+    });
+    expect(orders.every((order) => order.status === 'PAID')).toBe(true);
+    expect(orders.filter((order) => order.refund)).toHaveLength(1);
+    const listing = await prisma.listing.findUniqueOrThrow({
+      where: { id: listingIds[0] },
+    });
+    expect(listing.boostUntil).toEqual(boosts[0].endsAt);
+  });
+  it('refuses reuse of a provider transaction across orders', async () => {
+    const first = await create(),
+      second = await create(listingIds[1]),
+      body = signed(first);
+    await ipn(body).expect(204);
+    await ipn(signed(second, { transId: body.transId })).expect(409);
+    expect((await get(second.id)).status).toBe('PENDING');
+  });
+
+  it.each(['MOMO_SANDBOX', 'PAYOS'])(
+    'blocks repeat purchases after %s success, including after benefit expiry',
+    async (provider) => {
+      if (provider === 'PAYOS') usePayos();
+      const order = await create();
+      if (provider === 'PAYOS') await webhook(payosEvent(order)).expect(200);
+      else await ipn(signed(order)).expect(204);
+      await prisma.listing.update({
+        where: { id: order.listingId },
+        data: { boostUntil: new Date(Date.now() - 1000) },
+      });
+      const attempts = await Promise.all(
+        Array.from({ length: 6 }, () =>
+          post('/orders', {
+            listingId: order.listingId,
+            clientId: randomUUID(),
+          }).expect(409),
+        ),
+      );
+      expect(
+        attempts.every(
+          (response) => response.body.code === 'LISTING_ALREADY_PAID',
+        ),
+      ).toBe(true);
+      expect((await create(order.listingId, order.clientId)).id).toBe(order.id);
+      await post(`/orders/${order.id}/checkout`).expect(409);
+      const options = (await agents[0].get(base + '/listings').expect(200))
+        .body;
+      expect(
+        options.find((row: { id: string }) => row.id === order.listingId)
+          .paymentCompleted,
+      ).toBe(true);
+      expect(
+        await prisma.serviceOrder.count({
+          where: { listingId: order.listingId },
+        }),
+      ).toBe(1);
+    },
+  );
+
+  it('allows retry after failure and never marks pending or failed orders paid', async () => {
+    const first = await create();
+    const options = async () =>
+      (await agents[0].get(base + '/listings').expect(200)).body;
+    expect(
+      (await options()).find(
+        (row: { id: string }) => row.id === first.listingId,
+      ).paymentCompleted,
+    ).toBe(false);
+    await ipn(signed(first, { resultCode: 1006 })).expect(204);
+    expect(
+      (await options()).find(
+        (row: { id: string }) => row.id === first.listingId,
+      ).paymentCompleted,
+    ).toBe(false);
+    const retry = await create();
+    expect(retry.id).not.toBe(first.id);
+    await ipn(signed(retry)).expect(204);
+    expect((await get(retry.id)).boost).not.toBeNull();
+  });
+
+  it('keeps the paid round through edit and review; closing and reopening starts a new round', async () => {
+    const order = await create();
+    const event = signed(order);
+    await ipn(event).expect(204);
+    const details = async () =>
+      (
+        await agents[0]
+          .get(`/api/v1/listings/mine/${order.listingId}`)
+          .expect(200)
+      ).body;
+    const edit = async () => {
+      const current = await details();
+      return (
+        await agents[0]
+          .put(`/api/v1/listings/${order.listingId}`)
+          .set('Origin', origin)
+          .send({
+            version: current.version,
+            type: 'ROOM_WANTED',
+            title: current.title,
+            description: 'Tìm phòng phù hợp để ở lâu dài tại khu vực đã chọn.',
+            rent: 2000000,
+            provinceCode: '01',
+            wardCode: '00004',
+          })
+          .expect(200)
+      ).body;
+    };
+    const publish = async (version: number) => {
+      const pending = (
+        await agents[0]
+          .post(`/api/v1/listings/${order.listingId}/submit`)
+          .set('Origin', origin)
+          .send({ version })
+          .expect(201)
+      ).body;
+      return (
+        await agents[2]
+          .post(`/api/v1/admin/listings/${order.listingId}/review`)
+          .set('Origin', origin)
+          .send({ version: pending.version, decision: 'PUBLISHED' })
+          .expect(201)
+      ).body;
+    };
+    let listing = await publish((await edit()).version);
+    expect(listing).toMatchObject({ postingRound: 1, paymentCompleted: true });
+    await post('/orders', {
+      listingId: order.listingId,
+      clientId: randomUUID(),
+    }).expect(409);
+    await agents[0]
+      .post(`/api/v1/listings/${order.listingId}/close`)
+      .set('Origin', origin)
+      .send({ version: listing.version })
+      .expect(201);
+    listing = await publish((await edit()).version);
+    expect(listing).toMatchObject({
+      postingRound: 2,
+      paymentCompleted: false,
+      sponsored: false,
+    });
+    const second = await create();
+    expect(second.postingRound).toBe(2);
+    await ipn(event).expect(204);
+    expect((await details()).sponsored).toBe(false);
+    await ipn(signed(second)).expect(204);
+    expect((await details()).paymentCompleted).toBe(true);
+  });
+
+  it('rechecks paid state when an older payment arrives while checkout is being created', async () => {
+    const first = await create();
+    await prisma.serviceOrder.update({
+      where: { id: first.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const second = await create();
+    let finish!: (value: { payUrl: string }) => void;
+    let started!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const gateway = vi
+      .spyOn(app.get(PaymentGatewayService), 'create')
+      .mockImplementation(() => {
+        started();
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      });
+    const checkout = post(`/orders/${second.id}/checkout`).then(
+      (response) => response,
+    );
+    await waiting;
+    await post(`/orders/${second.id}/checkout`).expect(409);
+    await ipn(signed(first)).expect(204);
+    finish({ payUrl: 'https://test-payment.momo.vn/checkout-test' });
+    expect((await checkout).status).toBe(409);
+    expect(gateway).toHaveBeenCalledTimes(1);
+    expect((await get(second.id)).status).toBe('EXPIRED');
+    expect((await get(second.id)).payUrl).toBeNull();
+  });
+
+  it('expires checkout on close and refunds a payment from an old round without granting the new round', async () => {
+    const first = await create();
+    const listing = (
+      await agents[0]
+        .get(`/api/v1/listings/mine/${first.listingId}`)
+        .expect(200)
+    ).body;
+    const closed = (
+      await agents[0]
+        .post(`/api/v1/listings/${first.listingId}/close`)
+        .set('Origin', origin)
+        .send({ version: listing.version })
+        .expect(201)
+    ).body;
+    expect(closed.postingRound).toBe(2);
+    expect((await get(first.id)).status).toBe('EXPIRED');
+    await prisma.listing.update({
+      where: { id: first.listingId },
+      data: { status: 'PUBLISHED' },
+    });
+    const second = await create();
+    await ipn(signed(first)).expect(204);
+    expect(await get(first.id)).toMatchObject({
+      status: 'PAID',
+      boost: null,
+      listing: { postingRound: 2 },
+    });
+    expect((await get(first.id)).refund).not.toBeNull();
+    expect((await get(second.id)).status).toBe('PENDING');
+    await ipn(signed(second)).expect(204);
+    expect((await get(second.id)).boost).not.toBeNull();
+  });
+  it('shows sponsorship, respects filters/price sorting/pagination, and ends without a worker', async () => {
+    const order = await create();
+    await ipn(signed(order)).expect(204);
+    const queries = app.get(ListingQueriesService),
+      query = Object.assign(new ListingQueryDto(), {
+        search: prefix,
+        limit: 1,
+      });
+    const newest = await queries.listPublic(query);
+    expect(newest.items[0].id).toBe(listingIds[0]);
+    expect(newest.items[0].sponsored).toBe(true);
+    expect(newest.items[0]).not.toHaveProperty('privateAddress');
+    const page2 = await queries.listPublic(
+      Object.assign(new ListingQueryDto(), {
+        search: prefix,
+        limit: 1,
+        page: 2,
+      }),
+    );
+    expect(page2.items[0].id).toBe(listingIds[2]);
+    expect(page2.total).toBe(3);
+    const price = await queries.listPublic(
+      Object.assign(new ListingQueryDto(), {
+        search: prefix,
+        sort: 'price_desc',
+      }),
+    );
+    expect(price.items[0].id).toBe(listingIds[2]);
+    const filtered = await queries.listPublic(
+      Object.assign(new ListingQueryDto(), {
+        search: prefix,
+        minRent: 3000000,
+      }),
+    );
+    expect(filtered.items.some((row) => row.id === listingIds[0])).toBe(false);
+    await prisma.listing.update({
+      where: { id: listingIds[0] },
+      data: { boostUntil: new Date(Date.now() - 1000) },
+    });
+    const expired = await queries.listPublic(query);
+    expect(expired.items[0].id).toBe(listingIds[2]);
+    expect((await queries.getPublic(listingIds[0])).sponsored).toBe(false);
+  });
+  it('accepts one refund request without claiming money was refunded', async () => {
+    const order = await create();
+    await post(`/orders/${order.id}/refund-request`, {
+      reason: 'Tôi cần kiểm tra giao dịch',
+    }).expect(400);
+    await ipn(signed(order)).expect(204);
+    await post(`/orders/${order.id}/refund-request`, { reason: 'Ngắn' }).expect(
+      400,
+    );
+    const replies = await Promise.all([
+      post(`/orders/${order.id}/refund-request`, {
+        reason: 'Tôi muốn kiểm tra và hoàn tiền',
+      }).expect(201),
+      post(`/orders/${order.id}/refund-request`, {
+        reason: 'Yêu cầu gửi lại khi mất mạng',
+      }).expect(201),
+    ]);
+    expect(replies[0].body.id).toBe(replies[1].body.id);
+    expect((await get(order.id)).status).toBe('PAID');
+    expect((await get(order.id)).boost).not.toBeNull();
+  });
+  it('exports a private PDF only after success with receipt snapshots', async () => {
+    const order = await create();
+    await agents[0].get(base + `/orders/${order.id}/receipt`).expect(409);
+    await ipn(signed(order)).expect(204);
+    await prisma.listing.update({
+      where: { id: order.listingId },
+      data: { title: 'Nội dung thay đổi' },
+    });
+    expect((await get(order.id)).listingTitle).toBe(order.listingTitle);
+    const pdf = await agents[0]
+      .get(base + `/orders/${order.id}/receipt`)
+      .expect(200);
+    expect(pdf.headers['content-type']).toContain('application/pdf');
+    expect(pdf.headers['cache-control']).toBe('private, no-store');
+    expect(pdf.body.subarray(0, 4).toString()).toBe('%PDF');
+  });
+  it('creates a signed sandbox checkout, caches link, and does not activate on creation', async () => {
+    const order = await create();
+    const fakeFetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (_url, init) => {
+        if (typeof init?.body !== 'string')
+          throw new Error('Expected JSON request');
+        const payload = JSON.parse(init.body);
+        const raw = `accessKey=${access}&amount=49000&extraData=&ipnUrl=https://example.test/api/v1/services/momo/ipn&orderId=${order.id}&orderInfo=Đẩy tin 7 ngày&partnerCode=${partner}&redirectUrl=${origin}/dich-vu/ket-qua&requestId=${order.id}&requestType=captureWallet`;
+        expect(payload.signature).toBe(
+          createHmac('sha256', secret).update(raw).digest('hex'),
+        );
+        expect(payload.autoCapture).toBe(true);
+        const reply = {
+          amount: 49000,
+          orderId: order.id,
+          partnerCode: partner,
+          payUrl: 'https://test-payment.momo.vn/v2/gateway/pay?t=test',
+          requestId: order.id,
+          responseTime: Date.now(),
+          resultCode: 0,
+        };
+        return new Response(
+          JSON.stringify({
+            ...reply,
+            signature: momoSignature({ accessKey: access, ...reply }, secret),
+          }),
+          { status: 200 },
+        );
+      });
+    await post(`/orders/${order.id}/checkout`).expect(200);
+    await post(`/orders/${order.id}/checkout`).expect(200);
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+    expect((await get(order.id)).status).toBe('PENDING');
+  });
+  it('gateway network ambiguity keeps one pending order, same id on retry', async () => {
+    const order = await create();
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('timeout'));
+    await post(`/orders/${order.id}/checkout`).expect(503);
+    expect((await get(order.id)).status).toBe('PENDING');
+    expect((await create()).id).toBe(order.id);
+  });
+  it('rejects untrusted checkout URL/signature without redirecting user', async () => {
+    const order = await create();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ payUrl: 'https://evil.test/', signature: 'x' }),
+        { status: 200 },
+      ),
+    );
+    await post(`/orders/${order.id}/checkout`).expect(503);
+    expect((await get(order.id)).payUrl).toBeNull();
+  });
+  it('paginates history and purchased entitlements separately', async () => {
+    const first = await create(),
+      second = await create(listingIds[1]);
+    await ipn(signed(first)).expect(204);
+    const history = await agents[0]
+      .get(base + '/orders?limit=1&page=1')
+      .expect(200);
+    expect(history.body.total).toBe(2);
+    expect(history.body.pages).toBe(2);
+    const boosts = await agents[0]
+      .get(base + '/orders?kind=boosts')
+      .expect(200);
+    expect(boosts.body.items.map((row: { id: string }) => row.id)).toEqual([
+      first.id,
+    ]);
+    expect(boosts.body.total).toBe(1);
+    expect(second.id).not.toBe(first.id);
+  });
+
+  function usePayos() {
+    config.set('BILLING_PAYMENT_PROVIDER', 'PAYOS');
+    config.set('PAYOS_CLIENT_ID', 'test-payos-client');
+    config.set('PAYOS_API_KEY', 'test-payos-api');
+    config.set('PAYOS_CHECKSUM_KEY', secret);
+  }
+  const linkId = '124c33293c43417ab7879e14c8d9eb18';
+  function payosSigned(data: Record<string, unknown>) {
+    // Independent provider-side implementation for scalar webhook/response fields.
+    const raw = Object.keys(data)
+      .sort()
+      .map((key) => {
+        const value = data[key];
+        if (
+          value != null &&
+          typeof value !== 'string' &&
+          typeof value !== 'number' &&
+          typeof value !== 'boolean'
+        )
+          throw new Error('Expected scalar provider data');
+        return `${key}=${value ?? ''}`;
+      })
+      .join('&');
+    return {
+      code: '00',
+      desc: 'success',
+      success: true,
+      data,
+      signature: createHmac('sha256', secret).update(raw).digest('hex'),
+    };
+  }
+  function payosEvent(
+    order: ServiceOrder,
+    change: Record<string, unknown> = {},
+  ) {
+    return payosSigned({
+      orderCode: Number(order.providerOrderCode),
+      amount: order.amount,
+      description: 'ROOMORA',
+      accountNumber: '12345678',
+      reference: 'PAYOS-' + randomUUID(),
+      transactionDateTime: '2026-10-11 12:00:00',
+      currency: 'VND',
+      paymentLinkId: linkId,
+      code: '00',
+      desc: 'Thành công',
+      counterAccountBankId: '',
+      counterAccountBankName: '',
+      counterAccountName: '',
+      counterAccountNumber: '',
+      virtualAccountName: '',
+      virtualAccountNumber: '',
+      ...change,
+    });
+  }
+  const webhook = (body: object) =>
+    request(app.getHttpServer())
+      .post(base + '/payos/webhook')
+      .send(body);
+
+  it('PayOS catalog explicitly describes real payments and keeps the 49000 price', async () => {
+    usePayos();
+    const response = await request(app.getHttpServer())
+      .get(base + '/catalog')
+      .expect(200);
+    expect(response.body).toMatchObject({
+      provider: 'PAYOS',
+      sandbox: false,
+      paymentAvailable: true,
+      plan: { amount: 49000 },
+      providers: { MOMO_SANDBOX: true, PAYOS: true },
+    });
+    const order = await create();
+    expect(order.provider).toBe('PAYOS');
+    expect(Number.isSafeInteger(Number(order.providerOrderCode))).toBe(true);
+    expect((await create()).id).toBe(order.id);
+  });
+  it('PayOS without credentials refuses purchases before writing an order', async () => {
+    config.set('BILLING_PAYMENT_PROVIDER', 'PAYOS');
+    await post('/orders', {
+      listingId: listingIds[0],
+      clientId: randomUUID(),
+    }).expect(503);
+    expect(
+      await prisma.serviceOrder.count({ where: { userId: userIds[0] } }),
+    ).toBe(0);
+  });
+  it('retains old providers after switching and routes each checkout to its own gateway', async () => {
+    const momo = await create();
+    usePayos();
+    expect((await create()).id).toBe(momo.id);
+    const payos = await create(listingIds[1]);
+    expect(payos.id).not.toBe(momo.id);
+    const spy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('{}', { status: 503 }));
+    await post(`/orders/${momo.id}/checkout`).expect(503);
+    expect(spy.mock.calls[0][0]).toBe(
+      'https://test-payment.momo.vn/v2/gateway/api/create',
+    );
+    spy.mockClear();
+    await post(`/orders/${payos.id}/checkout`).expect(503);
+    expect(spy.mock.calls[0][0]).toBe(
+      'https://api-merchant.payos.vn/v2/payment-requests',
+    );
+    expect((await get(momo.id)).provider).toBe('MOMO_SANDBOX');
+  });
+  it('signs PayOS checkout, stores and reuses the link, and never grants from create', async () => {
+    usePayos();
+    const order = await create();
+    const spy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (_url, init) => {
+        if (typeof init?.body !== 'string')
+          throw new Error('Expected JSON request');
+        const body = JSON.parse(init.body);
+        const url = `${origin}/dich-vu/ket-qua?orderId=${order.id}`;
+        const raw = `amount=49000&cancelUrl=${url}&description=ROOMORA&orderCode=${order.providerOrderCode}&returnUrl=${url}`;
+        expect(body.signature).toBe(
+          createHmac('sha256', secret).update(raw).digest('hex'),
+        );
+        expect(body.expiredAt).toBe(
+          Math.floor(new Date(order.expiresAt).getTime() / 1000),
+        );
+        expect(init?.headers).toMatchObject({
+          'x-client-id': 'test-payos-client',
+          'x-api-key': 'test-payos-api',
+        });
+        return Response.json(
+          payosSigned({
+            orderCode: Number(order.providerOrderCode),
+            amount: 49000,
+            currency: 'VND',
+            paymentLinkId: linkId,
+            status: 'PENDING',
+            checkoutUrl: `https://pay.payos.vn/web/${linkId}`,
+          }),
+        );
+      });
+    const checkout = await post(`/orders/${order.id}/checkout`).expect(200);
+    expect(checkout.body.payUrl).toBe(`https://pay.payos.vn/web/${linkId}`);
+    await post(`/orders/${order.id}/checkout`).expect(200);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect((await get(order.id)).status).toBe('PENDING');
+    expect((await get(order.id)).providerLinkId).toBe(linkId);
+  });
+  it('recovers the same signed PayOS link after an uncertain create response', async () => {
+    usePayos();
+    const order = await create();
+    const spy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockResolvedValueOnce(
+        Response.json(
+          payosSigned({
+            id: linkId,
+            orderCode: Number(order.providerOrderCode),
+            amount: order.amount,
+            status: 'PENDING',
+            amountPaid: 0,
+            amountRemaining: order.amount,
+          }),
+        ),
+      );
+    await post(`/orders/${order.id}/checkout`).expect(200);
+    expect(spy.mock.calls[1][0]).toBe(
+      `https://api-merchant.payos.vn/v2/payment-requests/${order.providerOrderCode}`,
+    );
+    expect((await create()).id).toBe(order.id);
+  });
+  it.each(['bad-signature', 'wrong-amount', 'wrong-order', 'unsafe-url'])(
+    'rejects a PayOS checkout with %s',
+    async (kind) => {
+      usePayos();
+      const order = await create();
+      const reply = payosSigned({
+        orderCode:
+          kind === 'wrong-order' ? 123 : Number(order.providerOrderCode),
+        amount: kind === 'wrong-amount' ? 1 : order.amount,
+        paymentLinkId: linkId,
+        status: 'PENDING',
+        checkoutUrl:
+          kind === 'unsafe-url'
+            ? 'https://evil.test/'
+            : `https://pay.payos.vn/web/${linkId}`,
+      });
+      if (kind === 'bad-signature') reply.signature = 'a'.repeat(64);
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(Response.json(reply))
+        .mockResolvedValueOnce(
+          Response.json({ code: '101', desc: 'not found' }),
+        );
+      await post(`/orders/${order.id}/checkout`).expect(503);
+      expect((await get(order.id)).payUrl).toBeNull();
+    },
+  );
+  it('grants exactly once for repeated concurrent PayOS webhooks without Origin or cookie', async () => {
+    usePayos();
+    const order = await create(),
+      event = payosEvent(order);
+    await Promise.all([webhook(event).expect(200), webhook(event).expect(200)]);
+    const paid = await get(order.id);
+    expect(paid.status).toBe('PAID');
+    expect(paid.providerTransId).toBe(event.data.reference);
+    expect(
+      await prisma.listingBoost.count({ where: { orderId: order.id } }),
+    ).toBe(1);
+    expect(
+      await prisma.servicePaymentEvent.count({ where: { orderId: order.id } }),
+    ).toBe(1);
+    expect(
+      new Date(paid.boost.endsAt).getTime() -
+        new Date(paid.boost.startsAt).getTime(),
+    ).toBe(7 * 86400000);
+    await webhook(
+      payosSigned({ ...event.data, description: 'ROOMORA RETRY' }),
+    ).expect(200);
+    expect((await get(order.id)).boost.endsAt).toBe(paid.boost.endsAt);
+  });
+  it('rejects forged PayOS webhooks and signed amount/link mismatches', async () => {
+    usePayos();
+    const order = await create();
+    const event = payosEvent(order);
+    await webhook({ ...event, signature: 'a'.repeat(64) }).expect(400);
+    await webhook({ ...event, data: { ...event.data, amount: 1 } }).expect(400);
+    await webhook(payosEvent(order, { amount: 1 })).expect(400);
+    await prisma.serviceOrder.update({
+      where: { id: order.id },
+      data: { providerLinkId: linkId },
+    });
+    await webhook(payosEvent(order, { paymentLinkId: 'a'.repeat(32) })).expect(
+      400,
+    );
+    expect((await get(order.id)).status).toBe('PENDING');
+    expect(
+      await prisma.listingBoost.count({ where: { orderId: order.id } }),
+    ).toBe(0);
+  });
+  it('uses signed PayOS data.code, not unsigned success flags or return parameters', async () => {
+    usePayos();
+    const order = await create();
+    await webhook(payosEvent(order, { code: '01' })).expect(200);
+    expect((await get(order.id)).status).toBe('PENDING');
+    await agents[0]
+      .get(base + `/orders/${order.id}?code=00&status=PAID`)
+      .expect(200);
+    expect((await get(order.id)).status).toBe('PENDING');
+    const event = payosEvent(order);
+    await webhook({ ...event, success: false, code: '99' }).expect(200);
+    expect((await get(order.id)).status).toBe('PAID');
+  });
+  it('acknowledges signed webhook setup samples and rejects unsigned samples', async () => {
+    usePayos();
+    const sample = payosEvent({
+      providerOrderCode: '123',
+      amount: 3000,
+    } as ServiceOrder);
+    await webhook(sample).expect(200);
+    await webhook({ ...sample, signature: 'invalid' }).expect(400);
+    expect(
+      await prisma.servicePaymentEvent.count({
+        where: { order: { userId: userIds[0] } },
+      }),
+    ).toBe(0);
+  });
+  it('accepts the actual PayOS setup payload without the unsigned success field', async () => {
+    usePayos();
+    const sample = payosEvent({
+      providerOrderCode: '123',
+      amount: 3000,
+    } as ServiceOrder);
+    const { success: _success, ...body } = sample;
+    await webhook(body).expect(200);
+    await webhook({ ...body, signature: 'invalid' }).expect(400);
+    expect(
+      await prisma.servicePaymentEvent.count({
+        where: { order: { userId: userIds[0] } },
+      }),
+    ).toBe(0);
+  });
+  it('accepts a paid PayOS notification without success and still validates signed fields', async () => {
+    usePayos();
+    const order = await create();
+    const { success: _success, ...body } = payosEvent(order);
+    await webhook({ ...body, data: { ...body.data, amount: 1 } }).expect(400);
+    expect((await get(order.id)).status).toBe('PENDING');
+    await webhook(body).expect(200);
+    await webhook(body).expect(200);
+    expect((await get(order.id)).status).toBe('PAID');
+    expect(
+      await prisma.listingBoost.count({ where: { orderId: order.id } }),
+    ).toBe(1);
+  });
+  it('prevents MoMo notifications from paying PayOS orders', async () => {
+    usePayos();
+    const order = await create();
+    await ipn(signed(order)).expect(400);
+    expect((await get(order.id)).status).toBe('PENDING');
+  });
+  it('does not reuse a PayOS reference across orders', async () => {
+    usePayos();
+    const first = await create(),
+      second = await create(listingIds[1]);
+    const event = payosEvent(first);
+    await webhook(event).expect(200);
+    await webhook(
+      payosEvent(second, { reference: event.data.reference }),
+    ).expect(409);
+    expect((await get(second.id)).status).toBe('PENDING');
+  });
+  it('still accepts MoMo IPN after switching, with independent provider transaction IDs', async () => {
+    const momo = await create(),
+      event = signed(momo);
+    usePayos();
+    const payos = await create(listingIds[1]);
+    await ipn(event).expect(204);
+    await webhook(
+      payosEvent(payos, { reference: String(event.transId) }),
+    ).expect(200);
+    expect((await get(momo.id)).status).toBe('PAID');
+    expect((await get(payos.id)).status).toBe('PAID');
+  });
+  it('accepts late PayOS payment and requests a refund when the listing closed', async () => {
+    usePayos();
+    const order = await create();
+    await prisma.serviceOrder.update({
+      where: { id: order.id },
+      data: { status: 'EXPIRED' },
+    });
+    await prisma.listing.update({
+      where: { id: order.listingId },
+      data: { status: 'CLOSED' },
+    });
+    await webhook(payosEvent(order)).expect(200);
+    const paid = await get(order.id);
+    expect(paid.status).toBe('PAID');
+    expect(paid.boost).toBeNull();
+    expect(paid.refund).not.toBeNull();
+  });
+});

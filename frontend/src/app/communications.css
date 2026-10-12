@@ -79,8 +79,8 @@
   margin-bottom: 1.75rem;
 }
 .communication-title h1 {
-  font-size: clamp(1.9rem, 4vw, 2.7rem);
-  letter-spacing: -0.045em;
+  font-size: 2rem;
+  letter-spacing: -0.03em;
   margin: 0.5rem 0;
 }
 .communication-title p {

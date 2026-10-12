@@ -307,9 +307,6 @@ export function PersonDetails({
   ].filter((value): value is string => Boolean(value));
   return (
     <Card className="person-details">
-      <span className="eyebrow">
-        {publicPage ? "HỒ SƠ ROOMORA" : "HỒ SƠ ĐỐI CHIẾU"}
-      </span>
       <div className="person-identity">
         <PersonAvatar person={person} />
         <div>

@@ -50,7 +50,7 @@ function ResultContent({ orderId }: { orderId: string }) {
   return (
     <section className="container page-section narrow services-page">
       <Card className="service-result">
-        <span className="eyebrow">
+        <span className="content-label">
           {order ? `${paymentLabels[order.provider]} · ` : ""}Kết quả thanh toán
         </span>
         <h1>{order ? orderLabels[order.status] : "Kiểm tra thanh toán"}</h1>

@@ -51,7 +51,6 @@ export function HouseholdHero({
   return (
     <Card className="house-panel household-hero">
       <div className="household-hero-content">
-        <span className="eyebrow">NHÀ CHUNG · CÙNG NHAU MỖI NGÀY</span>
         <h2>{title}</h2>
         <p>{description}</p>
         <div className="household-hero-actions">{children}</div>
@@ -107,7 +106,9 @@ export function HouseholdPerson({
 }) {
   return (
     <span className="household-person">
-      <PersonAvatar person={{ displayName: name, avatarUrl: avatarUrl ?? null }} />
+      <PersonAvatar
+        person={{ displayName: name, avatarUrl: avatarUrl ?? null }}
+      />
       <span>
         <strong>{name}</strong>
         {detail && <small>{detail}</small>}

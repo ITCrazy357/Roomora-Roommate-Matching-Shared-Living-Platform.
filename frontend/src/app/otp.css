@@ -9,14 +9,10 @@
   display: grid;
   place-items: center;
   margin: 0 auto;
-  border-radius: 22px;
+  border-radius: var(--radius-panel);
   color: var(--primary-foreground);
-  background: linear-gradient(
-    145deg,
-    var(--secondary-soft),
-    var(--primary-subtle)
-  );
-  box-shadow: 0 8px 24px var(--shadow-card);
+  background: var(--primary-soft);
+  box-shadow: none;
 }
 .otp-envelope svg {
   width: 32px;

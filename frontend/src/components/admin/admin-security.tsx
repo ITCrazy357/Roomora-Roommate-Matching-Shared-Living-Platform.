@@ -48,7 +48,6 @@ export function AdminSecurity() {
     <section className="admin-page">
       <div className="admin-page-heading">
         <div>
-          <span className="eyebrow">TÀI KHOẢN QUẢN TRỊ</span>
           <h1>Bảo mật tài khoản</h1>
           <p className="text-muted">{user?.email}</p>
         </div>

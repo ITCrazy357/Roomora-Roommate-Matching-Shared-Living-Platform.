@@ -1,4 +1,94 @@
 /* Dashboard reference: rounded panels, a strong summary and real-data charts. */
+.admin-results {
+  min-width: 0;
+}
+.admin-results-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.admin-results .dashboard-panel-heading .text-link {
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+.admin-result-amount {
+  display: block;
+  font-size: clamp(1.6rem, 2.5vw, 2.2rem);
+  color: var(--success-foreground);
+  margin-block: 18px;
+  overflow-wrap: anywhere;
+}
+.admin-result-rows {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+.admin-result-rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  padding: 13px 0;
+  font-size: 0.78rem;
+}
+.admin-result-rows dd {
+  margin: 0;
+  font-weight: 600;
+}
+.admin-result-money {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  background: var(--success-soft);
+  color: var(--success-foreground);
+  padding: 14px;
+  margin-bottom: 16px;
+  font-size: 0.75rem;
+}
+.admin-result-money strong {
+  font-size: 1.1rem;
+  overflow-wrap: anywhere;
+}
+.admin-result-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.admin-result-counts > div {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 16px;
+}
+.admin-result-counts strong {
+  font-size: 2rem;
+}
+.admin-result-counts span {
+  font-size: 0.75rem;
+  line-height: 1.8;
+}
+.admin-result-success {
+  background: var(--success-soft);
+  color: var(--success-foreground);
+}
+.admin-result-danger {
+  background: var(--danger-soft);
+  color: var(--danger-foreground);
+}
+@media (max-width: 1200px) {
+  .admin-results-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .admin-result-counts > div {
+    padding: 14px;
+  }
+  .admin-results > .dashboard-panel-heading {
+    flex-wrap: wrap;
+  }
+}
 .dashboard {
   display: grid;
   gap: 20px;
@@ -50,10 +140,10 @@
   min-width: 0;
   padding: 22px 18px;
   border: 1px solid var(--border);
-  border-radius: 22px;
+  border-radius: var(--radius-panel);
   background: var(--surface);
   color: var(--foreground);
-  box-shadow: 0 5px 18px var(--shadow-card);
+  box-shadow: none;
   overflow-wrap: anywhere;
 }
 button.dashboard-metric {
@@ -87,11 +177,7 @@ button.dashboard-metric {
   background: var(--foreground);
   color: var(--on-primary);
   border-color: var(--foreground);
-  background-image: radial-gradient(
-    ellipse at top right,
-    color-mix(in srgb, var(--primary) 38%, transparent),
-    transparent 80%
-  );
+  background-image: none;
 }
 .dashboard-featured > small,
 .dashboard-featured .dashboard-metric-label {
@@ -124,8 +210,8 @@ button.dashboard-metric {
 .dashboard-panel {
   padding: 24px;
   min-width: 0;
-  border-radius: 24px;
-  box-shadow: 0 8px 24px var(--shadow-card);
+  border-radius: var(--radius-panel);
+  box-shadow: none;
 }
 .dashboard-panel-heading {
   margin-bottom: 20px;

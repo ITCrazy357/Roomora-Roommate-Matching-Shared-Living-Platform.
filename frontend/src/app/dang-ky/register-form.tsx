@@ -60,7 +60,6 @@ export function RegisterForm() {
 
   return (
     <AuthCard
-      eyebrow="BẮT ĐẦU VỚI ROOMORA"
       title={result ? "Xác minh email của bạn" : "Tạo tài khoản"}
       description={
         result

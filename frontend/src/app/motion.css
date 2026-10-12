@@ -21,15 +21,13 @@
   width: 48px;
   height: 48px;
 }
-.footer-invite > .footer-figure {
-  width: 148px;
-  flex: 0 0 148px;
-}
 .empty-figure {
   width: min(100%, 160px);
 }
 .home-journey {
-  padding-block: 20px 64px;
+  padding-block: 48px;
+  margin-block: 40px 48px;
+  border-block: 1px solid var(--border);
 }
 .home-journey-heading {
   display: flex;
@@ -40,39 +38,60 @@
   margin-bottom: 24px;
 }
 .home-journey-heading h2 {
-  font-size: clamp(1.35rem, 2.5vw, 2rem);
+  font-size: 1.5rem;
 }
 .home-journey-heading .button {
   font-size: 0.75rem;
+  border: 0;
+  color: var(--muted);
+  padding-inline: 0;
 }
 .home-journey-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  gap: 64px;
+  align-items: center;
 }
-.home-journey-card {
+.journey-figure {
+  max-width: 280px;
+  justify-self: center;
+  --hairline-plate: var(--background);
+}
+.home-journey-path {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: 20px;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
   min-width: 0;
 }
-.home-journey-card .roomora-figure {
-  max-width: 240px;
-  align-self: center;
-  margin-bottom: 16px;
+.home-journey-path:first-child {
+  padding-top: 0;
 }
-.home-journey-card h3 {
-  font-size: 1.1rem;
+.home-journey-path:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
-.home-journey-card p {
+.home-journey-path h3 {
+  font-size: 1.125rem;
+}
+.home-journey-path p {
   color: var(--muted);
   font-size: 0.875rem;
-  line-height: 1.8;
-  margin-block: 12px 24px;
+  line-height: 1.7;
+  margin-top: 8px;
+  max-width: 55ch;
 }
-.home-journey-card .button {
-  margin-top: auto;
+.home-journey-path > svg {
+  flex-shrink: 0;
+  color: var(--primary-foreground);
+}
+.home-journey-path:hover h3 {
+  color: var(--primary-foreground);
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .hero-slide-pause {
   position: absolute;
@@ -81,7 +100,7 @@
   min-height: 44px;
   padding: 10px 14px;
   border: 1px solid var(--surface-overlay-border);
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: var(--surface-overlay);
   color: var(--foreground);
   font-size: 0.75rem;
@@ -90,8 +109,11 @@
 @media (prefers-reduced-motion: no-preference) {
   .button,
   .save-button {
-    transition: background-color 160ms ease, border-color 160ms ease,
-      box-shadow 160ms ease, transform 160ms ease;
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
   }
   .button:active:not(:disabled),
   .save-button:active:not(:disabled) {
@@ -99,9 +121,10 @@
   }
   .listing-card,
   .person-card,
-  .home-journey-card,
   .conversation-link {
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    transition:
+      border-color 180ms ease,
+      background-color 180ms ease;
   }
   .desktop-nav a,
   .mobile-nav a,
@@ -110,29 +133,27 @@
   .field input,
   .field textarea,
   .field select {
-    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      box-shadow 160ms ease;
   }
   .focus-panel {
     animation: panel-enter 180ms ease-out;
   }
   @media (hover: hover) and (pointer: fine) {
-    .button:hover:not(:disabled) {
-      transform: translateY(-2px);
-    }
-    .listing-card:hover,
-    .person-card:hover,
-    .home-journey-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 24px var(--shadow-elevated);
-    }
     .button:active:not(:disabled) {
       transform: scale(0.97);
     }
   }
 }
 @keyframes panel-enter {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .roomora-figure {
@@ -141,17 +162,17 @@
 }
 @media (max-width: 767px) {
   .home-journey {
-    padding-bottom: 40px;
+    padding-block: 28px;
+    margin-block: 32px;
   }
   .home-journey-grid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  .home-journey-card .roomora-figure {
-    max-width: 180px;
+  .journey-figure {
+    display: none;
   }
-  .footer-invite > .footer-figure {
-    width: 120px;
-    flex-basis: auto;
+  .home-journey-heading .button {
+    display: none;
   }
 }

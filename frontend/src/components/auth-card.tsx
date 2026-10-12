@@ -2,13 +2,11 @@ import Image from "next/image";
 import { Card } from "./ui";
 
 export function AuthCard({
-  eyebrow,
   title,
   description,
   welcome = false,
   children,
 }: {
-  eyebrow: string;
   title: string;
   description: string;
   welcome?: boolean;
@@ -21,7 +19,6 @@ export function AuthCard({
     >
       {welcome && (
         <aside className="auth-story" aria-label="Hợp người, chung nhà">
-          <span className="auth-tag">HỢP NGƯỜI, CHUNG NHÀ</span>
           <h2>
             Một nơi để ở.
             <br />
@@ -46,7 +43,6 @@ export function AuthCard({
         </aside>
       )}
       <Card className="auth-card">
-        <span className="eyebrow">{eyebrow}</span>
         <h1 id="auth-title">{title}</h1>
         <p className="text-muted">{description}</p>
         {children}

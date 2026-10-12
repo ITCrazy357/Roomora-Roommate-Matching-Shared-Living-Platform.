@@ -48,7 +48,6 @@ export function HouseOverview({
     <div className="dashboard house-overview-dashboard">
       <div className="dashboard-heading">
         <div>
-          <span className="eyebrow">BẢNG ĐIỀU KHIỂN</span>
           <h2>Một góc nhìn, cả nhà rõ ràng.</h2>
           <p>Chi tiêu trong tháng và những việc cần theo dõi.</p>
         </div>
@@ -117,7 +116,6 @@ export function HouseOverview({
             <Card className="dashboard-panel dashboard-trend">
               <div className="dashboard-panel-heading">
                 <div>
-                  <span className="eyebrow">NHỊP CHI TIÊU</span>
                   <h3>Chi phí theo ngày</h3>
                 </div>
                 <span className="dashboard-period">
@@ -129,7 +127,6 @@ export function HouseOverview({
             <Card className="dashboard-panel">
               <div className="dashboard-panel-heading">
                 <div>
-                  <span className="eyebrow">CƠ CẤU CHI PHÍ</span>
                   <h3>Chi tiêu vào đâu?</h3>
                 </div>
                 <HouseholdIcon name="shopping" />

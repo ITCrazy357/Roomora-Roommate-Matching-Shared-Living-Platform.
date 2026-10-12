@@ -5,6 +5,7 @@ import { adminLinks } from "@/lib/admin";
 import { DashboardDonut } from "../dashboard-charts";
 import { HouseholdIcon, type HouseholdIconName } from "../houses/household-ui";
 import { Card } from "../ui";
+import { AdminResults } from "./admin-results";
 
 export interface AdminSummary {
   pendingListings: number;
@@ -12,13 +13,38 @@ export interface AdminSummary {
   lockedUsers: number;
   activeAnnouncements: number;
   pendingRefunds: number;
+  generatedAt: string;
+  listings: { approved: number; rejected: number };
+  reports: { resolved: number; dismissed: number };
+  refunds: {
+    pending: number;
+    approved: number;
+    processing: number;
+    completed: number;
+    rejected: number;
+    failed: number;
+    completedAmount: number;
+  };
+  payments: {
+    paid: number;
+    paidAmount: number;
+    pending: number;
+    failed: number;
+    cancelled: number;
+    expired: number;
+  };
 }
 
 const metrics: {
   label: string;
   detail: string;
   icon: HouseholdIconName;
-  key: keyof AdminSummary;
+  key:
+    | "pendingListings"
+    | "lockedUsers"
+    | "openReports"
+    | "activeAnnouncements"
+    | "pendingRefunds";
 }[] = [
   {
     label: "Tin chờ duyệt",
@@ -74,9 +100,8 @@ export function AdminOverview({
     >
       <div className="dashboard-heading">
         <div>
-          <span className="eyebrow">BẢNG ĐIỀU KHIỂN · ROOMORA</span>
           <h2>Nhịp vận hành hôm nay</h2>
-          <p>Hàng chờ hiện tại, tập trung vào việc cần xử lý.</p>
+          <p>Hàng chờ hiện tại và kết quả xử lý trên toàn hệ thống.</p>
         </div>
         <button
           className="button button-secondary dashboard-refresh"
@@ -107,12 +132,12 @@ export function AdminOverview({
           </Link>
         ))}
       </div>
+      {data && <AdminResults data={data} />}
       {data && (
         <div className="dashboard-chart-grid admin-dashboard-charts">
           <Card className="dashboard-panel">
             <div className="dashboard-panel-heading">
               <div>
-                <span className="eyebrow">KHỐI LƯỢNG HIỆN TẠI</span>
                 <h3>Cơ cấu hàng chờ</h3>
               </div>
               <span className="dashboard-period">{total} mục</span>
@@ -127,7 +152,6 @@ export function AdminOverview({
           <Card className="dashboard-panel dashboard-priorities">
             <div className="dashboard-panel-heading">
               <div>
-                <span className="eyebrow">TIẾP THEO</span>
                 <h3>Đi đến công việc</h3>
               </div>
               <HouseholdIcon name="chores" />

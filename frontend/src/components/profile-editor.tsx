@@ -182,7 +182,6 @@ export function ProfileEditor({
       {onboarding && (
         <header className="setup-heading">
           <div>
-            <span className="eyebrow">LÀM QUEN VỚI ROOMORA</span>
             <h1>
               Một hồ sơ nhỏ.
               <br />
@@ -209,7 +208,6 @@ export function ProfileEditor({
             <span className="companion-caption">MỘT CHỐN ĐỂ VỀ</span>
           </div>
           <div className="companion-copy">
-            <span className="eyebrow">HỒ SƠ CỦA BẠN</span>
             <div className="companion-person">
               <div className="companion-avatar">
                 {profile.avatarUrl ? (

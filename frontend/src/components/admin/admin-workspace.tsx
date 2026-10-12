@@ -12,7 +12,6 @@ function Workspace({ children }: { children: React.ReactNode }) {
   return (
     <div className="container admin-workspace">
       <aside className="admin-sidebar">
-        <span className="eyebrow">ROOMORA ADMIN</span>
         <h2>
           Vận hành
           <br />& kiểm duyệt
@@ -23,15 +22,12 @@ function Workspace({ children }: { children: React.ReactNode }) {
           thông tin rõ ràng.
         </p>
         <nav aria-label="Chức năng quản trị">
-          {adminLinks.map((link, index) => (
+          {adminLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               aria-current={path === link.href ? "page" : undefined}
             >
-              <span className="admin-nav-number" aria-hidden="true">
-                0{index + 1}
-              </span>
               <span>
                 {link.label}
                 <small>{link.hint}</small>

@@ -78,7 +78,6 @@ function NotificationsContent() {
     <section className="container communication-section">
       <div className="communication-title">
         <div>
-          <span className="eyebrow">Luôn giữ liên lạc</span>
           <h1>Thông báo của bạn.</h1>
           <p className="text-muted">
             Lời mời kết nối, tin nhắn, lịch hẹn và nhà chung tại một nơi.

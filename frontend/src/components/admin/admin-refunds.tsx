@@ -637,7 +637,6 @@ export function AdminRefunds() {
     <section className="admin-page">
       <div className="admin-page-heading">
         <div>
-          <span className="eyebrow">ĐỐI SOÁT DỊCH VỤ</span>
           <h1>Hoàn tiền dịch vụ</h1>
           <p>
             Gửi trong 24 giờ từ thanh toán; xét duyệt có thể sau hạn. Phê duyệt

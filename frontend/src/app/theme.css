@@ -56,4 +56,10 @@
   --image-overlay: color-mix(in srgb, var(--foreground) 78%, transparent);
   --shadow-card: color-mix(in srgb, var(--primary) 6%, transparent);
   --shadow-elevated: color-mix(in srgb, var(--primary) 12%, transparent);
+
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-media: 12px;
+  --shadow-popup: 0 12px 32px
+    color-mix(in srgb, var(--foreground) 12%, transparent);
 }

@@ -74,7 +74,7 @@ function PeriodCard({
     >
       <div className="household-section-heading">
         <div>
-          <span className="eyebrow">
+          <span className="content-label">
             {period.kind === "DEFAULT"
               ? "PHƯƠNG ÁN DỰ PHÒNG"
               : `KỲ ${period.month.split("-").reverse().join("/")}`}{" "}

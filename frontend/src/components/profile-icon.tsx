@@ -5,7 +5,16 @@ export function ProfileIcon({
   ...props
 }: SVGProps<SVGSVGElement> & {
   name:
-    "person" | "home" | "sun" | "camera" | "pin" | "arrow" | "check" | "shield";
+    | "person"
+    | "home"
+    | "sun"
+    | "camera"
+    | "pin"
+    | "arrow"
+    | "check"
+    | "shield"
+    | "heart"
+    | "search";
 }) {
   const paths = {
     person: (
@@ -39,6 +48,15 @@ export function ProfileIcon({
       </>
     ),
     arrow: <path d="M4 12h16m-6-6 6 6-6 6" />,
+    heart: (
+      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
+    ),
+    search: (
+      <>
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m16 16 5 5" />
+      </>
+    ),
     check: <path d="m5 12 4 4L19 6" />,
     shield: (
       <>

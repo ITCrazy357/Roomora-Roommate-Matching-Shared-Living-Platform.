@@ -180,7 +180,7 @@ function AnnouncementEditor({
           )}
         </fieldset>
         <div className="admin-preview">
-          <span className="eyebrow">XEM TRƯỚC NỘI DUNG BANNER</span>
+          <span className="content-label">XEM TRƯỚC NỘI DUNG BANNER</span>
           <p>{preview}</p>
         </div>
         <p className="text-muted text-sm">
@@ -255,7 +255,6 @@ export function AdminAnnouncements() {
     <section className="admin-page">
       <div className="admin-page-heading">
         <div>
-          <span className="eyebrow">THÔNG TIN TOÀN HỆ THỐNG</span>
           <h1>Thông báo & bảo trì</h1>
           <p className="text-muted">
             Soạn nội dung, chọn lịch và phát banner tới mọi người.

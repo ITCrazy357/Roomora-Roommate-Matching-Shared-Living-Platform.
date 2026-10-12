@@ -25,7 +25,6 @@ function CategoryChart({ data }: { data: HouseReport }) {
     <Card className="house-panel household-report-categories">
       <div className="household-section-heading">
         <div>
-          <span className="eyebrow">CHI TIÊU VÀO ĐÂU?</span>
           <h2>Theo danh mục</h2>
         </div>
         <span className="household-status household-tone-neutral">
@@ -263,7 +262,6 @@ export function HouseReports({ houseId }: { houseId: string }) {
             <Card className="house-panel">
               <div className="household-section-heading">
                 <div>
-                  <span className="eyebrow">CÙNG CHIA SẺ CHI PHÍ</span>
                   <h2>Theo thành viên</h2>
                 </div>
                 <span className="household-icon-tile household-tone-info">
@@ -323,7 +321,6 @@ export function HouseReports({ houseId }: { houseId: string }) {
           <Card className="house-panel">
             <div className="household-section-heading">
               <div>
-                <span className="eyebrow">SỔ CHI TIẾT</span>
                 <h2>Khoản chi trong kỳ</h2>
               </div>
               <span className="household-status household-tone-brand">
@@ -412,7 +409,6 @@ export function HouseReports({ houseId }: { houseId: string }) {
           <Card className="house-panel household-ledger">
             <div className="household-section-heading">
               <div>
-                <span className="eyebrow">ĐỐI CHIẾU TRƯỚC KHI THANH TOÁN</span>
                 <h2>Công nợ tại thời điểm báo cáo</h2>
               </div>
               <span

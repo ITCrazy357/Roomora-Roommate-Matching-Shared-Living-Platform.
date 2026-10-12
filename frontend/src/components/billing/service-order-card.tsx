@@ -83,7 +83,7 @@ export function ServiceOrderCard({
     <Card className="service-order-card">
       <div className="service-order-heading">
         <div>
-          <span className="eyebrow">{order.planName}</span>
+          <span className="content-label">{order.planName}</span>
           <h2>
             <Link href={`/phong/${order.listingId}`}>{order.listingTitle}</Link>
           </h2>

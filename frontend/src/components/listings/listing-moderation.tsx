@@ -201,7 +201,6 @@ export function ListingModeration() {
     <section className="listings-page admin-page">
       <div className="listing-page-heading">
         <div>
-          <span className="eyebrow">QUẢN TRỊ ROOMORA</span>
           <h1>Kiểm duyệt tin đăng</h1>
           <p className="text-muted">
             Kiểm tra chất lượng nội dung, hình ảnh và chi phí trước khi công

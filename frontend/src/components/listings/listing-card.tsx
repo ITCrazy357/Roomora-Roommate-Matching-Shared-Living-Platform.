@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "../auth-provider";
 import { ButtonLink } from "../ui";
+import { ProfileIcon } from "../profile-icon";
 import { apiFetch } from "@/lib/api";
 import { DeleteListingDraft } from "./delete-listing-draft";
 import {
@@ -44,7 +45,7 @@ export function SaveListing({
         className="save-button"
         aria-label="Đăng nhập để lưu tin"
       >
-        ♡
+        <ProfileIcon name="heart" />
       </Link>
     );
   async function toggle() {
@@ -73,7 +74,7 @@ export function SaveListing({
         disabled={pending}
         onClick={toggle}
       >
-        {saved ? "♥" : "♡"}
+        <ProfileIcon name="heart" fill={saved ? "currentColor" : "none"} />
       </button>
       {error && (
         <p className="save-error" role="alert">
@@ -118,7 +119,7 @@ export function ListingCard({
             />
           ) : (
             <div className="listing-no-photo">
-              <span aria-hidden="true">⌂</span>
+              <ProfileIcon name={hasRoom ? "home" : "search"} />
               <span>
                 {!hasRoom
                   ? listing.type === "ROOMMATE"
@@ -137,7 +138,7 @@ export function ListingCard({
         {!manage && <SaveListing listing={listing} onChange={onSave} />}
       </div>
       <div className="listing-card-body">
-        <span className="eyebrow">{listingLabel(listing)}</span>
+        <span className="content-label">{listingLabel(listing)}</span>
         {listing.sponsored && (
           <span className="sponsored-label">Được tài trợ</span>
         )}

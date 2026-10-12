@@ -179,7 +179,7 @@ export function HouseDetail({
         Lịch sử công nợ các nhà đã ở →
       </Link>
       <Card className="house-hero">
-        <span className="eyebrow">
+        <span className="content-label">
           NHÀ CHUNG · {house.members.length} THÀNH VIÊN
         </span>
         <h1>{house.name}</h1>
@@ -246,7 +246,6 @@ export function HouseDetail({
             <div className="house-grid">
               <div className="house-stack">
                 <Card className="house-panel">
-                  <span className="eyebrow">TỔNG QUAN</span>
                   <h2>{house.name}</h2>
                   <p>{house.description || "Nhà chưa có giới thiệu."}</p>
                   {owner && (

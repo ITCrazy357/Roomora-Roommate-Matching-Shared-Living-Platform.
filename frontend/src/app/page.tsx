@@ -8,7 +8,6 @@ export default function Home() {
     <div className="container home">
       <section className="hero" aria-labelledby="home-title">
         <div className="hero-copy">
-          <span className="eyebrow">PHÒNG TRỌ & Ở GHÉP</span>
           <h1 id="home-title">
             Tìm chỗ ở.
             <br />
@@ -19,7 +18,7 @@ export default function Home() {
             bạn. So sánh chi phí, tiện ích và khu vực trước khi kết nối.
           </p>
           <div className="hero-actions">
-            <ButtonLink href="#tin-moi">Xem tin mới ↓</ButtonLink>
+            <ButtonLink href="/tim-phong">Khám phá tin đăng</ButtonLink>
             <ButtonLink href="/dang-tin" variant="secondary">
               Đăng tin
             </ButtonLink>
@@ -27,8 +26,8 @@ export default function Home() {
         </div>
         <HomeSlideshow />
       </section>
-      <HomeListings />
       <HomeJourney />
+      <HomeListings />
     </div>
   );
 }

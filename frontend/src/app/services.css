@@ -7,14 +7,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 40px;
-  border-radius: 24px;
-  background: var(--primary-soft);
+  padding: 32px 0;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
 }
 .service-hero h1 {
-  font-size: clamp(2rem, 4vw, 3.5rem);
-  line-height: 1.18;
-  letter-spacing: -0.045em;
+  font-size: 2rem;
+  line-height: 1.4;
+  letter-spacing: -0.03em;
   margin: 14px 0 20px;
 }
 .service-hero h1 span {
@@ -28,13 +29,17 @@
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 140px;
-  height: 140px;
-  border-radius: 32px;
-  background: var(--primary-action);
-  color: var(--on-primary);
+  width: 64px;
+  height: 64px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--primary-foreground);
   font-size: 6rem;
-  transform: rotate(-8deg);
+  transform: none;
+}
+.service-hero-mark svg {
+  width: 48px;
+  height: 48px;
 }
 .service-notice {
   padding: 18px 22px;
@@ -87,7 +92,7 @@
 .service-plan .service-price {
   font-size: 2.4rem;
   font-weight: 700;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.03em;
   color: var(--foreground);
 }
 .service-price small {

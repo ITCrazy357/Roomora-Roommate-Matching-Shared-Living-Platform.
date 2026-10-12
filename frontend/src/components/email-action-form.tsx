@@ -76,7 +76,6 @@ export function EmailActionForm({
   const step = grant ? 3 : challenge ? 2 : 1;
   return (
     <AuthCard
-      eyebrow={forgot ? "KHÔI PHỤC TÀI KHOẢN" : "XÁC MINH EMAIL"}
       title={
         grant
           ? "Tạo mật khẩu mới"

@@ -174,7 +174,6 @@ export function HouseRecurring({
       <Card className="house-panel household-drafts">
         <div className="household-section-heading">
           <div>
-            <span className="eyebrow">KIỂM TRA TRƯỚC KHI GHI SỔ</span>
             <h2>
               Nháp cần xác nhận {drafts.data ? `(${drafts.data.total})` : ""}
             </h2>

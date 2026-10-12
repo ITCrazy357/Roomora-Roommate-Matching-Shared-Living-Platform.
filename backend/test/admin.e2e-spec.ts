@@ -103,6 +103,10 @@ describe('ADMIN operations (real PostgreSQL)', () => {
       await prisma.systemAnnouncement.deleteMany({
         where: { authorId: { in: ids } },
       });
+      await prisma.serviceRefundRequest.deleteMany({
+        where: { order: { userId: { in: ids } } },
+      });
+      await prisma.serviceOrder.deleteMany({ where: { userId: { in: ids } } });
       await prisma.listing.deleteMany({ where: { ownerId: { in: ids } } });
       await prisma.user.deleteMany({ where: { id: { in: ids } } });
     }
@@ -488,6 +492,168 @@ describe('ADMIN operations (real PostgreSQL)', () => {
           item.id === scheduled.id || item.id === expired.id,
       ),
     ).toBe(false);
+  });
+
+  it('counts historical listings once and separates paid, completed, rejected and retryable refunds', async () => {
+    const baseline = (await admin.get(`${url}/admin/summary`).expect(200)).body;
+    const listing = await prisma.listing.create({
+      data: {
+        ownerId: ids[2],
+        title: `${prefix}-statistics`,
+        status: 'CLOSED',
+        reviews: {
+          create: [
+            { adminId: ids[0], decision: 'PUBLISHED', version: 1 },
+            { adminId: ids[0], decision: 'REJECTED', version: 2 },
+            { adminId: ids[0], decision: 'PUBLISHED', version: 3 },
+          ],
+        },
+      },
+    });
+    const target = await prisma.user.create({
+      data: { email: `${prefix}-statistics@example.test` },
+    });
+    ids.push(target.id);
+    await prisma.userReport.createMany({
+      data: [
+        {
+          reporterId: ids[1],
+          targetId: target.id,
+          reason: 'SPAM',
+          details: 'Test',
+          status: 'RESOLVED',
+          handledAt: new Date(),
+        },
+        {
+          reporterId: ids[2],
+          targetId: target.id,
+          reason: 'SPAM',
+          details: 'Test',
+          status: 'DISMISSED',
+          handledAt: new Date(),
+        },
+        {
+          reporterId: target.id,
+          targetId: ids[2],
+          reason: 'SPAM',
+          details: 'Test',
+          status: 'OPEN',
+        },
+      ],
+    });
+    const refunds = [];
+    for (const [index, status] of (
+      [
+        'PENDING',
+        'APPROVED',
+        'PROCESSING',
+        'COMPLETED',
+        'REJECTED',
+        'FAILED',
+      ] as const
+    ).entries()) {
+      const order = await prisma.serviceOrder.create({
+        data: {
+          userId: ids[2],
+          listingId: listing.id,
+          clientId: randomUUID(),
+          planCode: 'STATS',
+          planName: 'Statistics test',
+          amount: (index + 1) * 1000,
+          durationDays: 1,
+          buyerName: 'Test',
+          buyerEmail: `${prefix}@example.test`,
+          listingTitle: listing.title,
+          status: 'PAID',
+          paidAt: new Date(),
+          expiresAt: new Date(),
+        },
+      });
+      refunds.push(
+        await prisma.serviceRefundRequest.create({
+          data: {
+            orderId: order.id,
+            reason: 'Statistics test',
+            amount: order.amount,
+            status,
+            ...(status === 'COMPLETED' ? { completedAt: new Date() } : {}),
+          },
+        }),
+      );
+    }
+    for (const status of [
+      'PENDING',
+      'FAILED',
+      'CANCELLED',
+      'EXPIRED',
+    ] as const) {
+      await prisma.serviceOrder.create({
+        data: {
+          userId: ids[2],
+          listingId: listing.id,
+          clientId: randomUUID(),
+          planCode: 'STATS',
+          planName: 'Statistics test',
+          amount: 100000,
+          durationDays: 1,
+          buyerName: 'Test',
+          buyerEmail: `${prefix}@example.test`,
+          listingTitle: listing.title,
+          status,
+          expiresAt: new Date(),
+        },
+      });
+    }
+    const summary = (await admin.get(`${url}/admin/summary`).expect(200)).body;
+    expect(summary.listings.approved).toBe(baseline.listings.approved + 1);
+    expect(summary.listings.rejected).toBe(baseline.listings.rejected + 1);
+    expect(summary.reports.resolved).toBe(baseline.reports.resolved + 1);
+    expect(summary.reports.dismissed).toBe(baseline.reports.dismissed + 1);
+    expect(summary.openReports).toBe(baseline.openReports + 1);
+    expect(summary.pendingRefunds).toBe(baseline.pendingRefunds + 4);
+    for (const key of [
+      'pending',
+      'approved',
+      'processing',
+      'completed',
+      'rejected',
+      'failed',
+    ]) {
+      expect(summary.refunds[key]).toBe(baseline.refunds[key] + 1);
+    }
+    expect(summary.refunds.completedAmount).toBe(
+      baseline.refunds.completedAmount + 4000,
+    );
+    expect(summary.payments.paid).toBe(baseline.payments.paid + 6);
+    expect(summary.payments.paidAmount).toBe(
+      baseline.payments.paidAmount + 21000,
+    );
+    for (const key of ['pending', 'failed', 'cancelled', 'expired']) {
+      expect(summary.payments[key]).toBe(baseline.payments[key] + 1);
+    }
+    expect(Number.isNaN(Date.parse(summary.generatedAt))).toBe(false);
+    expect(JSON.stringify(summary)).not.toContain('buyerEmail');
+    await prisma.serviceRefundRequest.update({
+      where: { id: refunds[1].id },
+      data: { status: 'COMPLETED', completedAt: new Date() },
+    });
+    await prisma.listingReview.create({
+      data: {
+        listingId: listing.id,
+        adminId: ids[0],
+        decision: 'PUBLISHED',
+        version: 4,
+      },
+    });
+    const updated = (await admin.get(`${url}/admin/summary`).expect(200)).body;
+    expect(updated.refunds.completed).toBe(summary.refunds.completed + 1);
+    expect(updated.refunds.completedAmount).toBe(
+      summary.refunds.completedAmount + 2000,
+    );
+    expect(updated.refunds.approved).toBe(summary.refunds.approved - 1);
+    expect(updated.pendingRefunds).toBe(summary.pendingRefunds - 1);
+    expect(updated.listings.approved).toBe(summary.listings.approved);
+    expect(updated.payments.paidAmount).toBe(summary.payments.paidAmount);
   });
 
   it('serializes a simultaneous login and suspension and prevents publishing a locked user listing', async () => {

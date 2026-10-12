@@ -32,10 +32,19 @@ const steps = [
   "Ảnh & Tiêu chí",
   "Xem trước",
 ];
-export function ListingEditor({ id, initialType = "ROOMMATE" }: { id?: string; initialType?: ListingType }) {
+export function ListingEditor({
+  id,
+  initialType = "ROOMMATE",
+}: {
+  id?: string;
+  initialType?: ListingType;
+}) {
   const router = useRouter();
   const { user } = useAuth();
-  const [form, setForm] = useState<ListingForm>(() => ({ ...emptyForm, type: initialType }));
+  const [form, setForm] = useState<ListingForm>(() => ({
+    ...emptyForm,
+    type: initialType,
+  }));
   const [listing, setListing] = useState<Listing | null>(null);
   const [loaded, setLoaded] = useState(!id);
   const [step, setStep] = useState(0);
@@ -308,7 +317,7 @@ export function ListingEditor({ id, initialType = "ROOMMATE" }: { id?: string; i
     <section className="container page-section listings-page">
       <div className="listing-page-heading">
         <div>
-          <span className="eyebrow">{listingLabel(form)}</span>
+          <span className="content-label">{listingLabel(form)}</span>
           <h1>{id || listing ? "Chỉnh sửa tin đăng" : "Tạo tin đăng mới"}</h1>
           <p className="text-muted">
             Điền thông tin bạn muốn chia sẻ với người xem tin.
@@ -435,7 +444,6 @@ export function ListingEditor({ id, initialType = "ROOMMATE" }: { id?: string; i
         </div>
         <aside className="listing-editor-summary">
           <Card>
-            <span className="eyebrow">TÓM TẮT TIN ĐĂNG</span>
             <h2>{form.title || "Tin đăng của bạn"}</h2>
             <dl className="listing-costs">
               <div>

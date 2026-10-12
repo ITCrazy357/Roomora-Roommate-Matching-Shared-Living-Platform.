@@ -109,7 +109,6 @@ export function ConnectionInbox({
     <section className="container page-section people-page">
       <div className="people-page-heading">
         <div>
-          <span className="eyebrow">KẾT NỐI ROOMORA</span>
           <h1>Yêu cầu kết nối</h1>
           <p className="text-muted">
             Xem đối chiếu nếp sống trước khi nhận lời kết nối.

@@ -222,7 +222,7 @@ export function ListingContent({
         </div>
         <aside className="listing-summary">
           <Card>
-            <span className="eyebrow">{listingLabel(listing)}</span>
+            <span className="content-label">{listingLabel(listing)}</span>
             <p className="listing-price">{money(listing.rent)}</p>
             <p className="text-muted">
               {seekingRoom

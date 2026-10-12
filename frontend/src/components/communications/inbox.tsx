@@ -66,7 +66,6 @@ function InboxContent({ id }: { id?: string }) {
     <section className="container communication-section">
       <div className="communication-title">
         <div>
-          <span className="eyebrow">Kết nối thành cuộc trò chuyện</span>
           <h1>Hộp thư của bạn.</h1>
         </div>
         <Link className="text-link" href="/lich-xem-phong">

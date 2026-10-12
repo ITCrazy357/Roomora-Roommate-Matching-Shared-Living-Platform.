@@ -207,14 +207,14 @@
 }
 .balance-receivable {
   border-color: var(--success);
-  background: linear-gradient(var(--success-soft), var(--surface));
+  background: var(--success-soft);
 }
 .balance-debt {
   border-color: var(--danger);
-  background: linear-gradient(var(--danger-soft), var(--surface));
+  background: var(--danger-soft);
 }
 .balance-clear {
-  background: linear-gradient(var(--surface-muted), var(--surface));
+  background: var(--surface-muted);
 }
 .balance-receivable .balance-amount {
   color: var(--success-foreground);
@@ -226,7 +226,7 @@
   color: var(--muted);
 }
 .expense-card {
-  border-left: 4px solid var(--warning);
+  border-left: 1px solid var(--warning);
 }
 .expense-card.status-settled {
   border-left-color: var(--success);

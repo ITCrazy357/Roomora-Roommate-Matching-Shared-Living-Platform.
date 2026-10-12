@@ -15,9 +15,9 @@
 }
 .setup-heading h1 {
   margin: 10px 0 14px;
-  font-size: clamp(30px, 3.7vw, 44px);
-  line-height: 1.28;
-  letter-spacing: -0.045em;
+  font-size: 2rem;
+  line-height: 1.4;
+  letter-spacing: -0.03em;
 }
 .setup-heading p {
   color: var(--muted);
@@ -71,7 +71,7 @@
 .companion-copy {
   padding: 24px;
 }
-.companion-copy .eyebrow {
+.companion-copy .content-label {
   font-size: 10px;
   letter-spacing: 0.08em;
 }

@@ -74,3 +74,14 @@ UI đăng tin `ROOM_WANTED`, trạng thái chưa có nhà chung và sáu trang a
 response fixture trong trình duyệt; đây là kiểm chứng UI, không chứng minh nghiệp
 vụ của phiên đăng nhập thật. Không ghi dữ liệu kiểm thử vào database.
 Ảnh và báo cáo lưu local trong `.verification/hairline-results/`.
+
+## Tinh chỉnh theo Impeccable — 13/10/2026
+
+Hướng dẫn giao diện hiện hành bổ sung tại `../DESIGN.md`; phạm vi và kiểm chứng
+tại `ui-refinement.md`. Giữ bảng màu và Be Vietnam Pro. Dùng token góc bo
+`--radius-control`, `--radius-panel`, `--radius-media`; khung tĩnh dùng viền,
+menu nổi dùng `--shadow-popup`. Trang chủ dùng một minh họa và ba lối đi dạng dòng;
+footer các màn hình thao tác được thu gọn. Không dùng glow nền, nhãn quảng bá in hoa
+trên mỗi tiêu đề hoặc hiệu ứng nâng thẻ khi hover. Trình chiếu, focus panel và
+`prefers-reduced-motion` vẫn hoạt động. Điều khiển minh họa chỉ xuất hiện khi vùng
+minh họa hiển thị. Các ghi nhận kiểm chứng Hairline ở trên là của bố cục trước đợt này.

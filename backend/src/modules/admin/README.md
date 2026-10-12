@@ -26,6 +26,24 @@ Banner chạy trên mọi trang, cả khách chưa đăng nhập; cập nhật s
 
 ## API
 
+`GET /admin/summary` trả hàng chờ hiện tại và thống kê toàn thời gian trong một
+snapshot `RepeatableRead`, kèm `generatedAt`. Các trường hàng chờ cũ được giữ nguyên.
+
+- `listings.approved` / `listings.rejected`: số tin có lịch sử duyệt / từ chối,
+  mỗi tin tính một lần trong mỗi nhóm, kể cả tin đã đóng. Một tin có thể thuộc
+  cả hai nhóm; đây không phải hai phần của một tổng số tin.
+- `reports.resolved` / `reports.dismissed`: báo cáo đã xử lý vi phạm / đã bác bỏ;
+  `openReports` là báo cáo vẫn chờ xử lý.
+- `refunds`: số yêu cầu ở từng trạng thái hiện tại; `completedAmount` chỉ cộng
+  tiền của yêu cầu `COMPLETED`. `pendingRefunds` gồm `PENDING`, `APPROVED`,
+  `PROCESSING` và `FAILED`, vì các trạng thái này vẫn cần xử lý.
+- `payments`: số đơn thanh toán ở từng trạng thái; `paidAmount` là tổng tiền
+  đơn `PAID`, bao gồm đơn đã được hoàn tiền. Không coi số này là doanh thu ròng.
+
+Dashboard admin hiển thị các nhóm trên cùng số tiền đã hoàn thành công. Số liệu
+không lọc theo ngày; trạng thái hoàn tiền/thanh toán phản ánh trạng thái hiện tại
+của đơn/yêu cầu, không phải số lần thử giao dịch trong lịch sử.
+
 | API                                                                | Chức năng                                                                                  |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
 | `GET /admin/summary`                                               | Số tin chờ duyệt, báo cáo mở, tài khoản bị khóa và thông báo đang hiển thị                 |

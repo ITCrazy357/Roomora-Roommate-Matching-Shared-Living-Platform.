@@ -49,7 +49,6 @@ export function LoginForm() {
 
   return (
     <AuthCard
-      eyebrow="CHÀO MỪNG BẠN TRỞ LẠI"
       title="Đăng nhập"
       description="Tiếp tục hoàn thiện hồ sơ và tìm nhịp sống phù hợp với bạn."
       welcome

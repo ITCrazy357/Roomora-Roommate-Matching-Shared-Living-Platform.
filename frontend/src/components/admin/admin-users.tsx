@@ -151,7 +151,6 @@ export function AdminUsers() {
     <section className="admin-page">
       <div className="admin-page-heading">
         <div>
-          <span className="eyebrow">QUẢN LÝ TÀI KHOẢN</span>
           <h1>Người dùng</h1>
           <p className="text-muted">
             Kiểm tra vi phạm và quản lý quyền sử dụng Roomora.

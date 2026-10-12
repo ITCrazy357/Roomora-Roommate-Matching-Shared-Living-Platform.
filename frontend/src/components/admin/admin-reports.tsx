@@ -56,7 +56,7 @@ function ReportDetail({
   return (
     <div className="admin-report-detail">
       <Card>
-        <span className="eyebrow">NỘI DUNG BÁO CÁO</span>
+        <span className="content-label">NỘI DUNG BÁO CÁO</span>
         <h2>{reportReasons[report.reason]}</h2>
         <p className="admin-report-text">{report.details}</p>
         <p className="text-muted text-sm">
@@ -128,7 +128,6 @@ export function AdminReports() {
     <section className="admin-page">
       <div className="admin-page-heading">
         <div>
-          <span className="eyebrow">AN TOÀN CỘNG ĐỒNG</span>
           <h1>Báo cáo vi phạm</h1>
           <p className="text-muted">
             Xem nội dung, kiểm tra căn cứ rồi quyết định xử lý.

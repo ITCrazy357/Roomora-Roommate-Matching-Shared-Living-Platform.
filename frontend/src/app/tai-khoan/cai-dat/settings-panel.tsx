@@ -123,7 +123,6 @@ export function SettingsPanel() {
       <GoogleAccountCard />
       {auth.user?.hasPassword && (
         <Card className="settings-card">
-          <span className="eyebrow">BẢO MẬT TÀI KHOẢN</span>
           <h2>Mật khẩu đăng nhập</h2>
           <p className="text-muted">
             Xác nhận bằng mã OTP gửi qua email để đặt mật khẩu mới.
@@ -134,7 +133,6 @@ export function SettingsPanel() {
         </Card>
       )}
       <Card className="settings-card">
-        <span className="eyebrow">HỒ SƠ CÔNG KHAI</span>
         <h2>Ai có thể xem gì?</h2>
         <form className="form-stack" onSubmit={savePrivacy}>
           <Select
@@ -178,7 +176,6 @@ export function SettingsPanel() {
       </Card>
 
       <Card className="settings-card">
-        <span className="eyebrow">PHIÊN ĐĂNG NHẬP</span>
         <h2>Thiết bị đang hoạt động</h2>
         <div className="session-list">
           {sessions.map((session) => (

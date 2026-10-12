@@ -65,7 +65,6 @@ function AppointmentsContent() {
     <section className="container communication-section">
       <div className="communication-title">
         <div>
-          <span className="eyebrow">Không gian gặp gỡ văn minh</span>
           <h1>Lịch hẹn của bạn.</h1>
           <p className="text-muted">
             Thống nhất thời gian gặp, trao đổi và xem phòng khi hai bạn sẵn

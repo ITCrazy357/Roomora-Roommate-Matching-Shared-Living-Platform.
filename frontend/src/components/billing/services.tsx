@@ -12,6 +12,7 @@ import {
   type ServiceOrderPage,
 } from "@/lib/billing";
 import { money } from "@/lib/listings";
+import { ProfileIcon } from "../profile-icon";
 import {
   Button,
   ButtonLink,
@@ -147,7 +148,7 @@ function ServicesContent({
     <section className="container page-section services-page">
       <div className="service-hero">
         <div>
-          <span className="eyebrow">
+          <span className="content-label">
             Dịch vụ Roomora
             {catalog ? ` · ${paymentLabels[catalog.provider]}` : ""}
           </span>
@@ -162,7 +163,7 @@ function ServicesContent({
           </p>
         </div>
         <div className="service-hero-mark" aria-hidden="true">
-          ↗
+          <ProfileIcon name="arrow" />
         </div>
       </div>
       <div className="service-notice">
@@ -227,7 +228,7 @@ function ServicesContent({
             <>
               <div className="service-plans">
                 <Card className="service-plan">
-                  <span className="eyebrow">Dùng hằng ngày</span>
+                  <span className="content-label">Dùng hằng ngày</span>
                   <h2>Kết nối & chung nhà</h2>
                   <p className="service-price">Miễn phí</p>
                   <p>
@@ -244,7 +245,7 @@ function ServicesContent({
                   </ButtonLink>
                 </Card>
                 <Card className="service-plan service-plan-featured">
-                  <span className="eyebrow">Ưu tiên hiển thị</span>
+                  <span className="content-label">Ưu tiên hiển thị</span>
                   <h2>{catalog.plan.name}</h2>
                   <p className="service-price">
                     {money(catalog.plan.amount)}{" "}

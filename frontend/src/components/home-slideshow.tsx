@@ -86,7 +86,8 @@ export function HomeSlideshow() {
       onMouseEnter={() => setInteracting(true)}
       onMouseLeave={() => setInteracting(false)}
       onFocusCapture={(event) => {
-        if (!(event.target as HTMLElement).closest(".hero-slide-pause")) setPaused(true);
+        if (!(event.target as HTMLElement).closest(".hero-slide-pause"))
+          setPaused(true);
       }}
     >
       <div
@@ -123,7 +124,6 @@ export function HomeSlideshow() {
         ))}
       </div>
       <div className="image-note">
-        <span aria-hidden="true">⌂</span>
         <div>
           {slide.title}
           <br />
@@ -176,12 +176,17 @@ export function HomeSlideshow() {
           />
         </svg>
       </button>
-      {!reducedMotion && <button
-        type="button"
-        className="hero-slide-pause"
-        aria-pressed={!paused}
-        onClick={() => setPaused((value) => !value)}
-      >{paused ? "Phát ảnh tự động" : "Tạm dừng ảnh tự động"}</button>}
+      {!reducedMotion && (
+        <button
+          type="button"
+          className="hero-slide-pause"
+          aria-pressed={!paused}
+          aria-label={paused ? "Phát ảnh tự động" : "Tạm dừng ảnh tự động"}
+          onClick={() => setPaused((value) => !value)}
+        >
+          {paused ? "Phát ảnh" : "Tạm dừng"}
+        </button>
+      )}
       <figcaption>Hình ảnh minh họa không gian sống</figcaption>
     </figure>
   );

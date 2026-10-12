@@ -1,9 +1,8 @@
 "use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "./auth-provider";
 import { ProfileIcon } from "./profile-icon";
-import { RoomoraFigure } from "./roomora-figure";
-import { ButtonLink } from "./ui";
 
 const linkGroups = [
   {
@@ -26,6 +25,7 @@ const linkGroups = [
 
 export function SiteFooter() {
   const { user, loading } = useAuth();
+  const pathname = usePathname();
   if (loading) return null;
   if (user?.role === "ADMIN")
     return (
@@ -35,20 +35,21 @@ export function SiteFooter() {
         <a href="#main-content">Về đầu trang ↑</a>
       </footer>
     );
+  if (pathname !== "/")
+    return (
+      <footer className="compact-footer container">
+        <Link href="/" className="compact-footer-brand">
+          Roomora<span className="brand-dot">.</span>
+        </Link>
+        <span>Hợp người, chung nhà.</span>
+        <a href="#main-content">
+          Về đầu trang <ProfileIcon name="arrow" />
+        </a>
+      </footer>
+    );
   return (
     <footer className="site-footer">
       <div className="container">
-        <div className="footer-invite">
-          <RoomoraFigure className="footer-figure" />
-          <div>
-            <span className="eyebrow">CHƯƠNG MỚI BẮT ĐẦU TỪ MỘT MÁI NHÀ</span>
-            <h2>Một nơi để ở. Một chốn để thuộc về.</h2>
-            <p>Tìm căn phòng vừa ý và người cùng nhà hợp nhịp sống của bạn.</p>
-          </div>
-          <ButtonLink href="/tim-phong">
-            Tìm chốn của mình <span aria-hidden="true">↗</span>
-          </ButtonLink>
-        </div>
         <div className="footer-grid">
           <div className="footer-about">
             <Link
@@ -68,9 +69,6 @@ export function SiteFooter() {
               Mỗi người một nhịp sống. Roomora giúp bạn tìm một không gian và
               những người có thể cùng chia sẻ.
             </p>
-            <span className="footer-signoff">
-              <span aria-hidden="true">✳</span> Ở cùng nhau, sống đúng với mình.
-            </span>
           </div>
           {linkGroups.map((group) => (
             <nav

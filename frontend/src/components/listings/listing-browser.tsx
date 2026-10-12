@@ -130,9 +130,6 @@ export function ListingBrowser({
     <section className="container page-section listings-page">
       <div className="listing-page-heading">
         <div>
-          <span className="eyebrow">
-            {mode === "explore" ? "KHÁM PHÁ ROOMORA" : "KHÔNG GIAN CỦA BẠN"}
-          </span>
           <h1>{titles[mode]}</h1>
           <p className="text-muted">
             {mode === "explore"
@@ -316,7 +313,7 @@ export function ListingBrowser({
                   <div className="listing-results-heading">
                     <h2>
                       {result.data.total}{" "}
-                      {mode === "mine" ? "tin đăng" : "phòng phù hợp"}
+                      {mode === "mine" ? "tin đăng" : "tin phù hợp"}
                     </h2>
                     <span className="text-muted">
                       Trang {page}
@@ -352,7 +349,7 @@ export function ListingBrowser({
                       title={
                         mode === "mine"
                           ? "Bắt đầu với căn phòng của bạn"
-                          : "Chưa có phòng phù hợp"
+                          : "Chưa có tin phù hợp"
                       }
                       action={
                         <ButtonLink

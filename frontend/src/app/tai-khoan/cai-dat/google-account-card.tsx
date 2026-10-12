@@ -56,7 +56,6 @@ export function GoogleAccountCard() {
 
   return (
     <Card className="settings-card google-account-card">
-      <span className="eyebrow">CÁCH ĐĂNG NHẬP</span>
       <h2>
         <GoogleIcon /> Tài khoản Google
       </h2>

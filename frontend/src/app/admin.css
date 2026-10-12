@@ -8,15 +8,16 @@
 .admin-sidebar {
   position: sticky;
   top: 98px;
-  padding: 26px 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
+  padding: 8px 20px 24px 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  border-right: 1px solid var(--border);
 }
 .admin-sidebar h2 {
-  font-size: 1.35rem;
+  font-size: 1.125rem;
   line-height: 1.5;
-  margin: 14px 0 10px;
+  margin: 0 0 12px;
 }
 .admin-sidebar > p {
   font-size: 0.8rem;
@@ -33,7 +34,7 @@
   align-items: center;
   gap: 10px;
   padding: 13px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -50,22 +51,7 @@
 .admin-sidebar nav a[aria-current="page"] {
   background: var(--primary-soft);
   color: var(--primary-foreground);
-  box-shadow: inset 3px 0 var(--primary);
-}
-.admin-nav-number {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 34px;
-  flex-shrink: 0;
-  border-radius: 9px;
-  background: var(--surface-muted);
-  color: var(--muted);
-  font-size: 0.7rem;
-}
-.admin-sidebar nav a[aria-current="page"] .admin-nav-number {
-  background: var(--primary-action);
-  color: var(--on-primary);
+  box-shadow: none;
 }
 .admin-sidebar-note {
   border-top: 1px solid var(--border);
@@ -446,7 +432,7 @@
 .admin-preview p {
   margin: 0;
 }
-.admin-preview .eyebrow {
+.admin-preview .content-label {
   font-size: 0.62rem;
   display: block;
   margin-bottom: 10px;
@@ -598,7 +584,7 @@
   .admin-sidebar > p,
   .admin-sidebar-note,
   .admin-security-link,
-  .admin-sidebar > .eyebrow {
+  .admin-sidebar > .content-label {
     display: none;
   }
   .admin-sidebar nav {
@@ -671,5 +657,13 @@
   }
   .admin-stat {
     transition: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-sidebar {
+    padding: 0 0 20px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
   }
 }

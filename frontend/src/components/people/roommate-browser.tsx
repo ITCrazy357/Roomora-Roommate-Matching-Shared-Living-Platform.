@@ -134,7 +134,6 @@ export function RoommateBrowser() {
     <section className="container page-section people-page">
       <div className="people-page-heading">
         <div>
-          <span className="eyebrow">HỢP NGƯỜI, CHUNG NHÀ</span>
           <h1>Tìm người hợp nếp sống.</h1>
           <p className="text-muted">
             Đối chiếu khu vực, ngân sách và thói quen để bắt đầu một lời kết nối

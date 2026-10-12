@@ -37,7 +37,7 @@ export function HouseList() {
     finally { setPending(false); }
   }
   return <section className="container page-section houses-page">
-    <div className="house-heading"><div><span className="eyebrow">CÙNG NHAU Ở TỐT HƠN</span><h1>Nhà chung của bạn</h1><p className="text-muted">Mỗi người chỉ tham gia một nhà. Rời nhà hiện tại trước khi chuyển sang nhà khác.</p></div><ButtonLink href="/nha-chung/lich-su" variant="secondary">Lịch sử công nợ</ButtonLink></div>
+    <div className="house-heading"><div><h1>Nhà chung của bạn</h1><p className="text-muted">Mỗi người chỉ tham gia một nhà. Rời nhà hiện tại trước khi chuyển sang nhà khác.</p></div><ButtonLink href="/nha-chung/lich-su" variant="secondary">Lịch sử công nợ</ButtonLink></div>
     {error && <ErrorState message={error} action={<Button onClick={() => setRefresh((value) => value + 1)}>Thử lại</Button>} />}
     {!loaded && !error && <LoadingState message="Đang mở nhà chung…" />}
     {loaded && <div className="house-grid"><div className="house-stack"><Card className="house-empty"><RoomoraFigure kind="people" className="empty-figure" /><h2>Chưa có nhà chung</h2><p className="text-muted">Nhận lời mời hoặc tạo nhà để quản lý sinh hoạt, chat và chia chi phí với người ở cùng.</p></Card>

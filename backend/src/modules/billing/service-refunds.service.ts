@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -13,6 +14,7 @@ import {
 } from './refund-rules.service.js';
 import type { RefundRecipientDto } from './dto/refund.dto.js';
 import { createHash } from 'node:crypto';
+import { findRefundBank, refundBankId } from './refund-banks.js';
 
 @Injectable()
 export class ServiceRefundsService {
@@ -70,6 +72,8 @@ export class ServiceRefundsService {
 
   async recipient(userId: string, orderId: string, dto: RefundRecipientDto) {
     const initial = await this.get(userId, orderId);
+    const bank = findRefundBank(dto.bankId);
+    if (!bank) throw new BadRequestException({ code: 'REFUND_BANK_INVALID' });
     await this.prisma.$transaction(async (tx) => {
       const refund = await this.rules.lock(tx, initial.id);
       if (refund.order.userId !== userId) throw new ForbiddenException();
@@ -82,7 +86,7 @@ export class ServiceRefundsService {
         refund.order.payerAccount &&
         (refund.order.payerAccount !== dto.accountNumber ||
           (refund.order.payerBankId &&
-            refund.order.payerBankId !== dto.bankId)) &&
+            refundBankId(refund.order.payerBankId) !== bank.bin)) &&
         dto.differentAccountReason.trim().length < 10
       )
         throw new ConflictException({
@@ -95,8 +99,8 @@ export class ServiceRefundsService {
         'RECIPIENT_UPDATED',
         'Người dùng cập nhật tài khoản nhận tiền',
         {
-          bankId: dto.bankId,
-          bankName: dto.bankName,
+          bankId: bank.bin,
+          bankName: bank.name,
           accountNumber: dto.accountNumber,
           accountName: dto.accountName,
           differentAccountReason: dto.differentAccountReason || null,
@@ -106,17 +110,21 @@ export class ServiceRefundsService {
           verificationReference: null,
         },
         {
-          bankId: dto.bankId,
-          bankName: dto.bankName,
+          bankId: bank.bin,
+          bankName: bank.name,
           accountName: dto.accountName,
           accountLast4: dto.accountNumber.slice(-4),
           previousAccountLast4: refund.accountNumber?.slice(-4) ?? null,
           accountFingerprint: createHash('sha256')
-            .update(dto.bankId + ':' + dto.accountNumber)
+            .update(bank.bin + ':' + dto.accountNumber)
             .digest('hex'),
           previousAccountFingerprint: refund.accountNumber
             ? createHash('sha256')
-                .update((refund.bankId ?? '') + ':' + refund.accountNumber)
+                .update(
+                  (refundBankId(refund.bankId) ?? '') +
+                    ':' +
+                    refund.accountNumber,
+                )
                 .digest('hex')
             : null,
         },

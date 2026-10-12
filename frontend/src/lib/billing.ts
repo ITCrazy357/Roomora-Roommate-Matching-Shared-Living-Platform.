@@ -131,6 +131,7 @@ export function billingError(error: unknown) {
         "Tài khoản khác người thanh toán gốc cần lý do ít nhất 10 ký tự.",
       REFUND_DIFFERENT_ACCOUNT_REVIEW:
         "Tài khoản hoặc tên khác giao dịch gốc cần lý do và phê duyệt xác minh bổ sung.",
+      REFUND_BANK_INVALID: "Chọn ngân hàng nhận tiền từ danh sách hợp lệ.",
       REFUND_AMOUNT_MISMATCH:
         "Số tiền hoàn phải bằng đúng số tiền đã thanh toán; không hỗ trợ hoàn một phần.",
       REFUND_REFERENCE_REUSED:

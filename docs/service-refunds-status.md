@@ -60,7 +60,7 @@ chưa kiểm chứng quyền lệnh chi hoặc API xác minh chủ tài khoản.
 để đánh dấu hoàn tiền, không tự gọi lệnh chi bằng các khóa hiện có.
 
 1. USER gửi yêu cầu đúng hạn, ADMIN phê duyệt sau đối chiếu giao dịch gốc.
-2. Sau duyệt, USER cung cấp/xác nhận ngân hàng, mã ngân hàng, số và tên chủ tài khoản.
+2. Sau duyệt, USER chọn ngân hàng từ danh sách và nhập số/tên chủ tài khoản.
    CounterAccount nhận từ webhook **đã xác thực chữ ký** được lưu làm căn cứ.
    Nếu đủ dữ liệu dùng được, điền sẵn thông tin gốc; không tự đánh dấu đã xác minh.
 3. ADMIN đối chiếu người yêu cầu/order owner với giao dịch và căn cứ chủ tài khoản.
@@ -85,6 +85,30 @@ chưa kiểm chứng quyền lệnh chi hoặc API xác minh chủ tài khoản.
 tiền đã về**. Trách nhiệm đối chiếu chứng từ với ngân hàng thuộc ADMIN. Không lưu
 mật khẩu, OTP hoặc thông tin đăng nhập ngân hàng. Quy trình hiện tại không bắt buộc
 hai ADMIN vì project chưa có nhóm quyền tài chính riêng; audit lưu mọi người thao tác.
+
+## Bổ sung 13/10/2026 — Tài khoản nhận và tra cứu ADMIN
+
+- `/services/refund-banks` trả danh sách 42 ngân hàng hỗ trợ chuyển khoản VietQR,
+  snapshot kiểm tra ngày 13/10/2026 từ https://api.vietqr.io/v2/banks.
+  Danh sách lưu tại `refund-banks.ts`; cần cập nhật khi ngân hàng đổi tên/mã hoặc
+  VietQR bổ sung hỗ trợ. Không gọi API ngoài mỗi lần mở biểu mẫu.
+- USER chọn ngân hàng, không tự nhập BIN hoặc tên ngân hàng. Backend đối chiếu
+  BIN/mã ngân hàng trong danh sách, lưu BIN và tên chuẩn; không tin tên client gửi.
+  Hỗ trợ mã ngân hàng cũ hợp lệ như `MB` tương đương `970422` khi đối chiếu.
+  Mã cũ sai cần USER chọn lại; ADMIN không thể xác minh/bắt đầu xử lý với mã sai.
+- Tên chủ tài khoản tự chuyển in hoa, bỏ dấu, chuyển Đ thành D khi nhập/dán
+  (sau khi hoàn tất bộ gõ). Backend chuẩn hóa tương tự, gộp khoảng trắng,
+  kiểm tra độ dài và ký tự. Việc chuẩn hóa không chứng minh chủ tài khoản.
+  Sửa tài khoản vẫn xóa xác minh và tăng phiên bản theo quy trình hiện tại.
+- ADMIN có nút `Lịch sử đã hoàn tiền`, bộ lọc mọi trạng thái, tìm kiếm và phân trang.
+  `GET /admin/refunds?q=...&status=COMPLETED` tìm theo tên/email người mua,
+  ngân hàng/tài khoản nhận, tiêu đề tin, mã thu/hoàn và mã đơn/mã yêu cầu UUID đầy đủ.
+  Lịch sử hoàn tất sắp xếp theo completedAt mới nhất; hàng chờ PENDING giữ cũ nhất trước.
+  Danh sách hiển thị ngày hoàn, mã đơn và mã hoàn, mở chi tiết có chứng từ/audit.
+  Giữ AdminGuard, private/no-store; USER không truy cập được tìm kiếm/lịch sử ADMIN.
+- Kiểm chứng: 25 E2E HTTP/PostgreSQL, TypeScript/lint; Edge kiểm tra chọn ngân hàng,
+  đổi tên, tìm kiếm/lịch sử/chi tiết, quy trình chuyển khoản mô phỏng và 320–1366px.
+  Không chuyển tiền thật trong kiểm thử.
 
 ## MoMo sandbox: về phương thức gốc
 

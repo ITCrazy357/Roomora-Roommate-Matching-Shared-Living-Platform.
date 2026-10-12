@@ -13,6 +13,7 @@ import {
   listingLabel,
   listingHasRoom,
   money,
+  type ListingType,
 } from "@/lib/listings";
 import { ListingEditorFields } from "./listing-editor-fields";
 import { DeleteListingDraft } from "./delete-listing-draft";
@@ -31,10 +32,10 @@ const steps = [
   "Ảnh & Tiêu chí",
   "Xem trước",
 ];
-export function ListingEditor({ id }: { id?: string }) {
+export function ListingEditor({ id, initialType = "ROOMMATE" }: { id?: string; initialType?: ListingType }) {
   const router = useRouter();
   const { user } = useAuth();
-  const [form, setForm] = useState<ListingForm>(emptyForm);
+  const [form, setForm] = useState<ListingForm>(() => ({ ...emptyForm, type: initialType }));
   const [listing, setListing] = useState<Listing | null>(null);
   const [loaded, setLoaded] = useState(!id);
   const [step, setStep] = useState(0);

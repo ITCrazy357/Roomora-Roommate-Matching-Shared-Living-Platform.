@@ -14,6 +14,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { normalizeAccountName } from '../refund-banks.js';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -32,12 +33,22 @@ export class RefundRecipientDto extends RefundVersionDto {
   @IsString()
   @Matches(/^[a-zA-Z0-9_-]{2,50}$/)
   bankId!: string;
-  @Transform(trim) @IsString() @MinLength(2) @MaxLength(100) bankName!: string;
-  @Transform(trim) @IsString() @Matches(/^\d{4,50}$/) accountNumber!: string;
   @Transform(trim)
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(100)
+  bankName?: string;
+  @Transform(trim) @IsString() @Matches(/^\d{4,50}$/) accountNumber!: string;
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string'
+      ? normalizeAccountName(value).trim().replace(/\s+/g, ' ')
+      : value,
+  )
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  @Matches(/^[A-Z0-9 .&'()/-]+$/)
   accountName!: string;
   @Transform(trim)
   @IsOptional()
@@ -72,6 +83,7 @@ export class CompleteRefundDto extends RefundNoteDto {
   @IsBoolean() @Equals(true) originalUnrefunded!: boolean;
 }
 export class RefundQueryDto {
+  @Transform(trim) @IsOptional() @IsString() @MaxLength(100) q = '';
   @IsIn([
     'all',
     'PENDING',
@@ -82,6 +94,6 @@ export class RefundQueryDto {
     'FAILED',
   ])
   status = 'PENDING';
-  @Type(() => Number) @IsInt() @Min(1) page = 1;
+  @Type(() => Number) @IsInt() @Min(1) @Max(10000) page = 1;
   @Type(() => Number) @IsInt() @Min(1) @Max(50) limit = 10;
 }

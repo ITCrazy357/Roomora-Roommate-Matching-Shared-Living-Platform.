@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
+import { useReducedMotion } from "./use-reduced-motion";
 
 const slides = [
   {
@@ -36,12 +37,13 @@ const loopingSlides = [slides[slides.length - 1], ...slides, slides[0]];
 export function HomeSlideshow() {
   const [activeSlide, setActiveSlide] = useState(1);
   const [transitionEnabled, setTransitionEnabled] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const [paused, setPaused] = useState(false);
+  const [interacting, setInteracting] = useState(false);
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
     function updatePreference() {
-      setReducedMotion(preference.matches);
       setTransitionEnabled(false);
       setActiveSlide(
         (index) => ((index - 1 + slides.length) % slides.length) + 1,
@@ -66,11 +68,12 @@ export function HomeSlideshow() {
   );
 
   useEffect(() => {
+    if (paused || interacting || reducedMotion) return;
     const timer = window.setInterval(() => {
       if (!document.hidden) changeSlide(1);
     }, 6000);
     return () => window.clearInterval(timer);
-  }, [changeSlide]);
+  }, [changeSlide, paused, interacting, reducedMotion]);
 
   const selectedSlide = (activeSlide - 1 + slides.length) % slides.length;
   const slide = slides[selectedSlide];
@@ -80,6 +83,11 @@ export function HomeSlideshow() {
       className="hero-visual"
       aria-label="Không gian sống Roomora"
       aria-roledescription="trình chiếu ảnh"
+      onMouseEnter={() => setInteracting(true)}
+      onMouseLeave={() => setInteracting(false)}
+      onFocusCapture={(event) => {
+        if (!(event.target as HTMLElement).closest(".hero-slide-pause")) setPaused(true);
+      }}
     >
       <div
         className={`hero-slide-track${transitionEnabled ? "" : " without-transition"}`}
@@ -168,6 +176,12 @@ export function HomeSlideshow() {
           />
         </svg>
       </button>
+      {!reducedMotion && <button
+        type="button"
+        className="hero-slide-pause"
+        aria-pressed={!paused}
+        onClick={() => setPaused((value) => !value)}
+      >{paused ? "Phát ảnh tự động" : "Tạm dừng ảnh tự động"}</button>}
       <figcaption>Hình ảnh minh họa không gian sống</figcaption>
     </figure>
   );

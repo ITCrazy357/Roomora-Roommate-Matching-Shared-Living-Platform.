@@ -3,6 +3,11 @@ import { useState } from "react";
 import type { RefundDetail } from "@/lib/billing";
 import { money } from "@/lib/listings";
 import { Button, Select } from "../ui";
+import {
+  findRefundBank,
+  normalizeAccountName,
+  useRefundBanks,
+} from "@/lib/refund-banks";
 
 export function RefundNoteOptions({
   refund,
@@ -129,15 +134,13 @@ export function RefundCopyValue({
 }
 
 export function RefundAccountComparison({ refund }: { refund: RefundDetail }) {
+  const { banks } = useRefundBanks();
   const normalize = (value: string) =>
-    value
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/đ/gi, "d")
-      .replace(/\s+/g, "")
-      .toUpperCase();
+    normalizeAccountName(value).replace(/\s+/g, "");
+  const bankId = (value: string | null) =>
+    findRefundBank(banks, value)?.bin ?? value;
   const rows = [
-    ["Mã ngân hàng", refund.order.payerBankId, refund.bankId],
+    ["Mã ngân hàng", bankId(refund.order.payerBankId), bankId(refund.bankId)],
     ["Số tài khoản", refund.order.payerAccount, refund.accountNumber],
     ["Chủ tài khoản", refund.order.payerName, refund.accountName],
   ];

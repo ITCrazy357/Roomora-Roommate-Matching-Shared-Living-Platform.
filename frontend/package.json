@@ -10,6 +10,7 @@
     "test:api": "node --experimental-strip-types --test test/api.test.mjs"
   },
   "dependencies": {
+    "@lucasmarkes/hairline": "0.5.0",
     "leaflet": "^1.9.4",
     "next": "16.3.5",
     "react": "19.2.8",

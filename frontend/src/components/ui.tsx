@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PasswordInput } from "./password-input";
+import { RoomoraFigure } from "./roomora-figure";
 import type {
   ButtonHTMLAttributes,
   ComponentProps,
@@ -167,9 +168,7 @@ export function EmptyState({
 }) {
   return (
     <Card className="empty-state">
-      <span className="empty-mark" aria-hidden="true">
-        ↗
-      </span>
+      <RoomoraFigure kind="empty" className="empty-figure" />
       <h1>{title}</h1>
       <div className="text-muted">{children}</div>
       {action}

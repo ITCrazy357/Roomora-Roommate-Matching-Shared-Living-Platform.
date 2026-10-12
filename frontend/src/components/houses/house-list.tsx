@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/api';
 import { houseDate, houseError, type House, type HouseInvite, type HouseSummary } from '@/lib/houses';
 import { Button, ButtonLink, Card, ErrorState, LoadingState } from '../ui';
 import { HouseForm, emptyInfo, type HouseInfo } from './house-form';
+import { RoomoraFigure } from '../roomora-figure';
 
 export function HouseList() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export function HouseList() {
     <div className="house-heading"><div><span className="eyebrow">CÙNG NHAU Ở TỐT HƠN</span><h1>Nhà chung của bạn</h1><p className="text-muted">Mỗi người chỉ tham gia một nhà. Rời nhà hiện tại trước khi chuyển sang nhà khác.</p></div><ButtonLink href="/nha-chung/lich-su" variant="secondary">Lịch sử công nợ</ButtonLink></div>
     {error && <ErrorState message={error} action={<Button onClick={() => setRefresh((value) => value + 1)}>Thử lại</Button>} />}
     {!loaded && !error && <LoadingState message="Đang mở nhà chung…" />}
-    {loaded && <div className="house-grid"><div className="house-stack"><Card className="house-empty"><h2>Chưa có nhà chung</h2><p className="text-muted">Nhận lời mời hoặc tạo nhà để quản lý sinh hoạt, chat và chia chi phí với người ở cùng.</p></Card>
+    {loaded && <div className="house-grid"><div className="house-stack"><Card className="house-empty"><RoomoraFigure kind="people" className="empty-figure" /><h2>Chưa có nhà chung</h2><p className="text-muted">Nhận lời mời hoặc tạo nhà để quản lý sinh hoạt, chat và chia chi phí với người ở cùng.</p></Card>
       {invites.length > 0 && <Card className="house-panel"><h2>Lời mời vào nhà</h2>{invites.map((invite) => <div className="house-row" key={invite.id}><div><strong>{invite.house.name}</strong><p className="text-muted">Hết hạn {houseDate(invite.expiresAt)}</p></div><Button disabled={pending} onClick={() => void enter(`/houses/invites/${invite.id}/accept`)}>Tham gia</Button></div>)}</Card>}
     </div><Card className="house-panel"><h2>Tạo nhà chung</h2><p className="text-muted">Bạn có thể tạo nhà trực tiếp, không cần có tin phòng trên Roomora.</p><HouseForm value={emptyInfo} onSave={(info) => enter('/houses', info)} pending={pending} label="Tạo nhà" /></Card></div>}
   </section>;

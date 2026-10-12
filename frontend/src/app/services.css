@@ -303,6 +303,8 @@
   gap: 8px;
   cursor: pointer;
   color: var(--foreground);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .refund-list-item[aria-pressed="true"] {
   border-color: var(--primary-action);

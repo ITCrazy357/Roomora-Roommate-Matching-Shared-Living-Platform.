@@ -242,6 +242,209 @@ describe('Service refunds (HTTP and PostgreSQL)', () => {
     originalUnrefunded: true,
   });
 
+  it('uses the bank directory, canonicalizes names and rejects unsupported recipients', async () => {
+    const catalog = (await get('/services/refund-banks').expect(200)).body;
+    expect(
+      catalog.find((bank: { bin: string }) => bank.bin === '970422'),
+    ).toMatchObject({ code: 'MB', name: 'MBBank' });
+    const order = await paid(0, {
+      payerBankId: 'ICB',
+      payerAccount: recipient.accountNumber,
+    });
+    const refund = await approve(await requested(order));
+    const path = `/services/orders/${order.id}/refund/recipient`;
+    for (const bankId of ['RR-' + order.id, '999999']) {
+      const response = await post(path, {
+        ...recipient,
+        bankId,
+        version: refund.version,
+      }).expect(400);
+      expect(response.body.code).toBe('REFUND_BANK_INVALID');
+    }
+    await post(path, {
+      ...recipient,
+      accountName: '😀😀',
+      version: refund.version,
+    }).expect(400);
+    const saved = (
+      await post(path, {
+        ...recipient,
+        bankId: 'ICB',
+        bankName: 'Tên giả không được tin cậy',
+        accountName: '  nguyễn   văn đặng  ',
+        version: refund.version,
+      }).expect(201)
+    ).body;
+    expect(saved).toMatchObject({
+      bankId: '970415',
+      bankName: 'VietinBank',
+      accountName: 'NGUYEN VAN DANG',
+      verifiedAt: null,
+    });
+    const action = saved.actions.find(
+      (item: { action: string }) => item.action === 'RECIPIENT_UPDATED',
+    );
+    expect(action.details).toMatchObject({
+      bankId: '970415',
+      bankName: 'VietinBank',
+      accountName: 'NGUYEN VAN DANG',
+    });
+    await post(
+      `/admin/refunds/${saved.id}/verify-recipient`,
+      {
+        version: saved.version,
+        note: reason,
+        evidenceReference: 'bank-statement-tested',
+      },
+      2,
+    ).expect(201);
+    const updated = (
+      await post(path, {
+        bankId: '970415',
+        accountNumber: recipient.accountNumber,
+        accountName: 'đỗ thị ánh',
+        version: saved.version + 1,
+      }).expect(201)
+    ).body;
+    expect(updated.accountName).toBe('DO THI ANH');
+    expect(updated.verifiedAt).toBeNull();
+  });
+
+  it('searches completed refund history with status filtering and stable pagination, only for admins', async () => {
+    const completed = [];
+    for (let index = 0; index < 2; index++) {
+      let { refund } = await processing(index);
+      refund = await proof(refund);
+      const reference = `SEARCH-BANK-${prefix}-${index}`;
+      const done = (
+        await post(
+          `/admin/refunds/${refund.id}/complete`,
+          completion(refund, reference),
+          2,
+        ).expect(201)
+      ).body;
+      completed.push(done);
+    }
+    const latest = completed[1];
+    await prisma.serviceOrder.update({
+      where: { id: latest.orderId },
+      data: {
+        buyerName: 'Khách tra cứu',
+        buyerEmail: `${prefix}@example.test`,
+        providerTransId: 'SEARCH-ORIGINAL-' + prefix,
+        listingTitle: 'Tin tìm kiếm ' + prefix,
+      },
+    });
+    for (const q of [
+      latest.id,
+      latest.orderId,
+      latest.refundReference,
+      `${prefix}@example.test`,
+      'Khách tra cứu',
+      'SEARCH-ORIGINAL-' + prefix,
+    ]) {
+      const result = (
+        await get(
+          '/admin/refunds?status=COMPLETED&q=' + encodeURIComponent(q),
+          2,
+        ).expect(200)
+      ).body;
+      expect(result.items.map((item: { id: string }) => item.id)).toContain(
+        latest.id,
+      );
+    }
+    const first = (
+      await get(
+        '/admin/refunds?status=COMPLETED&limit=1&q=' +
+          encodeURIComponent(prefix),
+        2,
+      ).expect(200)
+    ).body;
+    expect(first).toMatchObject({ total: 2, pages: 2, page: 1 });
+    expect(first.items[0].id).toBe(latest.id);
+    const second = (
+      await get(
+        '/admin/refunds?status=COMPLETED&limit=1&page=2&q=' +
+          encodeURIComponent(prefix),
+        2,
+      ).expect(200)
+    ).body;
+    expect(second.items[0].id).toBe(completed[0].id);
+    expect(
+      (await get('/admin/refunds?status=PENDING&q=' + latest.id, 2).expect(200))
+        .body.total,
+    ).toBe(0);
+    expect(
+      (
+        await get(
+          '/admin/refunds?status=COMPLETED&q=not-found-' + prefix,
+          2,
+        ).expect(200)
+      ).body.total,
+    ).toBe(0);
+    expect(
+      (
+        await get(
+          '/admin/refunds?status=COMPLETED&q=' +
+            encodeURIComponent('nguyễn văn a'),
+          2,
+        ).expect(200)
+      ).body.items.some((item: { id: string }) => item.id === latest.id),
+    ).toBe(true);
+    expect(
+      (
+        await get(
+          '/admin/refunds?status=COMPLETED&q=' + recipient.accountNumber,
+          2,
+        ).expect(200)
+      ).body.items.some((item: { id: string }) => item.id === latest.id),
+    ).toBe(true);
+    await get('/admin/refunds?q=' + 'a'.repeat(101), 2).expect(400);
+    await get('/admin/refunds?status=COMPLETED&q=' + latest.id).expect(403);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/refunds?status=COMPLETED')
+      .expect(401);
+  });
+
+  it('requires an invalid legacy bank to be corrected before verification or processing', async () => {
+    const refund = await approve(await requested());
+    await prisma.serviceRefundRequest.update({
+      where: { id: refund.id },
+      data: {
+        ...recipient,
+        bankId: 'RR-' + refund.orderId,
+      },
+    });
+    const response = await post(
+      `/admin/refunds/${refund.id}/verify-recipient`,
+      {
+        version: refund.version,
+        note: reason,
+        evidenceReference: 'legacy-bank-evidence',
+      },
+      2,
+    ).expect(400);
+    expect(response.body.code).toBe('REFUND_BANK_INVALID');
+    await prisma.serviceRefundRequest.update({
+      where: { id: refund.id },
+      data: {
+        verifiedAt: new Date(),
+        verifiedById: users[2],
+      },
+    });
+    const begin = await post(
+      `/admin/refunds/${refund.id}/process`,
+      {
+        version: refund.version,
+        note: reason,
+        originalUnrefunded: true,
+      },
+      2,
+    ).expect(400);
+    expect(begin.body.code).toBe('REFUND_BANK_INVALID');
+    expect((await adminGet(refund.id)).status).toBe('APPROVED');
+  });
+
   it('enforces the database payment timestamp and refuses requests near day seven', async () => {
     const expired = await paid(0, {
       paidAt: new Date(Date.now() - 7 * 86400000 + 3600000),

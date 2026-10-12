@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import {
   billingError,
@@ -10,7 +10,12 @@ import {
   type RefundDetail,
 } from "@/lib/billing";
 import { money } from "@/lib/listings";
-import { Button, ErrorState, Input, Textarea } from "../ui";
+import { Button, ErrorState, Input, Select, Textarea } from "../ui";
+import {
+  findRefundBank,
+  normalizeAccountName,
+  useRefundBanks,
+} from "@/lib/refund-banks";
 import { RefundProof } from "./refund-proof";
 
 export function ServiceRefundPanel({
@@ -36,6 +41,16 @@ export function ServiceRefundPanel({
     differentAccountReason: "",
   });
   const [proof, setProof] = useState("");
+  const composingName = useRef(false);
+  const {
+    banks,
+    error: bankError,
+    reload: reloadBanks,
+  } = useRefundBanks(
+    order.refund?.status === "APPROVED" &&
+      order.refund.method === "MANUAL_BANK",
+  );
+  const bank = findRefundBank(banks, recipient.bankId);
   const refundId = order.refund?.id,
     version = order.refund?.version;
   useEffect(() => {
@@ -50,7 +65,7 @@ export function ServiceRefundPanel({
           bankId: data.bankId ?? "",
           bankName: data.bankName ?? "",
           accountNumber: data.accountNumber ?? "",
-          accountName: data.accountName ?? "",
+          accountName: normalizeAccountName(data.accountName ?? ""),
           differentAccountReason: data.differentAccountReason ?? "",
         });
       })
@@ -84,10 +99,16 @@ export function ServiceRefundPanel({
           reason,
         });
         setForm(false);
-      } else if (detail) {
+      } else if (detail && bank) {
         const saved = await billingPost<RefundDetail>(
           `/services/orders/${order.id}/refund/recipient`,
-          { ...recipient, version: detail.version },
+          {
+            ...recipient,
+            bankId: bank.bin,
+            bankName: bank.name,
+            accountName: normalizeAccountName(recipient.accountName),
+            version: detail.version,
+          },
         );
         setDetail(saved);
       }
@@ -182,33 +203,99 @@ export function ServiceRefundPanel({
                   hàng, không gửi mật khẩu hoặc OTP.
                 </p>
                 <div className="form-grid">
-                  {(
-                    [
-                      ["bankId", "Mã ngân hàng (BIN hoặc mã ngân hàng)"],
-                      ["bankName", "Tên ngân hàng"],
-                      ["accountNumber", "Số tài khoản"],
-                      ["accountName", "Tên chủ tài khoản"],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <Input
-                      key={key}
-                      id={`refund-${order.id}-${key}`}
-                      label={label}
-                      required
-                      maxLength={
-                        key === "bankId" || key === "accountNumber" ? 50 : 100
-                      }
-                      value={recipient[key]}
-                      disabled={pending}
-                      onChange={(event) =>
-                        setRecipient({
-                          ...recipient,
-                          [key]: event.target.value,
-                        })
-                      }
-                    />
-                  ))}
+                  <Select
+                    id={`refund-${order.id}-bankId`}
+                    label="Ngân hàng nhận tiền"
+                    required
+                    value={bank?.bin ?? ""}
+                    disabled={pending || banks.length === 0}
+                    onChange={(event) => {
+                      const selected = findRefundBank(
+                        banks,
+                        event.target.value,
+                      );
+                      setRecipient({
+                        ...recipient,
+                        bankId: selected?.bin ?? "",
+                        bankName: selected?.name ?? "",
+                      });
+                    }}
+                  >
+                    <option value="">
+                      {banks.length ? "Chọn ngân hàng" : "Đang tải ngân hàng…"}
+                    </option>
+                    {banks.map((item) => (
+                      <option key={item.bin} value={item.bin}>
+                        {item.name} · {item.fullName}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input
+                    id={`refund-${order.id}-accountNumber`}
+                    label="Số tài khoản"
+                    required
+                    minLength={4}
+                    maxLength={50}
+                    inputMode="numeric"
+                    pattern="[0-9]{4,50}"
+                    value={recipient.accountNumber}
+                    disabled={pending}
+                    onChange={(event) =>
+                      setRecipient({
+                        ...recipient,
+                        accountNumber: event.target.value,
+                      })
+                    }
+                  />
+                  <Input
+                    id={`refund-${order.id}-accountName`}
+                    label="Tên chủ tài khoản"
+                    hint="Tên được tự động chuyển thành chữ in hoa không dấu. Nhập đúng tên chủ tài khoản ngân hàng."
+                    required
+                    minLength={2}
+                    maxLength={100}
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    value={recipient.accountName}
+                    disabled={pending}
+                    onCompositionStart={() => {
+                      composingName.current = true;
+                    }}
+                    onCompositionEnd={(event) => {
+                      composingName.current = false;
+                      setRecipient({
+                        ...recipient,
+                        accountName: normalizeAccountName(
+                          event.currentTarget.value,
+                        ),
+                      });
+                    }}
+                    onChange={(event) =>
+                      setRecipient({
+                        ...recipient,
+                        accountName: composingName.current
+                          ? event.target.value
+                          : normalizeAccountName(event.target.value),
+                      })
+                    }
+                  />
                 </div>
+                {recipient.bankId && !bank && banks.length > 0 && (
+                  <p className="text-muted">
+                    Ngân hàng đã lưu chưa hợp lệ. Vui lòng chọn lại từ danh
+                    sách.
+                  </p>
+                )}
+                {bankError && (
+                  <ErrorState
+                    message={bankError}
+                    action={
+                      <Button variant="secondary" onClick={reloadBanks}>
+                        Tải lại ngân hàng
+                      </Button>
+                    }
+                  />
+                )}
                 <Textarea
                   id={`refund-${order.id}-different`}
                   label="Lý do nhận vào tài khoản khác (nếu có)"
@@ -226,7 +313,10 @@ export function ServiceRefundPanel({
                     ? "ADMIN đã xác minh tài khoản. Sửa thông tin sẽ cần xác minh lại."
                     : "Tài khoản cần ADMIN xác minh trước khi chuyển khoản."}
                 </p>
-                <Button type="submit" disabled={pending}>
+                <Button
+                  type="submit"
+                  disabled={pending || !bank || !!bankError}
+                >
                   Lưu tài khoản nhận tiền
                 </Button>
               </form>

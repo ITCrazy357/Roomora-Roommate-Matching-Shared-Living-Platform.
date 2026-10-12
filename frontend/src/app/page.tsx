@@ -1,4 +1,5 @@
 import { HomeSlideshow } from "@/components/home-slideshow";
+import { HomeJourney } from "@/components/home-journey";
 import { HomeListings } from "@/components/listings/home-listings";
 import { ButtonLink } from "@/components/ui";
 
@@ -27,6 +28,7 @@ export default function Home() {
         <HomeSlideshow />
       </section>
       <HomeListings />
+      <HomeJourney />
     </div>
   );
 }

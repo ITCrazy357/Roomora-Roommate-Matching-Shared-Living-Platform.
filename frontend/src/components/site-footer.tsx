@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useAuth } from "./auth-provider";
 import { ProfileIcon } from "./profile-icon";
+import { RoomoraFigure } from "./roomora-figure";
 import { ButtonLink } from "./ui";
 
 const linkGroups = [
@@ -38,9 +39,7 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="container">
         <div className="footer-invite">
-          <span className="footer-house" aria-hidden="true">
-            <ProfileIcon name="home" width={56} height={56} />
-          </span>
+          <RoomoraFigure className="footer-figure" />
           <div>
             <span className="eyebrow">CHƯƠNG MỚI BẮT ĐẦU TỪ MỘT MÁI NHÀ</span>
             <h2>Một nơi để ở. Một chốn để thuộc về.</h2>

@@ -609,13 +609,23 @@ export function AdminRefunds() {
   const [status, setStatus] = useState<RefundStatus | "all">("PENDING"),
     [page, setPage] = useState(1),
     [selected, setSelected] = useState("");
+  const [search, setSearch] = useState(""),
+    [query, setQuery] = useState("");
+  const history = status === "COMPLETED";
   const { data, error, reload } = useAdminPage<{
     items: (ServiceRefund & {
-      order: { buyerName: string; planName: string };
+      order: { buyerName: string; buyerEmail: string; planName: string };
     })[];
     total: number;
     pages: number;
-  }>(`/admin/refunds?status=${status}&page=${page}`);
+  }>(
+    `/admin/refunds?status=${status}&page=${page}&q=${encodeURIComponent(query)}`,
+  );
+  function filter(next: RefundStatus | "all") {
+    setStatus(next);
+    setPage(1);
+    setSelected("");
+  }
   useEffect(() => {
     const timer = setInterval(
       () => window.dispatchEvent(new Event("roomora:admin-change")),
@@ -635,27 +645,94 @@ export function AdminRefunds() {
           </p>
         </div>
       </div>
-      <Select
-        id="refund-status-filter"
-        label="Trạng thái yêu cầu"
-        value={status}
-        onChange={(event) => {
-          setStatus(event.target.value as RefundStatus | "all");
+      <nav className="admin-actions" aria-label="Tra cứu hoàn tiền">
+        <Button
+          variant={status === "PENDING" ? "primary" : "secondary"}
+          aria-pressed={status === "PENDING"}
+          onClick={() => filter("PENDING")}
+        >
+          Chờ kiểm tra
+        </Button>
+        <Button
+          variant={history ? "primary" : "secondary"}
+          aria-pressed={history}
+          onClick={() => filter("COMPLETED")}
+        >
+          Lịch sử đã hoàn tiền
+        </Button>
+        <Button
+          variant={status === "all" ? "primary" : "secondary"}
+          aria-pressed={status === "all"}
+          onClick={() => filter("all")}
+        >
+          Tất cả yêu cầu
+        </Button>
+      </nav>
+      <form
+        className="admin-filters"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setQuery(search.trim());
           setPage(1);
+          setSelected("");
         }}
       >
-        <option value="all">Tất cả</option>
-        {Object.entries(refundLabels).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </Select>
+        <Input
+          id="refund-search"
+          label="Tìm kiếm yêu cầu hoàn tiền"
+          type="search"
+          maxLength={100}
+          value={search}
+          placeholder="Tên, email, tài khoản, mã đơn hoặc giao dịch"
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <Select
+          id="refund-status-filter"
+          label="Trạng thái yêu cầu"
+          value={status}
+          onChange={(event) => {
+            filter(event.target.value as RefundStatus | "all");
+          }}
+        >
+          <option value="all">Tất cả</option>
+          {Object.entries(refundLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </Select>
+        <Button type="submit">Tìm kiếm</Button>
+        {(search || query) && (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setSearch("");
+              setQuery("");
+              setPage(1);
+              setSelected("");
+            }}
+          >
+            Xóa tìm kiếm
+          </Button>
+        )}
+      </form>
       {!data ? (
         <AdminResult error={error} reload={reload} />
       ) : (
         <>
-          <p>{data.total} yêu cầu</p>
+          <p role="status">
+            {data.total} {history ? "giao dịch đã hoàn tiền" : "yêu cầu"}
+            {query && ` · Tìm kiếm: ${query}`}
+          </p>
+          {data.total === 0 && (
+            <p className="text-muted">
+              {query
+                ? "Không tìm thấy yêu cầu phù hợp với từ khóa và trạng thái đã chọn."
+                : history
+                  ? "Chưa có giao dịch hoàn tiền đã hoàn tất."
+                  : "Không có yêu cầu ở trạng thái đã chọn."}
+            </p>
+          )}
           <div className="refund-list">
             {data.items.map((item) => (
               <button
@@ -667,10 +744,19 @@ export function AdminRefunds() {
                 <strong>
                   {item.order.buyerName} · {item.order.planName}
                 </strong>
+                <small>{item.order.buyerEmail}</small>
                 <span>
                   {money(item.amount)} · {refundLabels[item.status]}
                 </span>
-                <small>{serviceDate(item.createdAt)}</small>
+                <small>
+                  {history && item.completedAt
+                    ? `Hoàn tiền: ${serviceDate(item.completedAt)}`
+                    : `Gửi: ${serviceDate(item.createdAt)}`}
+                </small>
+                <small>Mã đơn: {item.orderId}</small>
+                {item.refundReference && (
+                  <small>Mã giao dịch hoàn: {item.refundReference}</small>
+                )}
               </button>
             ))}
           </div>

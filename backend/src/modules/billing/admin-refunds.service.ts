@@ -25,7 +25,15 @@ import type {
   ReviewRefundDto,
   VerifyRefundRecipientDto,
 } from './dto/refund.dto.js';
-import type { ServiceRefundStatus } from '../../generated/prisma/client.js';
+import type {
+  Prisma,
+  ServiceRefundStatus,
+} from '../../generated/prisma/client.js';
+import {
+  findRefundBank,
+  normalizeAccountName,
+  refundBankId,
+} from './refund-banks.js';
 
 @Injectable()
 export class AdminRefundsService {
@@ -36,10 +44,36 @@ export class AdminRefundsService {
   ) {}
 
   async list(query: RefundQueryDto) {
-    const where =
+    const where: Prisma.ServiceRefundRequestWhereInput =
       query.status === 'all'
         ? {}
         : { status: query.status as ServiceRefundStatus };
+    const q = query.q;
+    if (q) {
+      const contains = { contains: q, mode: 'insensitive' as const };
+      where.OR = [
+        { refundReference: contains },
+        { accountNumber: contains },
+        {
+          accountName: {
+            contains: normalizeAccountName(q),
+            mode: 'insensitive',
+          },
+        },
+        { bankName: contains },
+        { order: { buyerName: contains } },
+        { order: { buyerEmail: contains } },
+        { order: { listingTitle: contains } },
+        { order: { providerTransId: contains } },
+        { order: { providerOrderCode: contains } },
+      ];
+      if (
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          q,
+        )
+      )
+        where.OR.push({ id: q }, { orderId: q });
+    }
     const [items, total] = await this.prisma.$transaction(
       [
         this.prisma.serviceRefundRequest.findMany({
@@ -55,7 +89,12 @@ export class AdminRefundsService {
               },
             },
           },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          orderBy:
+            query.status === 'COMPLETED'
+              ? [{ completedAt: 'desc' }, { id: 'desc' }]
+              : query.status === 'PENDING'
+                ? [{ createdAt: 'asc' }, { id: 'asc' }]
+                : [{ createdAt: 'desc' }, { id: 'desc' }],
           skip: (query.page - 1) * query.limit,
           take: query.limit,
         }),
@@ -126,18 +165,16 @@ export class AdminRefundsService {
         !refund.bankName
       )
         throw new ConflictException({ code: 'REFUND_RECIPIENT_REQUIRED' });
+      if (!findRefundBank(refund.bankId))
+        throw new BadRequestException({ code: 'REFUND_BANK_INVALID' });
       const normalize = (name: string) =>
-        name
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/đ/gi, 'd')
-          .replace(/\s+/g, '')
-          .toUpperCase();
+        normalizeAccountName(name).replace(/\s+/g, '');
       const different =
         (refund.order.payerAccount &&
           refund.order.payerAccount !== refund.accountNumber) ||
         (refund.order.payerBankId &&
-          refund.order.payerBankId !== refund.bankId) ||
+          refundBankId(refund.order.payerBankId) !==
+            refundBankId(refund.bankId)) ||
         (refund.order.payerName &&
           normalize(refund.order.payerName) !== normalize(refund.accountName));
       if (
@@ -182,6 +219,8 @@ export class AdminRefundsService {
         throw new ConflictException({ code: 'REFUND_AMOUNT_MISMATCH' });
       if (current.method === 'MANUAL_BANK' && !current.verifiedAt)
         throw new ConflictException({ code: 'REFUND_RECIPIENT_UNVERIFIED' });
+      if (current.method === 'MANUAL_BANK' && !findRefundBank(current.bankId))
+        throw new BadRequestException({ code: 'REFUND_BANK_INVALID' });
       if (current.method === 'MOMO' && !this.momo.available())
         throw new ServiceUnavailableException({
           code: 'REFUND_GATEWAY_NOT_CONFIGURED',

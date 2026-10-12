@@ -21,6 +21,7 @@ import { ServicePaymentsService } from './service-payments.service.js';
 import { ServiceReceiptsService } from './service-receipts.service.js';
 import { ServiceRefundsService } from './service-refunds.service.js';
 import { RefundRateGuard } from './refund-rate.guard.js';
+import { refundBanks } from './refund-banks.js';
 import {
   CreateServiceOrderDto,
   RefundRequestDto,
@@ -36,6 +37,11 @@ export class BillingController {
   ) {}
   @Get('catalog') catalog() {
     return this.orders.catalog();
+  }
+  @Get('refund-banks')
+  @UseGuards(AuthGuard)
+  banks() {
+    return refundBanks;
   }
   @Get('listings')
   @UseGuards(AuthGuard)

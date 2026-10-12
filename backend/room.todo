@@ -391,6 +391,11 @@ MoMo sandbox có refund/query, idempotency và đối soát khi timeout. Chỉ C
 ghi refundedAt và dừng boost thuộc đơn/đợt tương ứng, giữ nguyên lịch sử PAID.
 Không tự chuyển khoản PayOS hoặc giả định tên/số tài khoản chứng minh quyền sở hữu.
 Xem docs/service-refunds-status.md; chưa nghiệm thu thu/hoàn tiền thật qua ngân hàng/cổng.
+Bổ sung 13/10/2026: USER chọn ngân hàng từ danh sách VietQR, tự lấy BIN/tên chuẩn;
+tên chủ tài khoản tự in hoa không dấu ở UI và backend, mã sai bị từ chối.
+ADMIN có Lịch sử đã hoàn tiền, tìm kiếm theo tên/email/tài khoản/mã đơn/mã giao dịch,
+lọc trạng thái và phân trang; mở chứng từ/lịch sử thao tác. Mã ngân hàng cũ sai phải
+sửa trước khi xác minh/xử lý. 25 E2E HTTP/PostgreSQL và Edge 320–1366px qua với giao dịch mô phỏng.
 Tối ưu ADMIN: mẫu ghi chú theo bước, so sánh/sao chép dữ liệu gốc và tài khoản nhận,
 chọn nhanh căn cứ đối chiếu, tự chọn chứng từ mới và hiển thị điều kiện còn thiếu.
 Không tự xác minh hoặc chuyển tiền; mã hoàn phải từ ngân hàng, UI/API chặn dùng mã đơn/thu gốc.

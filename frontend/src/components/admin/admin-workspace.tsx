@@ -4,23 +4,11 @@ import { usePathname } from "next/navigation";
 import { adminLinks } from "@/lib/admin";
 import { ListingAccess } from "../listings/listing-access";
 import { useAdminPage } from "./admin-shared";
+import { AdminOverview, type AdminSummary } from "./admin-overview";
 
 function Workspace({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const { data, error, reload } = useAdminPage<{
-    pendingListings: number;
-    openReports: number;
-    lockedUsers: number;
-    activeAnnouncements: number;
-    pendingRefunds: number;
-  }>("/admin/summary");
-  const counts = [
-    data?.pendingListings,
-    data?.lockedUsers,
-    data?.openReports,
-    data?.activeAnnouncements,
-    data?.pendingRefunds,
-  ];
+  const { data, error, reload } = useAdminPage<AdminSummary>("/admin/summary");
   return (
     <div className="container admin-workspace">
       <aside className="admin-sidebar">
@@ -59,39 +47,7 @@ function Workspace({ children }: { children: React.ReactNode }) {
         </Link>
       </aside>
       <div className="admin-content">
-        <div className="admin-overview" aria-label="Tình hình vận hành">
-          {adminLinks.map((link, index) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`admin-stat admin-stat-${index}`}
-            >
-              <span>
-                {
-                  [
-                    "Tin chờ duyệt",
-                    "Tài khoản bị khóa",
-                    "Báo cáo chờ xử lý",
-                    "Thông báo đang phát",
-                    "Yêu cầu hoàn tiền cần xử lý",
-                  ][index]
-                }
-              </span>
-              <strong>{counts[index] ?? "—"}</strong>
-              <small>
-                {index === 0
-                  ? "Ưu tiên xử lý"
-                  : index === 1
-                    ? "Xem và kiểm tra vi phạm"
-                    : index === 2
-                      ? "Xem bằng chứng và phản hồi"
-                      : index === 3
-                        ? "Hiển thị trên toàn hệ thống"
-                        : "Xác minh và đối soát dòng tiền"}
-              </small>
-            </Link>
-          ))}
-        </div>
+        <AdminOverview data={data} reload={reload} />
         {error && (
           <p className="error-state" role="alert">
             {error}{" "}

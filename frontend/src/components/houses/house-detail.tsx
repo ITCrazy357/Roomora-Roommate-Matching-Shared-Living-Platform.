@@ -26,6 +26,7 @@ import { useUpdates } from "../communications/updates-provider";
 import { HouseholdPanel, type HouseholdMode } from "./household-panel";
 import { HouseCostSharing } from "./house-cost-sharing";
 import { FocusPanel } from "../focus-panel";
+import { HouseOverview } from "./house-overview";
 
 export function HouseDetail({
   id,
@@ -187,7 +188,7 @@ export function HouseDetail({
           Trưởng nhà: {ownerName} · Tạo ngày {houseDate(house.createdAt)}
         </p>
       </Card>
-      <nav className="house-tabs" aria-label="Quản lý nhà chung">
+      <nav className="house-tabs dashboard-tabs" aria-label="Quản lý nhà chung">
         {(
           [
             ["overview", "Tổng quan"],
@@ -240,111 +241,114 @@ export function HouseDetail({
           <HouseFinances key={tab} houseId={id} userId={userId} mode={tab} />
         )}
         {tab === "overview" && (
-          <div className="house-grid">
-            <div className="house-stack">
-              <Card className="house-panel">
-                <span className="eyebrow">TỔNG QUAN</span>
-                <h2>{house.name}</h2>
-                <p>{house.description || "Nhà chưa có giới thiệu."}</p>
-                {owner && (
-                  <button
-                    className="text-link"
-                    onClick={() => changeTab("info")}
-                  >
-                    Chỉnh sửa thông tin nhà →
-                  </button>
-                )}
-                <div className="house-stats">
-                  <div>
-                    <strong>{house.members.length}</strong>
-                    <span>Thành viên</span>
-                  </div>
-                  <div>
-                    <strong>{house.announcements.length}</strong>
-                    <span>Thông báo gần đây</span>
-                  </div>
-                </div>
-              </Card>
-              <Card className="house-panel">
-                <h2>Thông báo chung</h2>
-                {house.announcements.length === 0 && (
-                  <p className="text-muted">Chưa có thông báo nào.</p>
-                )}
-                {house.announcements.map((item) => (
-                  <article className="house-announcement" key={item.id}>
-                    <div className="house-row">
-                      <strong>
-                        {item.pinned ? "📌 " : ""}
-                        {item.authorName}
-                      </strong>
-                      <small>{houseDate(item.createdAt)}</small>
-                    </div>
-                    <p>{item.text}</p>
-                    {(owner || item.authorId === userId) && (
-                      <button
-                        className="text-link"
-                        disabled={pending}
-                        onClick={() =>
-                          void change(`/announcements/${item.id}`, "DELETE")
-                        }
-                      >
-                        Xóa thông báo
-                      </button>
-                    )}
-                  </article>
-                ))}
-              </Card>
-            </div>
-            <div className="house-stack">
-              <Card className="house-panel">
-                <h2>Đăng thông báo</h2>
-                <form
-                  className="house-form"
-                  onSubmit={async (event: FormEvent<HTMLFormElement>) => {
-                    event.preventDefault();
-                    if (
-                      await change("/announcements", "POST", {
-                        text: message,
-                        pinned,
-                      })
-                    ) {
-                      setMessage("");
-                      setPinned(false);
-                    }
-                  }}
-                >
-                  <Textarea
-                    id="house-message"
-                    label="Nội dung"
-                    value={message}
-                    required
-                    maxLength={2000}
-                    rows={5}
-                    onChange={(event) => setMessage(event.target.value)}
-                  />
+          <>
+            <HouseOverview house={house} onTab={changeTab} />
+            <div className="house-grid">
+              <div className="house-stack">
+                <Card className="house-panel">
+                  <span className="eyebrow">TỔNG QUAN</span>
+                  <h2>{house.name}</h2>
+                  <p>{house.description || "Nhà chưa có giới thiệu."}</p>
                   {owner && (
-                    <label className="house-check">
-                      <input
-                        type="checkbox"
-                        checked={pinned}
-                        onChange={(event) => setPinned(event.target.checked)}
-                      />{" "}
-                      Ghim thông báo
-                    </label>
+                    <button
+                      className="text-link"
+                      onClick={() => changeTab("info")}
+                    >
+                      Chỉnh sửa thông tin nhà →
+                    </button>
                   )}
-                  <Button type="submit" disabled={pending}>
-                    Đăng thông báo
-                  </Button>
-                </form>
-              </Card>
-              <Card className="house-panel">
-                <h2>Nội quy</h2>
-                <p className="house-preline">
-                  {house.rules || "Trưởng nhà chưa thêm nội quy."}
-                </p>
-              </Card>
+                  <div className="house-stats">
+                    <div>
+                      <strong>{house.members.length}</strong>
+                      <span>Thành viên</span>
+                    </div>
+                    <div>
+                      <strong>{house.announcements.length}</strong>
+                      <span>Thông báo gần đây</span>
+                    </div>
+                  </div>
+                </Card>
+                <Card className="house-panel">
+                  <h2>Thông báo chung</h2>
+                  {house.announcements.length === 0 && (
+                    <p className="text-muted">Chưa có thông báo nào.</p>
+                  )}
+                  {house.announcements.map((item) => (
+                    <article className="house-announcement" key={item.id}>
+                      <div className="house-row">
+                        <strong>
+                          {item.pinned ? "📌 " : ""}
+                          {item.authorName}
+                        </strong>
+                        <small>{houseDate(item.createdAt)}</small>
+                      </div>
+                      <p>{item.text}</p>
+                      {(owner || item.authorId === userId) && (
+                        <button
+                          className="text-link"
+                          disabled={pending}
+                          onClick={() =>
+                            void change(`/announcements/${item.id}`, "DELETE")
+                          }
+                        >
+                          Xóa thông báo
+                        </button>
+                      )}
+                    </article>
+                  ))}
+                </Card>
+              </div>
+              <div className="house-stack">
+                <Card className="house-panel">
+                  <h2>Đăng thông báo</h2>
+                  <form
+                    className="house-form"
+                    onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+                      event.preventDefault();
+                      if (
+                        await change("/announcements", "POST", {
+                          text: message,
+                          pinned,
+                        })
+                      ) {
+                        setMessage("");
+                        setPinned(false);
+                      }
+                    }}
+                  >
+                    <Textarea
+                      id="house-message"
+                      label="Nội dung"
+                      value={message}
+                      required
+                      maxLength={2000}
+                      rows={5}
+                      onChange={(event) => setMessage(event.target.value)}
+                    />
+                    {owner && (
+                      <label className="house-check">
+                        <input
+                          type="checkbox"
+                          checked={pinned}
+                          onChange={(event) => setPinned(event.target.checked)}
+                        />{" "}
+                        Ghim thông báo
+                      </label>
+                    )}
+                    <Button type="submit" disabled={pending}>
+                      Đăng thông báo
+                    </Button>
+                  </form>
+                </Card>
+                <Card className="house-panel">
+                  <h2>Nội quy</h2>
+                  <p className="house-preline">
+                    {house.rules || "Trưởng nhà chưa thêm nội quy."}
+                  </p>
+                </Card>
+              </div>
             </div>
-          </div>
+          </>
         )}
         {tab === "members" && (
           <div className="house-grid">

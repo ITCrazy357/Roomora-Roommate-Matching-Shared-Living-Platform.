@@ -6,15 +6,30 @@ import { ProfileIcon } from "./profile-icon";
 import { useReducedMotion } from "./use-reduced-motion";
 
 function Placeholder() {
-  return <div className="roomora-figure-placeholder"><ProfileIcon name="home" /></div>;
+  return (
+    <div className="roomora-figure-placeholder">
+      <ProfileIcon name="home" />
+    </div>
+  );
 }
 
-const options = { loading: Placeholder, ssr: false };
 const figures = {
-  home: dynamic(() => import("@lucasmarkes/hairline/react").then((module) => module.Elevator), options),
-  people: dynamic(() => import("@lucasmarkes/hairline/react").then((module) => module.Hub), options),
-  search: dynamic(() => import("@lucasmarkes/hairline/react").then((module) => module.Loupe), options),
-  empty: dynamic(() => import("@lucasmarkes/hairline/react").then((module) => module.Drawer), options),
+  home: dynamic(
+    () => import("@lucasmarkes/hairline/react").then((module) => module.Elevator),
+    { loading: Placeholder, ssr: false },
+  ),
+  people: dynamic(
+    () => import("@lucasmarkes/hairline/react").then((module) => module.Hub),
+    { loading: Placeholder, ssr: false },
+  ),
+  search: dynamic(
+    () => import("@lucasmarkes/hairline/react").then((module) => module.Loupe),
+    { loading: Placeholder, ssr: false },
+  ),
+  empty: dynamic(
+    () => import("@lucasmarkes/hairline/react").then((module) => module.Drawer),
+    { loading: Placeholder, ssr: false },
+  ),
 };
 
 // Decorative only: headings and actions always carry the actual information.
@@ -33,19 +48,26 @@ export function RoomoraFigure({
   const Figure = figures[kind];
 
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setVisible(true);
-        observer.disconnect();
-      }
-    }, { rootMargin: "120px" });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "120px" },
+    );
     if (container.current) observer.observe(container.current);
     return () => observer.disconnect();
   }, []);
 
   return (
     <div ref={container} aria-hidden="true" className={`roomora-figure ${className}`}>
-      {visible ? <Figure theme="light" intensity={0.3} play={play && !reducedMotion} /> : <Placeholder />}
+      {visible ? (
+        <Figure theme="light" intensity={0.3} play={play && !reducedMotion} />
+      ) : (
+        <Placeholder />
+      )}
     </div>
   );
 }

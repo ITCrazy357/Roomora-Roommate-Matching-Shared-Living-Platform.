@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma.service.js';
+import { ServiceOrdersService } from './service-orders.service.js';
 
 @Injectable()
 export class BillingSchedulerService implements OnModuleInit, OnModuleDestroy {
@@ -15,6 +16,7 @@ export class BillingSchedulerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly orders: ServiceOrdersService,
   ) {}
   onModuleInit() {
     if (this.config.get('NODE_ENV') === 'test') return;
@@ -35,6 +37,8 @@ export class BillingSchedulerService implements OnModuleInit, OnModuleDestroy {
         where: { status: 'PENDING', expiresAt: { lte: new Date() } },
         data: { status: 'EXPIRED' },
       });
+      if (this.config.get('BILLING_RECONCILE_ENABLED') === 'true')
+        await this.orders.reconcilePayos();
       // Visibility checks boostUntil at read time, so an unavailable worker cannot prolong a boost.
     } catch {
       this.logger.error('Không cập nhật được đơn dịch vụ hết hạn');

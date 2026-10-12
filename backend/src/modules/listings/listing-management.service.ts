@@ -8,6 +8,7 @@ import type {
 import { details } from './listing-views.js';
 import { ListingQueriesService } from './listing-queries.service.js';
 import { ListingRulesService } from './listing-rules.service.js';
+import { ListingPhotosService } from './listing-photos.service.js';
 
 @Injectable()
 export class ListingManagementService {
@@ -15,6 +16,7 @@ export class ListingManagementService {
     private readonly prisma: PrismaService,
     private readonly queries: ListingQueriesService,
     private readonly rules: ListingRulesService,
+    private readonly photos: ListingPhotosService,
   ) {}
 
   async create(ownerId: string, input: ListingInputDto) {
@@ -32,7 +34,10 @@ export class ListingManagementService {
       data: {
         ...this.rules.formData(input),
         ...this.rules.draftData(),
-        ...(listing.type !== input.type ? { isFull: false } : {}),
+        ...(listing.type !== input.type ||
+        (input.type === 'ROOMMATE' && listing.hasRoom !== input.hasRoom)
+          ? { isFull: false }
+          : {}),
       },
     });
     this.rules.requireChange(result.count);
@@ -59,6 +64,48 @@ export class ListingManagementService {
     });
     this.rules.requireChange(result.count);
     return this.queries.getMine(ownerId, id);
+  }
+
+  async deleteDraft(ownerId: string, id: string, version: number) {
+    const publicIds = await this.prisma.$transaction(async (tx) => {
+      // Keep the same user -> listing lock order as closing and billing.
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM listings WHERE id = ${id}::uuid FOR UPDATE`;
+      const listing = await tx.listing.findFirst({
+        where: { id, ownerId, deletedAt: null },
+        select: {
+          status: true,
+          version: true,
+          photos: { select: { publicId: true } },
+        },
+      });
+      if (!listing) this.rules.notFound();
+      if (listing.version !== version) this.rules.requireChange(0);
+      if (listing.status !== 'DRAFT')
+        throw new BadRequestException({
+          code: 'LISTING_NOT_DRAFT',
+          message: 'Chỉ được xóa tin ở trạng thái bản nháp',
+        });
+      // Keep the listing row for payment, refund and moderation history.
+      await tx.listing.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          status: 'CLOSED',
+          postingRound: { increment: 1 },
+          boostUntil: null,
+          version: { increment: 1 },
+        },
+      });
+      await tx.serviceOrder.updateMany({
+        where: { listingId: id, status: 'PENDING' },
+        data: { status: 'EXPIRED', payUrl: null },
+      });
+      await tx.listingPhoto.deleteMany({ where: { listingId: id } });
+      return listing.photos.map((photo) => photo.publicId);
+    });
+    await this.photos.deleteAssets(id, publicIds);
+    return { deleted: true };
   }
 
   async close(ownerId: string, id: string, version: number) {
@@ -107,7 +154,7 @@ export class ListingManagementService {
       where: { id },
       include: details,
     });
-    if (!listing) this.rules.notFound();
+    if (!listing || listing.deletedAt) this.rules.notFound();
     if (listing.ownerId === adminId)
       throw new BadRequestException({
         code: 'SELF_REVIEW_NOT_ALLOWED',

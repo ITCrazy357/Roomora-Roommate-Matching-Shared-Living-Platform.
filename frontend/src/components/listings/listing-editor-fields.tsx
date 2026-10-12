@@ -5,6 +5,7 @@ import {
   amenities,
   listingTypes,
   listingCostUnit,
+  listingHasRoom,
   type Amenity,
   type Listing,
 } from "@/lib/listings";
@@ -47,6 +48,8 @@ export function ListingEditorFields({
   removePhoto,
 }: Props) {
   const costUnit = listingCostUnit(form.type);
+  const hasRoom = listingHasRoom(form);
+  const seekingRoom = !hasRoom;
   const numberField = (
     key:
       | "rent"
@@ -107,6 +110,34 @@ export function ListingEditorFields({
             </label>
           ))}
         </div>
+        {form.type === "ROOMMATE" && (
+          <fieldset className="form-stack">
+            <legend>Tình trạng chỗ ở của bạn</legend>
+            <div className="listing-type-options roommate-options">
+              {[true, false].map((hasRoom) => (
+                <label className="listing-type-card" key={String(hasRoom)}>
+                  <input
+                    type="radio"
+                    name="hasRoom"
+                    value={String(hasRoom)}
+                    checked={form.hasRoom === hasRoom}
+                    onChange={() => change("hasRoom", hasRoom)}
+                  />
+                  <strong>
+                    {hasRoom
+                      ? "Đã có phòng, tìm người ở ghép"
+                      : "Chưa có phòng, muốn xin ở ghép"}
+                  </strong>
+                  <span>
+                    {hasRoom
+                      ? "Chia sẻ thông tin phòng và số người muốn tìm thêm."
+                      : "Chia sẻ nhu cầu, ngân sách và khu vực muốn ở ghép."}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <p className="listing-privacy">
           Tin đăng cần được admin duyệt trước khi xuất hiện ở trang khám phá.
           Dùng ảnh thực tế và thông tin trung thực.
@@ -138,7 +169,9 @@ export function ListingEditorFields({
             form.type === "ROOM_WANTED"
               ? "Nhu cầu tìm phòng"
               : form.type === "ROOMMATE"
-                ? "Nhu cầu ở ghép hoặc thông tin chỗ ở"
+                ? hasRoom
+                  ? "Thông tin phòng và nhu cầu tìm người ở ghép"
+                  : "Nhu cầu xin ở ghép"
                 : "Mô tả căn phòng"
           }
           value={form.description}
@@ -147,22 +180,23 @@ export function ListingEditorFields({
           hint={
             form.type === "ROOM_WANTED"
               ? "Nêu số người dự kiến ở, khu vực, tiện ích và điều kiện cần có; ít nhất 30 ký tự khi gửi duyệt."
-              : "Mô tả không gian và sinh hoạt; ít nhất 30 ký tự khi gửi duyệt. Không ghi địa chỉ cụ thể trong phần công khai."
+              : seekingRoom
+                ? "Nêu nhu cầu ở ghép và nếp sinh hoạt của bạn; ít nhất 30 ký tự khi gửi duyệt."
+                : "Mô tả không gian và sinh hoạt; ít nhất 30 ký tự khi gửi duyệt. Không ghi địa chỉ cụ thể trong phần công khai."
           }
           onChange={(event) => change("description", event.target.value)}
         />
         <div className="form-grid">
-          {numberField(
-            "area",
-            form.type === "ROOM_WANTED"
-              ? "Diện tích mong muốn (m², tùy chọn)"
-              : form.type === "ROOMMATE"
-                ? "Diện tích (m², nếu đã có phòng)"
+          {(hasRoom || form.type === "ROOM_WANTED") &&
+            numberField(
+              "area",
+              form.type === "ROOM_WANTED"
+                ? "Diện tích mong muốn (m², tùy chọn)"
                 : "Diện tích (m²)",
-            1,
-            10000,
-          )}
-          {form.type !== "ROOM_WANTED" &&
+              1,
+              10000,
+            )}
+          {hasRoom &&
             numberField(
               "availableSlots",
               form.type === "ROOM_RENTAL"
@@ -172,6 +206,7 @@ export function ListingEditorFields({
               20,
             )}
           {form.type === "ROOMMATE" &&
+            hasRoom &&
             numberField("currentResidents", "Số người đang ở", 0, 20)}
           {form.type === "ROOM_WANTED" &&
             numberField(
@@ -180,27 +215,23 @@ export function ListingEditorFields({
               1,
               20,
             )}
-          {form.type !== "ROOM_WANTED" && (
+          {form.type === "ROOM_RENTAL" && (
             <Input
               id="availableFrom"
-              label={
-                form.type === "ROOMMATE"
-                  ? "Ngày có thể dọn vào (nếu đã có phòng)"
-                  : "Ngày có thể dọn vào"
-              }
+              label="Ngày có thể dọn vào"
               type="date"
               value={form.availableFrom}
               onChange={(event) => change("availableFrom", event.target.value)}
             />
           )}
         </div>
-        {form.type === "ROOMMATE" && (
+        {form.type === "ROOMMATE" && hasRoom && (
           <p className="text-muted">
             Tính cả bạn và người đang ở không dùng Roomora. Số người do bạn khai
             báo, không tự tính từ thành viên Nhà chung hoặc số kết nối.
           </p>
         )}
-        {form.type !== "ROOM_WANTED" && (
+        {hasRoom && (
           <p className="text-muted">
             Nếu bạn đang thuê và muốn tìm người ghép hoặc bàn giao phòng, hãy
             trao đổi với chủ phòng để được chấp thuận. Chủ phòng không cần có
@@ -215,21 +246,21 @@ export function ListingEditorFields({
       <div className="form-stack">
         <h2>Chi phí & Vị trí</h2>
         <p className="text-muted">
-          {form.type === "ROOM_WANTED"
+          {seekingRoom
             ? "Nhập ngân sách tối đa mỗi tháng và khu vực bạn muốn tìm."
             : `Các khoản tiền tính bằng VNĐ cho một ${costUnit}. Chi phí điện, nước và dịch vụ tính theo tháng.`}
         </p>
         <div className="form-grid">
           {numberField(
             "rent",
-            form.type === "ROOM_WANTED"
+            seekingRoom
               ? "Ngân sách tối đa / tháng"
               : form.type === "ROOM_RENTAL"
                 ? "Giá thuê / phòng / tháng"
                 : "Giá thuê / người / tháng",
             1,
           )}
-          {form.type !== "ROOM_WANTED" && (
+          {hasRoom && (
             <>
               {numberField("deposit", `Tiền cọc ban đầu / ${costUnit}`)}
               {numberField(
@@ -242,7 +273,7 @@ export function ListingEditorFields({
             </>
           )}
         </div>
-        {form.type !== "ROOM_WANTED" && (
+        {hasRoom && (
           <Textarea
             id="costNote"
             label="Ghi chú cách tính chi phí"
@@ -296,12 +327,12 @@ export function ListingEditorFields({
             {locationError}
           </p>
         )}
-        {form.type !== "ROOM_WANTED" && (
+        {hasRoom && (
           <Input
             id="privateAddress"
             label={
               form.type === "ROOMMATE"
-                ? "Địa chỉ cụ thể (riêng tư, nếu đã có phòng)"
+                ? "Địa chỉ cụ thể (riêng tư)"
                 : "Địa chỉ cụ thể (riêng tư)"
             }
             value={form.privateAddress}
@@ -310,11 +341,11 @@ export function ListingEditorFields({
             onChange={(event) => change("privateAddress", event.target.value)}
           />
         )}
-        {form.type !== "ROOM_WANTED" && (
+        {hasRoom && (
           <>
             <h3>
               {form.type === "ROOMMATE"
-                ? "Vị trí hoặc khu vực mong muốn (tùy chọn)"
+                ? "Vị trí khu vực phòng (tùy chọn)"
                 : "Vị trí khu vực trên bản đồ"}
             </h3>
             <p className="text-muted">
@@ -336,13 +367,13 @@ export function ListingEditorFields({
     return (
       <div className="form-stack">
         <h2>
-          {form.type === "ROOM_WANTED"
+          {seekingRoom
             ? "Tiện ích & Điều kiện mong muốn"
             : form.type === "ROOMMATE"
-              ? "Ảnh chỗ ở (nếu có) & Tiêu chí"
+              ? "Ảnh chỗ ở & Tiêu chí"
               : "Ảnh thực tế & Tiêu chí"}
         </h2>
-        {form.type !== "ROOM_WANTED" && (
+        {hasRoom && (
           <>
             <label className="listing-upload">
               + Chọn ảnh phòng
@@ -387,11 +418,7 @@ export function ListingEditorFields({
         )}
         <fieldset className="listing-checkboxes">
           <legend>
-            {form.type === "ROOM_WANTED"
-              ? "Tiện ích mong muốn"
-              : form.type === "ROOMMATE"
-                ? "Tiện ích có sẵn hoặc mong muốn"
-                : "Tiện ích có sẵn"}
+            {seekingRoom ? "Tiện ích mong muốn" : "Tiện ích có sẵn"}
           </legend>
           {Object.entries(amenities).map(([key, label]) => (
             <label key={key}>

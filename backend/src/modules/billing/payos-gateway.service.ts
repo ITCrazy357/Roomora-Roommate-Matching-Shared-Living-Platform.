@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -7,6 +8,18 @@ import { ConfigService } from '@nestjs/config';
 import type { ServiceOrder } from '../../generated/prisma/client.js';
 import { signatureMatches } from './momo-signature.js';
 import { payosSignature } from './payos-signature.js';
+import type { PaymentNotification } from './billing-types.js';
+
+export class PayosLinkClosedException extends ConflictException {
+  constructor(readonly orderStatus: 'CANCELLED' | 'EXPIRED') {
+    super({
+      code:
+        orderStatus === 'CANCELLED' ? 'ORDER_CANCELLED' : 'ORDER_NOT_PENDING',
+    });
+  }
+}
+
+const endpoint = 'https://api-merchant.payos.vn/v2/payment-requests';
 
 @Injectable()
 export class PayosGatewayService {
@@ -43,6 +56,112 @@ export class PayosGatewayService {
     return { body, data };
   }
 
+  private checkLink(order: ServiceOrder, input: unknown, existing: boolean) {
+    const { body, data } = this.verifyData(input, this.settings().secret);
+    const linkId = existing ? data.id : data.paymentLinkId;
+    const amountPaid = existing ? data.amountPaid : 0;
+    if (
+      body.code !== '00' ||
+      data.orderCode !== Number(order.providerOrderCode) ||
+      data.amount !== order.amount ||
+      typeof data.status !== 'string' ||
+      !['PENDING', 'PAID', 'PROCESSING', 'CANCELLED', 'EXPIRED'].includes(
+        data.status,
+      ) ||
+      typeof amountPaid !== 'number' ||
+      !Number.isSafeInteger(amountPaid) ||
+      amountPaid < 0 ||
+      typeof linkId !== 'string' ||
+      !/^[a-f0-9]{32}$/i.test(linkId) ||
+      (order.providerLinkId && order.providerLinkId !== linkId)
+    )
+      throw new Error('Payment does not match order');
+    const payUrl = existing
+      ? `https://pay.payos.vn/web/${linkId}`
+      : data.checkoutUrl;
+    if (typeof payUrl !== 'string' || payUrl.length > 2000)
+      throw new Error('Invalid URL');
+    const url = new URL(payUrl);
+    if (
+      url.origin !== 'https://pay.payos.vn' ||
+      url.username ||
+      url.password ||
+      url.pathname !== `/web/${linkId}`
+    )
+      throw new Error('Invalid URL');
+    let payment: PaymentNotification | undefined;
+    if (
+      existing &&
+      data.status === 'PAID' &&
+      amountPaid === order.amount &&
+      data.amountRemaining === 0
+    ) {
+      const rows = data.transactions;
+      const transaction =
+        Array.isArray(rows) && rows.length === 1 ? rows[0] : null;
+      if (
+        transaction &&
+        typeof transaction === 'object' &&
+        transaction.amount === order.amount &&
+        typeof transaction.reference === 'string' &&
+        transaction.reference.trim() &&
+        transaction.reference.length <= 128
+      ) {
+        payment = {
+          provider: 'PAYOS',
+          providerOrderCode: String(data.orderCode),
+          paymentLinkId: linkId,
+          amount: order.amount,
+          resultCode: 0,
+          transId: transaction.reference,
+          signature: String(body.signature).toLowerCase(),
+          payer: this.payer(transaction),
+        };
+      }
+    }
+    return {
+      status: data.status,
+      amountPaid,
+      payUrl,
+      providerLinkId: linkId,
+      payment,
+    };
+  }
+
+  private payer(data: Record<string, unknown>) {
+    const text = (value: unknown, max: number) =>
+      typeof value === 'string' && value.trim().length <= max
+        ? value.trim() || null
+        : null;
+    return {
+      bankId: text(data.counterAccountBankId, 50),
+      bankName: text(data.counterAccountBankName, 100),
+      accountNumber: text(data.counterAccountNumber, 50),
+      accountName: text(data.counterAccountName, 100),
+    };
+  }
+
+  async read(order: ServiceOrder) {
+    const settings = this.settings();
+    try {
+      const response = await fetch(`${endpoint}/${order.providerOrderCode}`, {
+        headers: {
+          'x-client-id': settings.clientId,
+          'x-api-key': settings.apiKey,
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new Error('Gateway unavailable');
+      return this.checkLink(order, await response.json(), true);
+    } catch {
+      throw new ServiceUnavailableException({
+        code: 'PAYMENT_STATUS_UNAVAILABLE',
+        message:
+          'Chưa kiểm tra được trạng thái PayOS. Thử lại trước khi tạo thanh toán mới.',
+      });
+    }
+  }
+
   async create(order: ServiceOrder) {
     const settings = this.settings();
     const orderCode = Number(order.providerOrderCode);
@@ -65,33 +184,17 @@ export class PayosGatewayService {
       'x-client-id': settings.clientId,
       'x-api-key': settings.apiKey,
     };
-    const endpoint = 'https://api-merchant.payos.vn/v2/payment-requests';
     const check = (input: unknown, existing: boolean) => {
-      const { body, data } = this.verifyData(input, settings.secret);
-      const linkId = existing ? data.id : data.paymentLinkId;
+      const link = this.checkLink(order, input, existing);
       if (
-        body.code !== '00' ||
-        data.orderCode !== orderCode ||
-        data.amount !== order.amount ||
-        data.status !== 'PENDING' ||
-        typeof linkId !== 'string' ||
-        !/^[a-f0-9]{32}$/i.test(linkId)
+        link.amountPaid > 0 ||
+        link.status === 'PAID' ||
+        link.status === 'PROCESSING'
       )
-        throw new Error('Payment does not match order');
-      const payUrl = existing
-        ? `https://pay.payos.vn/web/${linkId}`
-        : data.checkoutUrl;
-      if (typeof payUrl !== 'string' || payUrl.length > 2000)
-        throw new Error('Invalid URL');
-      const url = new URL(payUrl);
-      if (
-        url.origin !== 'https://pay.payos.vn' ||
-        url.username ||
-        url.password ||
-        url.pathname !== `/web/${linkId}`
-      )
-        throw new Error('Invalid URL');
-      return { payUrl, providerLinkId: linkId };
+        throw new ConflictException({ code: 'PAYMENT_CONFIRMATION_PENDING' });
+      if (link.status === 'CANCELLED' || link.status === 'EXPIRED')
+        throw new PayosLinkClosedException(link.status);
+      return { payUrl: link.payUrl, providerLinkId: link.providerLinkId };
     };
     try {
       try {
@@ -107,7 +210,8 @@ export class PayosGatewayService {
         });
         if (!response.ok) throw new Error('Gateway unavailable');
         return check(await response.json(), false);
-      } catch {
+      } catch (error) {
+        if (error instanceof ConflictException) throw error;
         // A timeout or duplicate orderCode may mean the link already exists.
         // Read the same code rather than create a new order/payment request.
         const response = await fetch(`${endpoint}/${orderCode}`, {
@@ -117,7 +221,8 @@ export class PayosGatewayService {
         if (!response.ok) throw new Error('Gateway unavailable');
         return check(await response.json(), true);
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
       throw new ServiceUnavailableException({
         code: 'PAYMENT_GATEWAY_UNAVAILABLE',
         message: 'Chưa nhận được liên kết thanh toán. Thử lại đơn hiện tại.',
@@ -160,6 +265,7 @@ export class PayosGatewayService {
         resultCode: Number(data.code),
         transId: data.reference,
         signature: String(body.signature).toLowerCase(),
+        payer: this.payer(data),
       };
     } catch {
       throw invalid();

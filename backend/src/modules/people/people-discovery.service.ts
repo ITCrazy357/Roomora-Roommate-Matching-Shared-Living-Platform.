@@ -174,6 +174,8 @@ export class PeopleDiscoveryService {
           id: true,
           title: true,
           rent: true,
+          type: true,
+          hasRoom: true,
           provinceName: true,
           wardName: true,
           latitude: true,
@@ -188,10 +190,14 @@ export class PeopleDiscoveryService {
       listings: listings.map((listing) => ({
         ...listing,
         latitude:
+          listing.type === 'ROOM_WANTED' ||
+          !listing.hasRoom ||
           listing.latitude === null
             ? null
             : Math.round(listing.latitude * 100) / 100,
         longitude:
+          listing.type === 'ROOM_WANTED' ||
+          !listing.hasRoom ||
           listing.longitude === null
             ? null
             : Math.round(listing.longitude * 100) / 100,

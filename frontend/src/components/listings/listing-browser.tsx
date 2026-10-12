@@ -37,6 +37,7 @@ export function ListingBrowser({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [retry, setRetry] = useState(0);
+  const [notice, setNotice] = useState("");
   const [province, setProvince] = useState("");
   const [provinces, setProvinces] = useState<Unit[]>([]);
   const [wards, setWards] = useState<Unit[]>([]);
@@ -143,6 +144,11 @@ export function ListingBrowser({
         </div>
         <ButtonLink href="/dang-tin">+ Đăng tin mới</ButtonLink>
       </div>
+      {notice && (
+        <p className="success-state" role="status">
+          {notice}
+        </p>
+      )}
       <form onSubmit={search} className="listing-search-form">
         <div className="listing-search-bar">
           <Input
@@ -329,6 +335,10 @@ export function ListingBrowser({
                           key={listing.id}
                           listing={listing}
                           manage={mode === "mine"}
+                          onDelete={() => {
+                            setNotice("Đã xóa bản nháp.");
+                            setRetry((value) => value + 1);
+                          }}
                           onSave={
                             mode === "saved"
                               ? () => setRetry((value) => value + 1)

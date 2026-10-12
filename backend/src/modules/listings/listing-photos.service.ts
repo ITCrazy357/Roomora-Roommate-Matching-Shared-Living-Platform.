@@ -14,6 +14,12 @@ export class ListingPhotosService {
     private readonly rules: ListingRulesService,
   ) {}
 
+  async deleteAssets(id: string, publicIds: string[]) {
+    await Promise.all(
+      publicIds.map((publicId) => this.images.deleteListingPhoto(publicId, id)),
+    );
+  }
+
   async uploadPhoto(
     ownerId: string,
     id: string,

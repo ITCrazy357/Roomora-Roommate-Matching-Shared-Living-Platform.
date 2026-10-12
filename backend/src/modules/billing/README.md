@@ -37,8 +37,32 @@ Unique index PostgreSQL `service_orders_one_pending_per_round` chỉ cho một �
 PENDING theo tin/đợt, bất kể cổng thanh toán. Chuyển cổng không tạo liên kết chờ thứ hai.
 
 Gateway `create` thành công chỉ tạo liên kết thanh toán, không cấp gói.
-Trang `/dich-vu/ket-qua` chỉ đọc đơn của người đăng nhập: mọi resultCode từ URL
-quay về đều không được dùng để cập nhật thanh toán.
+Trang `/dich-vu/ket-qua` gọi POST `/services/orders/:id/sync` của chủ đơn để kiểm
+tra trạng thái PayOS có chữ ký; mọi cancel/status/resultCode từ URL quay về không
+được dùng để cập nhật thanh toán hoặc cấp gói.
+
+Link PayOS đã lưu được kiểm tra lại bằng GET trước checkout và trước khi tạo
+đơn thay thế cho cùng tin/đợt (kể cả đơn đã hết hạn local). Xác nhận CANCELLED hoặc
+EXPIRED và amountPaid = 0 thì giải phóng PENDING, xóa URL và giữ mã đơn/cổng cũ.
+Tin chưa có PAID trong đợt vẫn được đăng ký với đơn/orderCode mới. UI có nút
+Tạo thanh toán mới trong lịch sử cho tin đang công khai, còn nhận người và chưa PAID.
+PROCESSING/tiền một phần hoặc PAID chưa đủ căn cứ giao dịch chờ đối soát; lỗi mạng,
+chữ ký hoặc dữ liệu không khớp giữ đơn hiện tại, không tạo thêm lần thu.
+Không gọi mạng trong transaction.
+Đồng bộ hủy dùng row lock/update có điều kiện, không hạ PAID khi callback thắng race.
+
+Đối soát thanh toán 13/10/2026: GET PayOS có chữ ký, khớp orderCode/link/amount,
+status PAID, amountPaid bằng đơn, amountRemaining = 0 và một giao dịch đầy đủ có
+reference hợp lệ được chuyển vào cùng `ServicePaymentsService.apply` với webhook.
+GET chi tiết, lịch sử và trang quay về đều có thể khôi phục thanh toán khi webhook
+thiếu; không chỉ trả “đang chờ” dù provider đã nhận đủ tiền. Đồng bộ đồng thời chia
+sẻ request đang chạy theo orderId, rồi dùng row lock/event signature/transId để
+không cấp boost hoặc thông báo lần hai. Webhook đến sau đối soát không gia hạn gói.
+Partial money, PAID thiếu mã giao dịch, nhiều giao dịch hoặc lỗi xác thực giữ chờ
+đối soát; UI thay nút thu thêm bằng Kiểm tra trạng thái thanh toán.
+`BILLING_RECONCILE_ENABLED=true` bật kiểm tra nền mỗi phút, tối đa 10 đơn/chạy và
+3 request đồng thời. Mặc định false; không tự thay cấu hình môi trường đang chạy.
+Lịch sử kiểm tra tối đa 3 request đồng thời, frontend chờ tối đa 60s cho trang 10 đơn.
 
 IPN xác thực HMAC-SHA256 bằng so sánh constant time, kiểm tra merchant, amount,
 orderId/requestId, orderInfo, kiểu dữ liệu, thời gian và transId. Chỉ resultCode
@@ -52,7 +76,7 @@ trong cùng transaction. Mỗi đơn có tối đa một boost, mỗi transId th
 thuộc một đơn trong cùng cổng. Lưu event đã xác thực theo chữ ký để chống xử lý lại. IPN thành công
 gửi lặp với thời gian mới không nối thêm gói. Thất bại đến sau không hạ trạng thái PAID.
 
-Đơn FAILED hoặc EXPIRED vẫn tiếp nhận thành công đến chậm. Nếu tin còn đủ điều kiện,
+Đơn FAILED, EXPIRED hoặc CANCELLED vẫn tiếp nhận thành công đến chậm. Nếu tin còn đủ điều kiện,
 cấp đủ 7 × 24 giờ từ lúc xử lý nếu đợt chưa thanh toán.
 Nếu tin đóng/chờ duyệt/đã đủ hoặc chủ tài khoản bị khóa, lưu PAID và tạo yêu cầu
 hoàn tiền; không cấp boost. Không dùng responseTime như thời điểm bắt đầu gói.
@@ -70,30 +94,53 @@ lịch sử vẫn giữ nguyên thời hạn đã mua; không tự hoàn tiền 
 
 ## API
 
-| Phương thức | Đường dẫn `/api/v1` | Quyền |
-| --- | --- | --- |
-| GET | `/services/catalog` | Công khai; không trả credentials |
-| GET | `/services/listings` | USER; tối đa 100 tin đủ điều kiện của mình |
-| POST | `/services/orders` | USER; `{ clientId, listingId }` |
-| GET | `/services/orders?page=1&limit=10&kind=all` | USER; `kind=boosts` cho quyền lợi đã mua |
-| GET | `/services/orders/:id` | Chủ đơn |
-| POST | `/services/orders/:id/checkout` | Chủ đơn đang chờ |
-| POST | `/services/momo/ipn` | Chữ ký MoMo; body theo spec |
-| POST | `/services/payos/webhook` | Chữ ký PayOS; không cần cookie/Origin |
-| POST | `/services/orders/:id/refund-request` | Chủ đơn PAID; `{ reason }`, 10–1000 ký tự |
-| GET | `/services/orders/:id/receipt` | Chủ đơn PAID; PDF tải xuống riêng tư |
+| Phương thức | Đường dẫn `/api/v1`                         | Quyền                                      |
+| ----------- | ------------------------------------------- | ------------------------------------------ |
+| GET         | `/services/catalog`                         | Công khai; không trả credentials           |
+| GET         | `/services/listings`                        | USER; tối đa 100 tin đủ điều kiện của mình |
+| POST        | `/services/orders`                          | USER; `{ clientId, listingId }`            |
+| GET         | `/services/orders?page=1&limit=10&kind=all` | USER; `kind=boosts` cho quyền lợi đã mua   |
+| GET         | `/services/orders/:id`                      | Chủ đơn                                    |
+| POST        | `/services/orders/:id/checkout`             | Chủ đơn đang chờ                           |
+| POST        | `/services/momo/ipn`                        | Chữ ký MoMo; body theo spec                |
+| POST        | `/services/payos/webhook`                   | Chữ ký PayOS; không cần cookie/Origin      |
+| POST        | `/services/orders/:id/refund-request`       | Chủ đơn PAID; `{ reason }`, 10–1000 ký tự  |
+| GET         | `/services/orders/:id/receipt`              | Chủ đơn PAID; PDF tải xuống riêng tư       |
 
 ## Hoàn tiền và chứng từ
 
 Yêu cầu hoàn tiền được lưu duy nhất cho đơn, gửi lại không tạo thêm yêu cầu.
-Giao diện hiển thị **Chờ kiểm tra**. Đây là tiếp nhận yêu cầu, chưa có quy trình
-admin duyệt/từ chối hoặc gọi API refund của MoMo. Không cập nhật trạng thái REFUNDED,
-không tự thu hồi boost và không hứa thời hạn hoàn tiền. Những phần này cần triển khai
-cùng quy trình hỗ trợ/đối soát ở Phase 10 trước khi cung cấp dịch vụ thật.
+USER chỉ gửi yêu cầu trong 24 giờ từ `paidAt`, tính bằng thời gian backend/DB.
+Đúng 24 giờ được gửi, vượt một mili giây thì từ chối. Request đúng hạn vẫn được
+ADMIN xét duyệt sau hạn. Yêu cầu đối soát tự động cho tiền đến muộn/không được cấp
+quyền lợi mang source SYSTEM, không phải yêu cầu hủy dịch vụ đã sử dụng nhiều ngày.
+
+Luồng: PENDING → APPROVED/REJECTED → PROCESSING → COMPLETED/FAILED;
+FAILED có thể được duyệt xử lý lại với cùng mã hoàn. APPROVED chưa hoàn tiền.
+PayOS dùng chuyển khoản thủ công: USER cung cấp/xác nhận tài khoản sau phê duyệt,
+ADMIN kiểm tra căn cứ sở hữu và giao dịch gốc, bắt đầu xử lý, tải ảnh chứng từ,
+đối chiếu số tiền/mã chuyển khoản rồi xác nhận. Thông tin khác người chuyển gốc
+cần lý do và chấp thuận xác minh bổ sung. Có dữ liệu counterAccount từ webhook
+ký số thì dùng để điền/đối chiếu; dữ liệu trùng không tự chứng minh quyền sở hữu.
+
+MoMo sandbox dùng API refund/query chính thức: kiểm tra thanh toán và tổng hoàn
+của giao dịch gốc trước khi gửi lệnh. Mã refund/requestId luôn là UUID yêu cầu
+hoàn, không đổi khi retry. Timeout giữ PROCESSING; chỉ đối soát trước khi thử lại.
+Không tự dùng API hủy link PayOS hoặc lệnh chi thay cho xác nhận hoàn tiền.
+
+Mỗi giao dịch chỉ hoàn đầy đủ một lần. Có row lock, version và unique mã tham
+chiếu theo phương thức. Trạng thái và audit append trong cùng transaction;
+không giữ DB transaction trong lúc gọi gateway. Hoàn tất cập nhật `refundedAt`,
+dừng boost thuộc đơn/đợt đó, giữ PAID và toàn bộ lịch sử gốc. Chứng từ ảnh lưu
+riêng trong PostgreSQL, chỉ owner/ADMIN đọc; không có URL ảnh công khai.
+Rate limit mutation: USER 20/phút, ADMIN 60/phút theo tài khoản trên mỗi API instance.
+
+ADMIN xử lý tại `/admin/hoan-tien`. Chi tiết state machine, API, migration,
+kiểm thử và giới hạn xác minh ngân hàng: `docs/service-refunds-status.md`.
 
 PDF là **biên nhận thanh toán dịch vụ**, ghi đúng cổng và tiền thật/thử nghiệm, độc lập với bảng quyết toán
 nhà chung. Không phải hóa đơn điện tử. PDF lấy dữ liệu snapshot của đơn, thêm thời
-hạn đã cấp và tình trạng tiếp nhận hoàn tiền khi có. Font Be Vietnam Pro và giấy
+hạn đã cấp và kết quả hoàn tiền đã xác nhận khi có. Font Be Vietnam Pro và giấy
 phép dùng chung từ `household/fonts`, đã được đóng gói trong backend build.
 
 ## Cấu hình MoMo sandbox

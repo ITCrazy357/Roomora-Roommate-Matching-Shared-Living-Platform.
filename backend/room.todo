@@ -54,6 +54,15 @@ Màn hình: khám phá phòng, chi tiết phòng, đăng tin, tin của tôi, đ
 Công việc:
 
 Tạo và sửa tin đăng, tải ảnh, lưu nháp.
+Chủ tin được xóa bản nháp tại Tin của tôi, chi tiết hoặc chỉnh sửa, có xác nhận.
+API DELETE /listings/:id kiểm tra quyền, trạng thái DRAFT và phiên bản;
+tin đã xóa không đọc/sửa/gửi duyệt được, không hiện trong danh sách kể cả bộ lọc Đã đóng.
+Gỡ ảnh bản nháp, giữ lịch sử kiểm duyệt/thanh toán/hoàn tiền; kết thúc đợt đăng,
+hết hiệu lực đơn chờ và không cấp đẩy tin khi thanh toán đến muộn.
+Migration 20261012150000_delete_listing_drafts đã áp dụng trên PostgreSQL local.
+Kiểm chứng 12/10/2026: 95 E2E tin đăng/thanh toán, build/lint backend/frontend qua.
+Edge kiểm tra hủy/xác nhận xóa ở ba màn hình, cập nhật số tin/tải lại, không lỗi JavaScript;
+bố cục 320/390/430/768/820/1024/1366/1920 px không tràn ngang.
 Nhập giá thuê, chi phí phụ, vị trí, tiện ích và tiêu chí ở ghép.
 Quản lý trạng thái: nháp, chờ duyệt, công khai, bị từ chối, đóng tin.
 Admin duyệt hoặc từ chối kèm lý do.
@@ -63,7 +72,17 @@ Hiển thị vị trí khu vực trên bản đồ; hạn chế công khai đị
 Ghim cố định tại tâm, kéo/bấm bản đồ để chọn vị trí; mở rộng, tìm địa điểm và định vị.
 Có nhập tọa độ thủ công khi provider lỗi. Dùng Leaflet + Geoapify; cấu hình
 GEOAPIFY_API_KEY ở backend theo docs/maps-setup.md, không đưa khóa vào frontend.
-Tìm phòng không có bản đồ/ngày dọn vào/địa chỉ riêng; tìm người ghép có thể chưa có phòng.
+Tìm phòng không có bản đồ/ngày dọn vào/địa chỉ riêng.
+Tìm người ở ghép có hai lựa chọn: đã có phòng, tìm thêm người; chưa có phòng, muốn xin ở ghép.
+Cả hai không có ngày dọn vào. Chưa có phòng không có diện tích/số người đang ở/số người muốn tìm,
+chi phí phòng, địa chỉ riêng, bản đồ hoặc ảnh phòng; chỉ nhập nhu cầu, ngân sách, khu vực và tiêu chí.
+Lựa chọn được lưu bằng hasRoom; đổi lựa chọn sẽ bỏ dữ liệu phòng không còn phù hợp.
+Migration 20261012140000_roommate_room_status đã deploy lên PostgreSQL local.
+Kiểm chứng 12/10/2026: 38 E2E tin đăng/chat qua; build/lint backend/frontend qua.
+Edge kiểm tra lưu/tải lại/xem trước/gửi duyệt, đổi lựa chọn, thẻ tin và chi tiết;
+bố cục 320/390/430/768/820/1024/1366/1920 px không tràn ngang, không lỗi JavaScript.
+Tin chưa có phòng không xuất hiện trong danh sách phòng để hẹn xem; vẫn dùng lịch hẹn gặp trong chat.
+Chi tiết: docs/roommate-options.md.
 
 Đơn giản hóa: ưu tiên loại tin “Có phòng, tìm người ở ghép”. Nhu cầu tìm phòng thể hiện qua hồ sơ; chưa làm bộ sưu tập và so sánh nhiều phòng.
 
@@ -364,6 +383,32 @@ Sửa nội dung/duyệt lại giữ đợt cũ; đóng tin kết thúc đợt v
 Khóa user → listing → order và unique index một đơn PENDING mỗi tin/đợt, dùng chung các cổng.
 Thanh toán thật đến muộn/trùng vẫn ghi PAID, tạo yêu cầu đối soát hoàn tiền, không cấp thêm boost.
 Khu vực mong muốn trong hồ sơ dùng combobox tỉnh/phường có tìm không dấu, giữ payload cũ.
+
+Hoàn thiện hoàn tiền 12/10/2026: USER gửi trong 24 giờ từ paidAt; đúng hạn được ADMIN
+xử lý sau đó. Có PENDING/APPROVED/REJECTED/PROCESSING/COMPLETED/FAILED và audit append.
+PayOS chuyển khoản thủ công có xác minh người nhận, chứng từ riêng tư và mã tham chiếu;
+MoMo sandbox có refund/query, idempotency và đối soát khi timeout. Chỉ COMPLETED mới
+ghi refundedAt và dừng boost thuộc đơn/đợt tương ứng, giữ nguyên lịch sử PAID.
+Không tự chuyển khoản PayOS hoặc giả định tên/số tài khoản chứng minh quyền sở hữu.
+Xem docs/service-refunds-status.md; chưa nghiệm thu thu/hoàn tiền thật qua ngân hàng/cổng.
+Tối ưu ADMIN: mẫu ghi chú theo bước, so sánh/sao chép dữ liệu gốc và tài khoản nhận,
+chọn nhanh căn cứ đối chiếu, tự chọn chứng từ mới và hiển thị điều kiện còn thiếu.
+Không tự xác minh hoặc chuyển tiền; mã hoàn phải từ ngân hàng, UI/API chặn dùng mã đơn/thu gốc.
+Kiểm chứng bổ sung: 22 E2E hoàn tiền qua; Edge chọn mẫu/đối chiếu/chứng từ/hoàn tất trên dữ liệu mô phỏng.
+Sửa hủy/thử lại PayOS: xác thực GET trạng thái trước khi mở URL đã lưu hoặc tạo
+đơn thay thế. CANCELLED/EXPIRED chưa nhận tiền giải phóng đơn chờ; tin chưa PAID
+trong cùng đợt vẫn được chọn để tạo đơn và orderCode mới, giữ lịch sử đơn cũ.
+PAID/PROCESSING/đã nhận một phần hoặc không xác minh được trạng thái thì không tạo thêm đơn.
+Trang quay về đồng bộ qua POST /services/orders/:id/sync, không tin cancel/status trên URL.
+Migration service_order_cancelled đã deploy; 88 billing + 22 refund E2E qua,
+Edge kiểm tra tạo lại từ lịch sử/tab gói và chặn tin đã PAID trên dữ liệu mô phỏng.
+Sửa đối soát PAID khi thiếu webhook 13/10/2026: xác thực GET PayOS và giao dịch
+đủ tiền/reference/link/orderCode, dùng cùng transaction kích hoạt với webhook.
+Lịch sử/chi tiết/trang quay về tự đối soát; tiền một phần hoặc dữ liệu chưa đủ
+thì hiển thị chờ xác nhận/kiểm tra, không mở nút thanh toán lại.
+Kiểm tra nền tùy chọn BILLING_RECONCILE_ENABLED=true; mặc định false.
+120 billing/refund E2E qua, browser kiểm tra mất webhook/duplicate/partial/unknown qua.
+Đơn thật 4b87eccf… đã đối chiếu chữ ký PayOS và DB PAID, có đúng một boost/listing.boostUntil.
 
 11. Phase 10 — Quản trị và hỗ trợ hoàn chỉnh
 

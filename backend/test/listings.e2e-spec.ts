@@ -268,6 +268,7 @@ describe('Phase 3 listings (real PostgreSQL)', () => {
   it('publishes a roommate request without a room, coordinates, availability date or photo', async () => {
     const listing = await draft({
       type: 'ROOMMATE',
+      hasRoom: false,
       title: form.title,
       description: form.description,
       rent: form.rent,
@@ -290,11 +291,130 @@ describe('Phase 3 listings (real PostgreSQL)', () => {
     ).body;
     expect(approved).toMatchObject({
       type: 'ROOMMATE',
+      hasRoom: false,
+      area: null,
+      availableSlots: 1,
+      currentResidents: 0,
       latitude: null,
       availableFrom: null,
       privateAddress: '',
     });
     await reader.get(`/api/v1/listings/${listing.id}`).expect(200);
+  });
+
+  it('keeps room information but ignores move-in dates for a roommate with a room', async () => {
+    const listing = await published({
+      ...form,
+      type: 'ROOMMATE',
+      hasRoom: true,
+    });
+    const detail = (
+      await reader.get(`/api/v1/listings/${listing.id}`).expect(200)
+    ).body;
+    expect(detail).toMatchObject({
+      hasRoom: true,
+      area: form.area,
+      availableSlots: form.availableSlots,
+      currentResidents: form.currentResidents,
+      availableFrom: null,
+    });
+    expect(
+      (await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } }))
+        .availableFrom,
+    ).toBeNull();
+  });
+
+  it('clears room-only fields and the full flag when switching to seeking a roommate room', async () => {
+    const listing = await published();
+    const full = (
+      await owner
+        .post(`/api/v1/listings/${listing.id}/full`)
+        .set('Origin', origin)
+        .send({ version: listing.version, isFull: true })
+        .expect(201)
+    ).body;
+    const seeking = (
+      await owner
+        .put(`/api/v1/listings/${listing.id}`)
+        .set('Origin', origin)
+        .send({ ...form, hasRoom: false, version: full.version })
+        .expect(200)
+    ).body;
+    expect(seeking).toMatchObject({
+      type: 'ROOMMATE',
+      hasRoom: false,
+      status: 'DRAFT',
+      isFull: false,
+      area: null,
+      availableSlots: 1,
+      currentResidents: 0,
+      availableFrom: null,
+      latitude: null,
+      longitude: null,
+      privateAddress: '',
+      deposit: 0,
+      electricityCost: 0,
+      waterCost: 0,
+      internetCost: 0,
+      otherCost: 0,
+      costNote: '',
+      rent: form.rent,
+      amenities: form.amenities,
+      photos: [],
+    });
+    const persisted = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+    });
+    expect(persisted).toMatchObject({
+      hasRoom: false,
+      area: null,
+      currentResidents: 0,
+      availableFrom: null,
+      privateAddress: '',
+      latitude: null,
+    });
+    const loaded = (
+      await owner.get(`/api/v1/listings/mine/${listing.id}`).expect(200)
+    ).body;
+    expect(loaded.hasRoom).toBe(false);
+    const restored = (
+      await owner
+        .put(`/api/v1/listings/${listing.id}`)
+        .set('Origin', origin)
+        .send({ ...form, hasRoom: true, version: seeking.version })
+        .expect(200)
+    ).body;
+    expect(restored).toMatchObject({
+      hasRoom: true,
+      area: form.area,
+      currentResidents: form.currentResidents,
+      availableFrom: null,
+    });
+    expect(restored.photos).toHaveLength(1);
+  });
+
+  it('hides stale room information on seeking roommate posts in public and owner views', async () => {
+    const listing = await published();
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: { hasRoom: false, availableFrom: new Date(form.availableFrom) },
+    });
+    for (const path of [
+      `/api/v1/listings/${listing.id}`,
+      `/api/v1/listings/mine/${listing.id}`,
+    ]) {
+      const detail = (await owner.get(path).expect(200)).body;
+      expect(detail).toMatchObject({
+        hasRoom: false,
+        area: null,
+        currentResidents: 0,
+        availableFrom: null,
+        latitude: null,
+        deposit: 0,
+        photos: [],
+      });
+      expect(detail.privateAddress ?? '').toBe('');
+    }
   });
 
   it('clears room-only data when updating a rental to a wanted listing', async () => {
@@ -413,6 +533,7 @@ describe('Phase 3 listings (real PostgreSQL)', () => {
       { amenities: ['UNKNOWN'] },
       { latitude: 21, longitude: null },
       { rent: '2800000' },
+      { hasRoom: 'false' },
     ]) {
       await owner
         .post('/api/v1/listings')
@@ -424,6 +545,129 @@ describe('Phase 3 listings (real PostgreSQL)', () => {
     expect(complete.latitude).toBe(21.03);
     expect(complete.longitude).toBe(105.82);
     expect(complete.provinceName).toBe('Thành phố Hà Nội');
+  });
+
+  it('deletes only the owned draft at its current version and cleans photos', async () => {
+    const listing = await withPhoto();
+    const path = `/api/v1/listings/${listing.id}`;
+    await request(app.getHttpServer())
+      .delete(path)
+      .set('Origin', origin)
+      .send({ version: listing.version })
+      .expect(401);
+    await reader
+      .delete(path)
+      .set('Origin', origin)
+      .send({ version: listing.version })
+      .expect(404);
+    await owner
+      .delete(path)
+      .set('Origin', 'https://evil.example')
+      .send({ version: listing.version })
+      .expect(403);
+    await owner.delete(path).set('Origin', origin).send({}).expect(400);
+    await owner
+      .delete(path)
+      .set('Origin', origin)
+      .send({ version: listing.version - 1 })
+      .expect(409);
+    const image = await prisma.listingPhoto.findFirstOrThrow({
+      where: { listingId: listing.id },
+    });
+    expect(
+      (
+        await owner
+          .delete(path)
+          .set('Origin', origin)
+          .send({ version: listing.version })
+          .expect(200)
+      ).body,
+    ).toEqual({ deleted: true });
+    const deleted = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+    });
+    expect(deleted.deletedAt).toBeInstanceOf(Date);
+    expect(deleted.status).toBe('CLOSED');
+    expect(
+      await prisma.listingPhoto.count({ where: { listingId: listing.id } }),
+    ).toBe(0);
+    expect(storage.deleteListingPhoto).toHaveBeenCalledWith(
+      image.publicId,
+      listing.id,
+    );
+    await owner.get(`/api/v1/listings/mine/${listing.id}`).expect(404);
+    await owner.get(path).expect(404);
+    await admin.get(`/api/v1/admin/listings/${listing.id}`).expect(404);
+    for (const url of [
+      '/api/v1/listings/mine?status=CLOSED',
+      '/api/v1/admin/listings?status=CLOSED',
+    ]) {
+      const page = (
+        await (url.includes('/admin/') ? admin : owner).get(url).expect(200)
+      ).body;
+      expect(
+        page.items.some((row: { id: string }) => row.id === listing.id),
+      ).toBe(false);
+    }
+    await owner
+      .put(path)
+      .set('Origin', origin)
+      .send({ ...form, version: deleted.version })
+      .expect(404);
+    await owner
+      .post(path + '/submit')
+      .set('Origin', origin)
+      .send({ version: deleted.version })
+      .expect(404);
+    await owner
+      .delete(path)
+      .set('Origin', origin)
+      .send({ version: deleted.version })
+      .expect(404);
+  });
+
+  it.each(['PENDING', 'PUBLISHED', 'REJECTED', 'CLOSED'] as const)(
+    'does not delete a %s listing',
+    async (status) => {
+      const listing = await draft();
+      await prisma.listing.update({
+        where: { id: listing.id },
+        data: { status },
+      });
+      const response = await owner
+        .delete(`/api/v1/listings/${listing.id}`)
+        .set('Origin', origin)
+        .send({ version: listing.version })
+        .expect(400);
+      expect(response.body.code).toBe('LISTING_NOT_DRAFT');
+      expect(
+        (await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } }))
+          .deletedAt,
+      ).toBeNull();
+    },
+  );
+
+  it('allows only one winner when deleting and submitting the same draft', async () => {
+    const listing = await withPhoto();
+    const path = `/api/v1/listings/${listing.id}`;
+    const results = await Promise.all([
+      owner
+        .delete(path)
+        .set('Origin', origin)
+        .send({ version: listing.version }),
+      owner
+        .post(path + '/submit')
+        .set('Origin', origin)
+        .send({ version: listing.version }),
+    ]);
+    expect(results.filter((response) => response.status < 300)).toHaveLength(1);
+    expect(
+      results.filter((response) => [404, 409].includes(response.status)),
+    ).toHaveLength(1);
+    const current = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+    });
+    expect(current.status).toBe(current.deletedAt ? 'CLOSED' : 'PENDING');
   });
 
   it('enforces upload ownership, origin, multipart limits and version', async () => {

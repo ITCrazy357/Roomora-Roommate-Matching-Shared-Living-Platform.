@@ -9,14 +9,21 @@ import { NotificationsService } from '../communications/notifications.service.js
 import { MomoGatewayService } from './momo-gateway.service.js';
 import { PayosGatewayService } from './payos-gateway.service.js';
 import type { PaymentNotification } from './billing-types.js';
+import { RefundRulesService } from './refund-rules.service.js';
+import type { ServiceOrder } from '../../generated/prisma/client.js';
 
 @Injectable()
 export class ServicePaymentsService {
+  private readonly syncing = new Map<
+    string,
+    ReturnType<PayosGatewayService['read']>
+  >();
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: MomoGatewayService,
     private readonly payos: PayosGatewayService,
     private readonly notifications: NotificationsService,
+    private readonly refunds: RefundRulesService,
   ) {}
 
   async notify(input: unknown) {
@@ -28,6 +35,21 @@ export class ServicePaymentsService {
 
   async notifyPayos(input: unknown) {
     return this.apply(this.payos.verifyNotification(input));
+  }
+
+  async syncPayos(order: ServiceOrder) {
+    const pending = this.syncing.get(order.id);
+    if (pending) return pending;
+    const task = this.payos.read(order).then(async (link) => {
+      if (link.payment) await this.apply(link.payment);
+      return link;
+    });
+    this.syncing.set(order.id, task);
+    try {
+      return await task;
+    } finally {
+      if (this.syncing.get(order.id) === task) this.syncing.delete(order.id);
+    }
   }
 
   private async apply(event: PaymentNotification) {
@@ -139,6 +161,14 @@ export class ServicePaymentsService {
           resultCode: 0,
           paidAt: now,
           providerTransId: event.transId,
+          ...(event.payer
+            ? {
+                payerBankId: event.payer.bankId,
+                payerBankName: event.payer.bankName,
+                payerAccount: event.payer.accountNumber,
+                payerName: event.payer.accountName,
+              }
+            : {}),
           payUrl: null,
         },
       });
@@ -161,14 +191,15 @@ export class ServicePaymentsService {
         listing.isFull ||
         listing.owner.lockedAt
       ) {
-        await tx.serviceRefundRequest.create({
-          data: {
-            orderId: order.id,
-            reason: paid
-              ? 'Tin đã thanh toán trong cùng đợt đăng. Giao dịch đến muộn cần đối soát và hoàn tiền.'
-              : 'Thanh toán đến sau khi tin không còn đủ điều kiện đẩy. Cần đối soát và hoàn tiền.',
-          },
-        });
+        await this.refunds.create(
+          tx,
+          await tx.serviceOrder.findUniqueOrThrow({ where: { id: order.id } }),
+          paid
+            ? 'Tin đã thanh toán trong cùng đợt đăng. Giao dịch đến muộn cần đối soát và hoàn tiền.'
+            : 'Thanh toán đến sau khi tin không còn đủ điều kiện đẩy. Cần đối soát và hoàn tiền.',
+          'SYSTEM',
+          null,
+        );
         await this.notifications.create(
           tx,
           order.userId,
@@ -197,34 +228,6 @@ export class ServicePaymentsService {
         'Đã kích hoạt ' + order.planName,
         '/dich-vu?tab=services',
       );
-    });
-  }
-
-  async requestRefund(userId: string, id: string, reason: string) {
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM service_orders WHERE id = ${id}::uuid FOR UPDATE`;
-      const order = await tx.serviceOrder.findFirst({
-        where: { id, userId },
-        include: { refund: true },
-      });
-      if (!order) throw new NotFoundException();
-      if (order.status !== 'PAID')
-        throw new BadRequestException({
-          code: 'REFUND_PAYMENT_REQUIRED',
-          message: 'Chỉ yêu cầu hoàn tiền cho đơn đã thanh toán',
-        });
-      if (order.refund) return order.refund;
-      const refund = await tx.serviceRefundRequest.create({
-        data: { orderId: id, reason },
-      });
-      await this.notifications.create(
-        tx,
-        userId,
-        'SERVICE',
-        'Đã tiếp nhận yêu cầu hoàn tiền để kiểm tra',
-        '/dich-vu?tab=history',
-      );
-      return refund;
     });
   }
 }

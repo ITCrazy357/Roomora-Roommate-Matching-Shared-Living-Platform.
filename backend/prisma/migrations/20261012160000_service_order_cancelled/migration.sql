@@ -1,0 +1,1 @@
+ALTER TYPE "ServiceOrderStatus" ADD VALUE 'CANCELLED';

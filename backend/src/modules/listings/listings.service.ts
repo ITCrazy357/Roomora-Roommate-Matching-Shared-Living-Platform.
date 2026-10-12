@@ -61,6 +61,10 @@ export class ListingsService {
     return this.management.close(ownerId, id, version);
   }
 
+  deleteDraft(ownerId: string, id: string, version: number) {
+    return this.management.deleteDraft(ownerId, id, version);
+  }
+
   setFull(ownerId: string, id: string, version: number, isFull: boolean) {
     return this.management.setFull(ownerId, id, version, isFull);
   }

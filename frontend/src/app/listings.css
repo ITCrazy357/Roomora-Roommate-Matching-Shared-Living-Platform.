@@ -670,10 +670,17 @@
   display: grid;
   gap: 22px;
 }
+.listing-delete-button {
+  color: var(--danger-foreground);
+  border-color: var(--danger);
+}
 .listing-type-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+.roommate-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .listing-type-card {
   background: var(--surface);
@@ -890,7 +897,8 @@
   }
 }
 @media (max-width: 800px) {
-  .listing-type-options {
+  .listing-type-options,
+  .roommate-options {
     grid-template-columns: 1fr;
   }
   .listing-browser-grid {

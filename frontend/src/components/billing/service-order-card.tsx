@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ApiError } from "@/lib/api";
 import { money } from "@/lib/listings";
 import {
   billingError,
@@ -12,41 +13,67 @@ import {
   serviceDate,
   type ServiceOrder,
 } from "@/lib/billing";
-import { Button, Card, ErrorState, Textarea } from "../ui";
+import { Button, Card, ErrorState } from "../ui";
+import { ServiceRefundPanel } from "./service-refund-panel";
 
 export function ServiceOrderCard({
   order,
   reload,
   paymentAvailable,
+  retryAvailable,
 }: {
   order: ServiceOrder;
   reload: () => void;
   paymentAvailable: boolean;
+  retryAvailable: boolean;
 }) {
   const [pending, setPending] = useState(false),
     [error, setError] = useState("");
-  const [form, setForm] = useState(false),
-    [reason, setReason] = useState("");
-  async function act(kind: "checkout" | "receipt" | "refund") {
+  const retryClientId = useRef<string | null>(null);
+  async function act(kind: "checkout" | "receipt" | "retry" | "sync") {
     if (pending) return;
     setPending(true);
     setError("");
     try {
-      if (kind === "receipt") await downloadReceipt(order.id);
-      else if (kind === "refund") {
-        await billingPost(`/services/orders/${order.id}/refund-request`, {
-          reason,
-        });
-        setForm(false);
+      if (kind === "sync") {
+        await billingPost(`/services/orders/${order.id}/sync`, {}, 20000);
         reload();
-      } else {
+      } else if (kind === "receipt") await downloadReceipt(order.id);
+      else {
+        let checkoutId = order.id;
+        if (kind === "retry") {
+          retryClientId.current ??= crypto.randomUUID();
+          const next = await billingPost<ServiceOrder>("/services/orders", {
+            listingId: order.listingId,
+            clientId: retryClientId.current,
+          });
+          if (next.status !== "PENDING") {
+            retryClientId.current = null;
+            throw new ApiError(
+              "Order is not pending",
+              "http",
+              409,
+              "ORDER_NOT_PENDING",
+            );
+          }
+          checkoutId = next.id;
+        }
         const result = await billingPost<{ payUrl: string }>(
-          `/services/orders/${order.id}/checkout`,
+          `/services/orders/${checkoutId}/checkout`,
         );
         window.location.assign(result.payUrl);
       }
     } catch (error) {
-      setError(billingError(error));
+      if (
+        error instanceof ApiError &&
+        ["ORDER_CANCELLED", "ORDER_NOT_PENDING"].includes(error.code ?? "")
+      )
+        retryClientId.current = null;
+      setError(
+        error instanceof ApiError && error.code === "ORDER_ALREADY_PAID"
+          ? ""
+          : billingError(error),
+      );
       reload();
     } finally {
       setPending(false);
@@ -64,7 +91,9 @@ export function ServiceOrderCard({
         <span
           className={`service-status service-status-${order.status.toLowerCase()}`}
         >
-          {orderLabels[order.status]}
+          {order.paymentConfirmationPending
+            ? "Đang xác nhận thanh toán"
+            : orderLabels[order.status]}
         </span>
       </div>
       <div className="service-order-details">
@@ -95,26 +124,50 @@ export function ServiceOrderCard({
           cổng thanh toán xác nhận.
         </p>
       )}
-      {order.refund && (
-        <div className="service-notice">
-          <strong>Yêu cầu hoàn tiền · Chờ kiểm tra</strong>
-          <p>{order.refund.reason}</p>
-          <p>
-            Đã tiếp nhận {serviceDate(order.refund.createdAt)}. Chưa xác nhận
-            hoàn tiền; quyền lợi đã cấp vẫn theo thời hạn.
-          </p>
-        </div>
-      )}
       {error && <ErrorState message={error} />}
-      <div className="service-actions">
-        {order.status === "PENDING" && (
-          <Button
-            disabled={pending || !paymentAvailable}
-            onClick={() => void act("checkout")}
-          >
-            Tiếp tục thanh toán {paymentLabels[order.provider]}
-          </Button>
+      {(order.paymentConfirmationPending || order.paymentStatusUnavailable) &&
+        order.status !== "PAID" && (
+          <p className="service-notice">
+            {order.paymentConfirmationPending
+              ? "PayOS đã nhận tiền hoặc đang xử lý. Hệ thống đang đối soát; bạn chưa cần thanh toán lại."
+              : "Chưa kiểm tra được trạng thái PayOS. Kiểm tra lại giao dịch trước khi tiếp tục thanh toán."}
+          </p>
         )}
+      {order.status === "CANCELLED" && (
+        <p className="text-muted">
+          Link cũ đã hủy. Tin chưa thanh toán vẫn có thể đăng ký dịch vụ bằng
+          một đơn mới.
+        </p>
+      )}
+      <div className="service-actions">
+        {order.status === "PENDING" &&
+          !order.paymentConfirmationPending &&
+          !order.paymentStatusUnavailable && (
+            <Button
+              disabled={pending || !paymentAvailable}
+              onClick={() => void act("checkout")}
+            >
+              Tiếp tục thanh toán {paymentLabels[order.provider]}
+            </Button>
+          )}
+        {["CANCELLED", "EXPIRED", "FAILED"].includes(order.status) &&
+          retryAvailable &&
+          !order.paymentConfirmationPending &&
+          !order.paymentStatusUnavailable && (
+            <Button disabled={pending} onClick={() => void act("retry")}>
+              {pending ? "Đang tạo thanh toán…" : "Tạo thanh toán mới"}
+            </Button>
+          )}
+        {(order.paymentConfirmationPending || order.paymentStatusUnavailable) &&
+          order.status !== "PAID" && (
+            <Button
+              variant="secondary"
+              disabled={pending}
+              onClick={() => void act("sync")}
+            >
+              Kiểm tra trạng thái thanh toán
+            </Button>
+          )}
         {order.status === "PAID" && (
           <Button
             variant="secondary"
@@ -124,42 +177,8 @@ export function ServiceOrderCard({
             Tải biên nhận PDF
           </Button>
         )}
-        {order.status === "PAID" && !order.refund && (
-          <Button
-            variant="secondary"
-            disabled={pending}
-            onClick={() => setForm(!form)}
-          >
-            {form ? "Đóng biểu mẫu" : "Yêu cầu hoàn tiền"}
-          </Button>
-        )}
       </div>
-      {form && (
-        <form
-          className="service-refund-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void act("refund");
-          }}
-        >
-          <Textarea
-            id={`refund-${order.id}`}
-            label="Lý do yêu cầu hoàn tiền"
-            required
-            minLength={10}
-            maxLength={1000}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-          />
-          <p className="text-muted">
-            Yêu cầu sẽ được kiểm tra trước khi xử lý. Gửi yêu cầu không tự hoàn
-            tiền hoặc hủy quyền lợi.
-          </p>
-          <Button type="submit" disabled={pending || reason.trim().length < 10}>
-            Gửi yêu cầu
-          </Button>
-        </form>
-      )}
+      <ServiceRefundPanel order={order} reload={reload} />
     </Card>
   );
 }

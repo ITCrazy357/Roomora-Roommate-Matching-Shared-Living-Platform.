@@ -12,12 +12,14 @@ function Workspace({ children }: { children: React.ReactNode }) {
     openReports: number;
     lockedUsers: number;
     activeAnnouncements: number;
+    pendingRefunds: number;
   }>("/admin/summary");
   const counts = [
     data?.pendingListings,
     data?.lockedUsers,
     data?.openReports,
     data?.activeAnnouncements,
+    data?.pendingRefunds,
   ];
   return (
     <div className="container admin-workspace">
@@ -71,6 +73,7 @@ function Workspace({ children }: { children: React.ReactNode }) {
                     "Tài khoản bị khóa",
                     "Báo cáo chờ xử lý",
                     "Thông báo đang phát",
+                    "Yêu cầu hoàn tiền cần xử lý",
                   ][index]
                 }
               </span>
@@ -82,7 +85,9 @@ function Workspace({ children }: { children: React.ReactNode }) {
                     ? "Xem và kiểm tra vi phạm"
                     : index === 2
                       ? "Xem bằng chứng và phản hồi"
-                      : "Hiển thị trên toàn hệ thống"}
+                      : index === 3
+                        ? "Hiển thị trên toàn hệ thống"
+                        : "Xác minh và đối soát dòng tiền"}
               </small>
             </Link>
           ))}

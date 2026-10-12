@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -18,6 +19,8 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import { ServiceOrdersService } from './service-orders.service.js';
 import { ServicePaymentsService } from './service-payments.service.js';
 import { ServiceReceiptsService } from './service-receipts.service.js';
+import { ServiceRefundsService } from './service-refunds.service.js';
+import { RefundRateGuard } from './refund-rate.guard.js';
 import {
   CreateServiceOrderDto,
   RefundRequestDto,
@@ -28,8 +31,8 @@ import {
 export class BillingController {
   constructor(
     private readonly orders: ServiceOrdersService,
-    private readonly payments: ServicePaymentsService,
     private readonly receipts: ServiceReceiptsService,
+    private readonly refunds: ServiceRefundsService,
   ) {}
   @Get('catalog') catalog() {
     return this.orders.catalog();
@@ -45,17 +48,19 @@ export class BillingController {
     return this.orders.create(req.auth.userId, dto);
   }
   @Get('orders')
+  @Header('Cache-Control', 'private, no-store')
   @UseGuards(AuthGuard)
   list(@Req() req: AuthenticatedRequest, @Query() query: ServiceOrderQueryDto) {
     return this.orders.list(req.auth.userId, query);
   }
   @Get('orders/:id')
+  @Header('Cache-Control', 'private, no-store')
   @UseGuards(AuthGuard)
   get(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.orders.get(req.auth.userId, id);
+    return this.orders.getAndSync(req.auth.userId, id);
   }
   @Post('orders/:id/checkout')
   @UseGuards(AuthGuard)
@@ -66,14 +71,24 @@ export class BillingController {
   ) {
     return this.orders.checkout(req.auth.userId, id);
   }
-  @Post('orders/:id/refund-request')
+  @Post('orders/:id/sync')
+  @Header('Cache-Control', 'private, no-store')
   @UseGuards(AuthGuard)
+  @HttpCode(200)
+  sync(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.orders.sync(req.auth.userId, id);
+  }
+  @Post('orders/:id/refund-request')
+  @UseGuards(AuthGuard, RefundRateGuard)
   refund(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RefundRequestDto,
   ) {
-    return this.payments.requestRefund(req.auth.userId, id, dto.reason);
+    return this.refunds.request(req.auth.userId, id, dto.reason);
   }
   @Get('orders/:id/receipt')
   @UseGuards(AuthGuard)

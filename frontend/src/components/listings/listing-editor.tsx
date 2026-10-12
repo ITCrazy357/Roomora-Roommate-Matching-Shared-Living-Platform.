@@ -10,10 +10,12 @@ import {
   listingError,
   listingLocation,
   listingStatuses,
-  listingTypes,
+  listingLabel,
+  listingHasRoom,
   money,
 } from "@/lib/listings";
 import { ListingEditorFields } from "./listing-editor-fields";
+import { DeleteListingDraft } from "./delete-listing-draft";
 import {
   emptyForm,
   formFromListing,
@@ -132,8 +134,8 @@ export function ListingEditor({ id }: { id?: string }) {
     setForm({
       ...formFromListing(saved),
       // Keep the chosen pin in this editor; the server stores a rounded area.
-      latitude: saved.type === "ROOM_WANTED" ? "" : form.latitude,
-      longitude: saved.type === "ROOM_WANTED" ? "" : form.longitude,
+      latitude: listingHasRoom(saved) ? form.latitude : "",
+      longitude: listingHasRoom(saved) ? form.longitude : "",
     });
     setDirty(false);
     // Keep the saved draft in the URL so a reload can continue it.
@@ -305,19 +307,28 @@ export function ListingEditor({ id }: { id?: string }) {
     <section className="container page-section listings-page">
       <div className="listing-page-heading">
         <div>
-          <span className="eyebrow">{listingTypes[form.type]}</span>
+          <span className="eyebrow">{listingLabel(form)}</span>
           <h1>{id || listing ? "Chỉnh sửa tin đăng" : "Tạo tin đăng mới"}</h1>
           <p className="text-muted">
             Điền thông tin bạn muốn chia sẻ với người xem tin.
           </p>
         </div>
-        <Button
-          variant="secondary"
-          disabled={pending}
-          onClick={() => saveProgress(false, true)}
-        >
-          Lưu bản nháp & Thoát
-        </Button>
+        <div className="listing-actions">
+          {listing && (
+            <DeleteListingDraft
+              listing={listing}
+              disabled={pending}
+              onPendingChange={setPending}
+            />
+          )}
+          <Button
+            variant="secondary"
+            disabled={pending}
+            onClick={() => saveProgress(false, true)}
+          >
+            Lưu bản nháp & Thoát
+          </Button>
+        </div>
       </div>
       <Card className="listing-progress">
         <div>
@@ -428,17 +439,19 @@ export function ListingEditor({ id }: { id?: string }) {
             <dl className="listing-costs">
               <div>
                 <dt>
-                  {form.type === "ROOM_WANTED"
+                  {!listingHasRoom(form)
                     ? "Ngân sách tối đa / tháng"
                     : "Giá thuê / tháng"}
                 </dt>
                 <dd>{money(form.rent ? Number(form.rent) : null)}</dd>
               </div>
-              <div>
-                <dt>Diện tích</dt>
-                <dd>{form.area || "—"} m²</dd>
-              </div>
-              {form.type !== "ROOM_WANTED" && (
+              {(listingHasRoom(form) || form.type === "ROOM_WANTED") && (
+                <div>
+                  <dt>Diện tích</dt>
+                  <dd>{form.area || "—"} m²</dd>
+                </div>
+              )}
+              {listingHasRoom(form) && (
                 <div>
                   <dt>Ảnh đã lưu</dt>
                   <dd>{listing?.photos.length ?? 0} / 8</dd>
@@ -460,8 +473,9 @@ export function ListingEditor({ id }: { id?: string }) {
           <Card>
             <h3>Mẹo tìm người cùng nhà</h3>
             <p className="text-muted">
-              Ảnh sáng rõ, chi phí đầy đủ và mô tả nếp sinh hoạt giúp người xem
-              cân nhắc đúng nhu cầu.
+              {listingHasRoom(form)
+                ? "Ảnh sáng rõ, chi phí đầy đủ và mô tả nếp sinh hoạt giúp người xem cân nhắc đúng nhu cầu."
+                : "Chia sẻ ngân sách, khu vực và nếp sinh hoạt để người có chỗ ở phù hợp liên hệ với bạn."}
             </p>
             <ButtonLink href="/tin-cua-toi" variant="secondary">
               Tin của tôi

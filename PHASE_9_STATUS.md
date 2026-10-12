@@ -119,3 +119,73 @@ Chi tiết file, nghiệp vụ, kiểm thử và cấu hình:
 `docs/listing-payment-map-update.md`, `docs/maps-setup.md`.
 Artifact: `.verification/listing-payment-map-browser-report.json`,
 `.verification/request-*.png`. Fixture đã được dọn; giữ lịch sử thanh toán có sẵn.
+
+## Hoàn thiện hoàn tiền dịch vụ — 12/10/2026
+
+- USER gửi trong 24h từ paidAt; đúng 24h hợp lệ, vượt 1ms bị từ chối. ADMIN
+  xét thời điểm gửi, không tự từ chối yêu cầu đúng hạn khi xử lý sau 24h.
+- Có state machine duyệt/từ chối/xác minh recipient/process/complete/failure/retry,
+  audit và chứng từ riêng tư. APPROVED/PROCESSING không được gọi là đã hoàn tiền.
+- PayOS chuyển khoản thủ công có kiểm tra gốc, xác minh bổ sung khi khác tài khoản,
+  proof/mã/số tiền/giờ/xác nhận thực tế. MoMo sandbox có refund/query với mã cố định,
+  kiểm tra khoản hoàn trên giao dịch gốc, timeout giữ PROCESSING để đối soát.
+- Unique references, version và row lock chống hoàn trùng; lỗi audit rollback.
+  COMPLETED ghi refundedAt và chỉ dừng boost của đơn/đợt đã hoàn, giữ PAID và lịch sử.
+- Migration service_refund_workflow đã deploy; không xóa yêu cầu/lịch sử cũ.
+- 298/298 E2E trong 21 file qua; 89/89 billing/refund qua sau bank prefill/server clock;
+  90 unit và 8 test API frontend qua. Build backend/frontend qua; lint file thay đổi
+  không lỗi. Browser sáu nhóm qua ở 320–1366px, không tràn ngang/lỗi JavaScript.
+- Không tạo giao dịch tiền thật; provider/bank/proof trong kiểm thử được mô phỏng.
+  MoMo thật cần merchant sandbox; PayOS hiện cần ADMIN chuyển khoản/đối soát ngoài app.
+
+Xem `docs/service-refunds-status.md` cho file, API, migration, giới hạn và cách xử lý.
+Artifact: `.verification/refunds-browser-report.json`, `.verification/refund-*.png`.
+
+## Hủy PayOS và đăng ký lại tin chưa thanh toán — 12/10/2026
+
+- Bổ sung CANCELLED và migration `20261012160000_service_order_cancelled`, đã
+  deploy lên PostgreSQL local. Đơn hủy được giữ trong lịch sử cùng mã cổng ban đầu.
+- Backend xác thực trạng thái bằng GET PayOS trước khi dùng lại link hoặc tạo
+  đơn thay thế. Không suy ra hủy/thành công từ query URL. PENDING còn hiệu lực
+  dùng link cũ; CANCELLED/EXPIRED chưa nhận tiền có thể tạo đơn/orderCode mới.
+- Tin chỉ bị chặn mua lại khi đã PAID trong cùng postingRound. Khóa user/listing
+  và unique PENDING chống tạo nhiều đơn mới khi bấm đồng thời. Callback đến muộn
+  vẫn được ghi nhận, không cấp lần hai nếu đơn thay thế đã PAID.
+- Có POST `/services/orders/:id/sync` cho chủ đơn. Trang kết quả đồng bộ và dẫn
+  về gói; lịch sử có Tạo thanh toán mới cho tin đủ điều kiện. PAID/PROCESSING/
+  đã nhận tiền một phần chờ xác nhận, lỗi kiểm tra trạng thái không tạo thêm đơn.
+- 88/88 billing và 22/22 refund E2E HTTP/PostgreSQL qua; gồm chữ ký/dữ liệu giả,
+  partial money, expiry local, recovery timeout, race callback/hủy và late duplicate.
+  Backend TypeScript, frontend TypeScript và lint file thay đổi qua.
+- Edge + API fixture/PostgreSQL: năm nhóm qua gồm phát hiện link hủy khi resume,
+  trang kết quả, tạo lại từ lịch sử, từ tab gói, và khóa tin đã thanh toán.
+  320/390/768/1366px không tràn ngang; không lỗi JavaScript. Gateway và chuyển tiền
+  trong kiểm thử đều mô phỏng, không gọi tạo link merchant hoặc chuyển tiền thật.
+  Artifact: `.verification/payos-cancel-browser-report.json`.
+
+## Khôi phục thanh toán thiếu webhook — 13/10/2026
+
+- Lỗi trước: đối soát thấy provider đã nhận tiền nhưng chỉ trả trạng thái đang
+  xử lý, chưa ghi PAID/cấp boost; lịch sử GET chỉ đọc DB nên vẫn có nút trả tiền.
+- Đọc PayOS thật xác nhận đơn `4b87eccf…` đã thu đủ 49.000đ, chữ ký/link/orderCode
+  khớp và một giao dịch ngân hàng hợp lệ; DB trước sửa EXPIRED, không có event/boost.
+- Sửa query PAID đủ tiền và mã giao dịch đi qua cùng transaction xử lý webhook.
+  Giữ uniqueness, row locks, kiểm tra đợt/tin, hoàn SYSTEM khi không thể cấp gói.
+  Không dùng query URL hoặc kết quả thiếu reference/sai số tiền để kích hoạt.
+- Chi tiết, lịch sử và trang kết quả đối soát; pending/partial/unknown hiển thị
+  kiểm tra trạng thái, không tiếp tục thu tiền. UI khóa tin ngay theo đơn PAID
+  vừa đối soát, kể cả danh sách tin được tải song song trước khi transaction commit.
+- Kiểm tra nền tùy chọn `BILLING_RECONCILE_ENABLED=true`, mặc định false; tối đa
+  10 đơn/lượt, 3 request đồng thời, giữ watcher độc lập với mạng trong transaction.
+- 120/120 E2E billing/refund HTTP/PostgreSQL qua. Query và webhook đồng thời/lặp
+  không gia hạn boost, không thêm thông báo; partial/missing ref/multiple tx không cấp gói.
+- TypeScript backend/frontend và lint file thay đổi qua. Edge dữ liệu mô phỏng:
+  mất webhook nhưng GET lịch sử cấp gói đúng một lần; late callback không cấp thêm;
+  partial/bad signature không có CTA thu thêm; 320/390/768/1366px không tràn ngang,
+  không lỗi JavaScript. Artifact `.verification/payos-recovery-browser-report.json`.
+- Kiểm chứng live chỉ đọc cuối: đơn thật đã PAID, có một event khớp chữ ký GET
+  PayOS và một boost, listing PUBLISHED/boostUntil khớp. Thời hạn đến
+  00:32:26 ngày 20/10/2026 (UTC+7). Không tạo giao dịch hoặc chuyển tiền mới.
+- Script khôi phục thủ công bị automatic approval review từ chối, chưa chạy.
+  Đơn đã được đối soát trong ứng dụng trước thao tác bị từ chối; không thực hiện
+  một đường vòng sau từ chối. Xác nhận kết quả bằng DB và API GET ở chế độ chỉ đọc.

@@ -1,7 +1,13 @@
-import type { Amenity, Listing, ListingType } from "./listings";
+import {
+  listingHasRoom,
+  type Amenity,
+  type Listing,
+  type ListingType,
+} from "./listings";
 
 export const emptyForm = {
   type: "ROOMMATE" as ListingType,
+  hasRoom: true,
   title: "",
   description: "",
   rent: "",
@@ -33,6 +39,7 @@ export type LocationUnit = { code: string; name: string };
 export function formFromListing(listing: Listing): ListingForm {
   return {
     type: listing.type,
+    hasRoom: listingHasRoom(listing),
     title: listing.title,
     description: listing.description,
     rent: listing.rent?.toString() ?? "",
@@ -62,29 +69,33 @@ export function formFromListing(listing: Listing): ListingForm {
 
 export function formInput(form: ListingForm) {
   const wanted = form.type === "ROOM_WANTED";
+  const hasRoom = listingHasRoom(form);
   return {
     ...form,
+    hasRoom,
     rent: form.rent === "" ? null : Number(form.rent),
-    area: form.area === "" ? null : Number(form.area),
-    deposit: wanted ? 0 : Number(form.deposit),
-    electricityCost: wanted ? 0 : Number(form.electricityCost),
-    waterCost: wanted ? 0 : Number(form.waterCost),
-    internetCost: wanted ? 0 : Number(form.internetCost),
-    otherCost: wanted ? 0 : Number(form.otherCost),
-    costNote: wanted ? "" : form.costNote,
-    privateAddress: wanted ? "" : form.privateAddress,
-    availableSlots: wanted ? 1 : Number(form.availableSlots),
+    area: (!hasRoom && !wanted) || form.area === "" ? null : Number(form.area),
+    deposit: hasRoom ? Number(form.deposit) : 0,
+    electricityCost: hasRoom ? Number(form.electricityCost) : 0,
+    waterCost: hasRoom ? Number(form.waterCost) : 0,
+    internetCost: hasRoom ? Number(form.internetCost) : 0,
+    otherCost: hasRoom ? Number(form.otherCost) : 0,
+    costNote: hasRoom ? form.costNote : "",
+    privateAddress: hasRoom ? form.privateAddress : "",
+    availableSlots: hasRoom ? Number(form.availableSlots) : 1,
     currentResidents:
-      form.type === "ROOMMATE" ? Number(form.currentResidents) : 0,
+      form.type === "ROOMMATE" && hasRoom ? Number(form.currentResidents) : 0,
     desiredResidents:
       form.type === "ROOM_WANTED" && form.desiredResidents !== ""
         ? Number(form.desiredResidents)
         : null,
-    availableFrom: wanted ? null : form.availableFrom || null,
+    availableFrom:
+      form.type === "ROOM_RENTAL" ? form.availableFrom || null : null,
     provinceCode: form.provinceCode || null,
     wardCode: form.wardCode || null,
-    latitude: wanted || form.latitude === "" ? null : Number(form.latitude),
-    longitude: wanted || form.longitude === "" ? null : Number(form.longitude),
+    latitude: !hasRoom || form.latitude === "" ? null : Number(form.latitude),
+    longitude:
+      !hasRoom || form.longitude === "" ? null : Number(form.longitude),
     smokingPreference: form.smokingPreference || null,
     petPreference: form.petPreference || null,
     quietLevel: form.quietLevel || null,

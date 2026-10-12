@@ -78,6 +78,7 @@ export class ConversationQueriesService {
           ownerId: { in: [row.connection.senderId, row.connection.receiverId] },
           status: 'PUBLISHED',
           type: { not: 'ROOM_WANTED' },
+          hasRoom: true,
         },
         select: {
           id: true,

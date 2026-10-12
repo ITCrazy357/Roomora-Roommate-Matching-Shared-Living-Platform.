@@ -17,12 +17,15 @@ export class ListingRulesService {
   ) {}
 
   formData(input: ListingInputDto) {
-    const wanted = input.type === 'ROOM_WANTED';
+    const hasRoom =
+      input.type === 'ROOM_RENTAL' ||
+      (input.type === 'ROOMMATE' && input.hasRoom);
+    const roommateSeekingRoom = input.type === 'ROOMMATE' && !hasRoom;
     const { provinceCode, wardCode, availableFrom, latitude, longitude } =
       input;
     if (
       (!provinceCode && wardCode) ||
-      (!wanted && (latitude === null) !== (longitude === null))
+      (hasRoom && (latitude === null) !== (longitude === null))
     ) {
       throw new BadRequestException({
         code: 'LOCATION_INVALID',
@@ -39,31 +42,35 @@ export class ListingRulesService {
         };
     return {
       type: input.type,
+      hasRoom,
       title: input.title,
       description: input.description,
       rent: input.rent,
-      deposit: wanted ? 0 : input.deposit,
-      electricityCost: wanted ? 0 : input.electricityCost,
-      waterCost: wanted ? 0 : input.waterCost,
-      internetCost: wanted ? 0 : input.internetCost,
-      otherCost: wanted ? 0 : input.otherCost,
-      costNote: wanted ? '' : input.costNote,
-      area: input.area,
-      availableSlots: wanted ? 1 : input.availableSlots,
-      currentResidents: input.type === 'ROOMMATE' ? input.currentResidents : 0,
+      deposit: hasRoom ? input.deposit : 0,
+      electricityCost: hasRoom ? input.electricityCost : 0,
+      waterCost: hasRoom ? input.waterCost : 0,
+      internetCost: hasRoom ? input.internetCost : 0,
+      otherCost: hasRoom ? input.otherCost : 0,
+      costNote: hasRoom ? input.costNote : '',
+      area: roommateSeekingRoom ? null : input.area,
+      availableSlots: hasRoom ? input.availableSlots : 1,
+      currentResidents:
+        input.type === 'ROOMMATE' && hasRoom ? input.currentResidents : 0,
       desiredResidents:
         input.type === 'ROOM_WANTED' ? input.desiredResidents : null,
       availableFrom:
-        !wanted && availableFrom
+        input.type === 'ROOM_RENTAL' && availableFrom
           ? new Date(`${availableFrom}T00:00:00Z`)
           : null,
       ...location,
-      privateAddress: wanted ? '' : input.privateAddress,
+      privateAddress: hasRoom ? input.privateAddress : '',
       // About 1 km precision. The exact input is not persisted.
       latitude:
-        wanted || latitude === null ? null : Math.round(latitude * 100) / 100,
+        !hasRoom || latitude === null ? null : Math.round(latitude * 100) / 100,
       longitude:
-        wanted || longitude === null ? null : Math.round(longitude * 100) / 100,
+        !hasRoom || longitude === null
+          ? null
+          : Math.round(longitude * 100) / 100,
       amenities: input.amenities,
       roommateNote: input.roommateNote,
       smokingPreference: input.smokingPreference,
@@ -84,7 +91,7 @@ export class ListingRulesService {
 
   async requireOwner(ownerId: string, id: string) {
     const listing = await this.prisma.listing.findFirst({
-      where: { id, ownerId },
+      where: { id, ownerId, deletedAt: null },
       include: details,
     });
     if (!listing) this.notFound();
@@ -128,10 +135,14 @@ export class ListingRulesService {
   }
 
   publicView(listing: Listing) {
-    const wanted = listing.type === 'ROOM_WANTED';
+    const hasRoom =
+      listing.type === 'ROOM_RENTAL' ||
+      (listing.type === 'ROOMMATE' && listing.hasRoom);
+    const roommateSeekingRoom = listing.type === 'ROOMMATE' && !hasRoom;
     return {
       id: listing.id,
       type: listing.type,
+      hasRoom,
       isFull: listing.isFull,
       ownerId: listing.ownerId,
       title: listing.title,
@@ -143,23 +154,24 @@ export class ListingRulesService {
         !listing.owner.lockedAt &&
         Boolean(listing.boostUntil && listing.boostUntil > new Date()),
       rent: listing.rent,
-      deposit: wanted ? 0 : listing.deposit,
-      electricityCost: wanted ? 0 : listing.electricityCost,
-      waterCost: wanted ? 0 : listing.waterCost,
-      internetCost: wanted ? 0 : listing.internetCost,
-      otherCost: wanted ? 0 : listing.otherCost,
-      costNote: wanted ? '' : listing.costNote,
-      area: listing.area,
-      availableSlots: listing.availableSlots,
-      currentResidents: listing.currentResidents,
+      deposit: hasRoom ? listing.deposit : 0,
+      electricityCost: hasRoom ? listing.electricityCost : 0,
+      waterCost: hasRoom ? listing.waterCost : 0,
+      internetCost: hasRoom ? listing.internetCost : 0,
+      otherCost: hasRoom ? listing.otherCost : 0,
+      costNote: hasRoom ? listing.costNote : '',
+      area: roommateSeekingRoom ? null : listing.area,
+      availableSlots: hasRoom ? listing.availableSlots : 1,
+      currentResidents: hasRoom ? listing.currentResidents : 0,
       desiredResidents: listing.desiredResidents,
-      availableFrom: wanted ? null : listing.availableFrom,
+      availableFrom:
+        listing.type === 'ROOM_RENTAL' ? listing.availableFrom : null,
       provinceCode: listing.provinceCode,
       provinceName: listing.provinceName,
       wardCode: listing.wardCode,
       wardName: listing.wardName,
-      latitude: wanted ? null : listing.latitude,
-      longitude: wanted ? null : listing.longitude,
+      latitude: hasRoom ? listing.latitude : null,
+      longitude: hasRoom ? listing.longitude : null,
       amenities: listing.amenities,
       roommateNote: listing.roommateNote,
       smokingPreference: listing.smokingPreference,
@@ -168,11 +180,13 @@ export class ListingRulesService {
       publishedAt: listing.publishedAt,
       createdAt: listing.createdAt,
       updatedAt: listing.updatedAt,
-      photos: listing.photos.map(({ id, url, position }) => ({
-        id,
-        url,
-        position,
-      })),
+      photos: (roommateSeekingRoom ? [] : listing.photos).map(
+        ({ id, url, position }) => ({
+          id,
+          url,
+          position,
+        }),
+      ),
       owner: {
         id: listing.owner.id,
         displayName: listing.owner.profile?.displayName ?? 'Thành viên Roomora',
@@ -183,14 +197,14 @@ export class ListingRulesService {
   }
 
   privateView(listing: Listing) {
+    const view = this.publicView(listing);
     return {
-      ...this.publicView(listing),
+      ...view,
       postingRound: listing.postingRound,
       paymentCompleted: listing.serviceOrders.some(
         (order) => order.postingRound === listing.postingRound,
       ),
-      privateAddress:
-        listing.type === 'ROOM_WANTED' ? '' : listing.privateAddress,
+      privateAddress: view.hasRoom ? listing.privateAddress : '',
       rejectionReason: listing.rejectionReason,
       version: listing.version,
       submittedAt: listing.submittedAt,

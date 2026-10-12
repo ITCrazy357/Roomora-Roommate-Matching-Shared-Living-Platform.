@@ -14,7 +14,7 @@ import { ListingCard } from "./listing-card";
 
 const types: ListingType[] = ["ROOMMATE", "ROOM_RENTAL", "ROOM_WANTED"];
 const descriptions: Record<ListingType, string> = {
-  ROOMMATE: "Có chỗ ở, cần thêm người cùng chia sẻ.",
+  ROOMMATE: "Có phòng tìm người cùng ở, hoặc chưa có phòng muốn xin ở ghép.",
   ROOM_RENTAL: "Phòng cho thuê với giá, diện tích và tiện ích cụ thể.",
   ROOM_WANTED: "Nhu cầu tìm phòng theo khu vực và ngân sách.",
 };

@@ -99,6 +99,15 @@ export class ListingsController {
   ) {
     return this.listings.submit(request.auth.userId, id, input.version);
   }
+  @Delete(':id')
+  @UseGuards(AuthGuard)
+  deleteDraft(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: ListingVersionDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.listings.deleteDraft(request.auth.userId, id, input.version);
+  }
   @Post(':id/close')
   @UseGuards(AuthGuard)
   close(

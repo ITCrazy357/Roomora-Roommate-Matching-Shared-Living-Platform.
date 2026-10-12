@@ -23,4 +23,10 @@ export interface PaymentNotification {
   signature: string;
   responseTime?: number;
   orderInfo?: string;
+  payer?: {
+    bankId: string | null;
+    bankName: string | null;
+    accountNumber: string | null;
+    accountName: string | null;
+  };
 }

@@ -21,6 +21,11 @@ export const adminLinks = [
     label: "Thông báo hệ thống",
     hint: "Lịch bảo trì và thông báo chung",
   },
+  {
+    href: "/admin/hoan-tien",
+    label: "Hoàn tiền dịch vụ",
+    hint: "Duyệt, xác minh và đối soát",
+  },
 ];
 export interface AdminUser {
   id: string;

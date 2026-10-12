@@ -14,6 +14,16 @@ import { ServiceOrdersService } from './service-orders.service.js';
 import { ServicePaymentsService } from './service-payments.service.js';
 import { ServiceReceiptsService } from './service-receipts.service.js';
 import { BillingSchedulerService } from './billing-scheduler.service.js';
+import { ServiceRefundsService } from './service-refunds.service.js';
+import { AdminRefundsService } from './admin-refunds.service.js';
+import { RefundRulesService } from './refund-rules.service.js';
+import { MomoRefundsService } from './momo-refunds.service.js';
+import { RefundRateGuard } from './refund-rate.guard.js';
+import { AdminGuard } from '../listings/admin.guard.js';
+import {
+  RefundsController,
+  AdminRefundsController,
+} from './refunds.controller.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, CommunicationsModule],
@@ -21,6 +31,8 @@ import { BillingSchedulerService } from './billing-scheduler.service.js';
     BillingController,
     MomoNotificationController,
     PayosNotificationController,
+    RefundsController,
+    AdminRefundsController,
   ],
   providers: [
     MomoGatewayService,
@@ -30,6 +42,12 @@ import { BillingSchedulerService } from './billing-scheduler.service.js';
     ServicePaymentsService,
     ServiceReceiptsService,
     BillingSchedulerService,
+    ServiceRefundsService,
+    AdminRefundsService,
+    RefundRulesService,
+    MomoRefundsService,
+    RefundRateGuard,
+    AdminGuard,
   ],
 })
 export class BillingModule {}

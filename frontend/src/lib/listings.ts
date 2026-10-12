@@ -27,6 +27,20 @@ export const listingTypes = {
 } as const;
 export type ListingType = keyof typeof listingTypes;
 
+export function listingHasRoom(listing: Pick<Listing, "type" | "hasRoom">) {
+  return (
+    listing.type === "ROOM_RENTAL" ||
+    (listing.type === "ROOMMATE" && listing.hasRoom)
+  );
+}
+
+export function listingLabel(listing: Pick<Listing, "type" | "hasRoom">) {
+  if (listing.type !== "ROOMMATE") return listingTypes[listing.type];
+  return listing.hasRoom
+    ? "Đã có phòng · Tìm người ở ghép"
+    : "Chưa có phòng · Muốn xin ở ghép";
+}
+
 export function listingCostUnit(type: ListingType) {
   return type === "ROOM_RENTAL" ? "phòng" : "người";
 }
@@ -34,6 +48,8 @@ export function listingCostUnit(type: ListingType) {
 export function listingAvailability(listing: Listing) {
   if (listing.status !== "PUBLISHED") return listingStatuses[listing.status];
   if (listing.type === "ROOM_WANTED") return "Đang tìm phòng";
+  if (listing.type === "ROOMMATE" && !listing.hasRoom)
+    return listing.isFull ? "Đã tìm được chỗ ở" : "Đang tìm chỗ ở ghép";
   if (listing.isFull) return "Đã đủ";
   const unit = listing.type === "ROOM_RENTAL" ? "phòng" : "chỗ";
   return `Còn ${listing.availableSlots} ${unit}`;
@@ -46,6 +62,7 @@ export interface Listing {
   description: string;
   status: ListingStatus;
   type: ListingType;
+  hasRoom: boolean;
   isFull: boolean;
   rent: number | null;
   deposit: number;
@@ -127,6 +144,8 @@ export function listingError(error: unknown) {
         "Chưa thể gửi duyệt. Cần tiêu đề, mô tả, ngân sách và khu vực. Tin cho thuê cần thêm diện tích, ngày dọn vào, địa chỉ riêng, ghim khu vực và ảnh.",
       LISTING_NOT_FOUND:
         "Tin không còn hiển thị hoặc bạn không có quyền truy cập.",
+      LISTING_NOT_DRAFT:
+        "Chỉ được xóa tin ở trạng thái bản nháp. Tải lại để xem trạng thái hiện tại.",
       PHOTO_LIMIT_REACHED: "Mỗi tin có tối đa 8 ảnh.",
       PHOTO_FORMAT_INVALID: "Chọn ảnh JPG, PNG hoặc WebP hợp lệ.",
       PHOTO_SIZE_INVALID: "Mỗi ảnh cần nhỏ hơn hoặc bằng 5 MB.",

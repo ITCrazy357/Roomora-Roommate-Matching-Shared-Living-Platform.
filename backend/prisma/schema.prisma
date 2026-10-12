@@ -197,18 +197,19 @@ model User {
   houseActions        HouseEvent[]        @relation("HouseEventActor")
   houseAnnouncements  HouseAnnouncement[]
 
-  createdExpenses     Expense[]            @relation("ExpenseCreator")
-  expenseAdjustments  ExpenseAdjustment[]  @relation("ExpenseAdjustmentCreator")
+  createdExpenses     Expense[]             @relation("ExpenseCreator")
+  expenseAdjustments  ExpenseAdjustment[]   @relation("ExpenseAdjustmentCreator")
   expenseCorrections  ExpenseCorrection[]
   houseParticipants   HouseParticipant[]
   houseMessages       HouseMessage[]
   housePollVotes      HousePollVote[]
-  recordedPayments    DebtPayment[]        @relation("PaymentRecorder")
-  confirmedPayments   DebtPayment[]        @relation("PaymentConfirmer")
-  houseActivities     HouseActivity[]      @relation("ActivityCreator")
-  completedActivities HouseActivity[]      @relation("ActivityCompleter")
+  recordedPayments    DebtPayment[]         @relation("PaymentRecorder")
+  confirmedPayments   DebtPayment[]         @relation("PaymentConfirmer")
+  houseActivities     HouseActivity[]       @relation("ActivityCreator")
+  completedActivities HouseActivity[]       @relation("ActivityCompleter")
   recurringExpenses   RecurringExpense[]
   adminActions        AdminAction[]
+  refundActions       ServiceRefundAction[]
   systemAnnouncements SystemAnnouncement[]
   serviceOrders       ServiceOrder[]
 
@@ -226,6 +227,8 @@ model Listing {
   ownerId           String             @map("owner_id") @db.Uuid
   status            ListingStatus      @default(DRAFT)
   type              ListingType        @default(ROOMMATE)
+  hasRoom           Boolean            @default(true) @map("has_room")
+  deletedAt         DateTime?          @map("deleted_at")
   isFull            Boolean            @default(false) @map("is_full")
   version           Int                @default(1)
   title             String             @default("") @db.VarChar(150)
@@ -1273,6 +1276,7 @@ enum ServiceOrderStatus {
   PAID
   FAILED
   EXPIRED
+  CANCELLED
 }
 
 model ServiceOrder {
@@ -1297,6 +1301,11 @@ model ServiceOrder {
   checkoutLeaseAt   DateTime?             @map("checkout_lease_at")
   expiresAt         DateTime              @map("expires_at")
   paidAt            DateTime?             @map("paid_at")
+  refundedAt        DateTime?             @map("refunded_at")
+  payerBankId       String?               @map("payer_bank_id") @db.VarChar(50)
+  payerBankName     String?               @map("payer_bank_name") @db.VarChar(100)
+  payerAccount      String?               @map("payer_account") @db.VarChar(50)
+  payerName         String?               @map("payer_name") @db.VarChar(100)
   resultCode        Int?                  @map("result_code")
   createdAt         DateTime              @default(now()) @map("created_at")
   updatedAt         DateTime              @updatedAt @map("updated_at")
@@ -1328,13 +1337,89 @@ model ListingBoost {
 }
 
 model ServiceRefundRequest {
-  id        String       @id @default(uuid()) @db.Uuid
-  orderId   String       @unique @map("order_id") @db.Uuid
-  reason    String       @db.VarChar(1000)
-  createdAt DateTime     @default(now()) @map("created_at")
-  order     ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  id                     String                @id @default(uuid()) @db.Uuid
+  orderId                String                @unique @map("order_id") @db.Uuid
+  reason                 String                @db.VarChar(1000)
+  amount                 Int
+  status                 ServiceRefundStatus   @default(PENDING)
+  source                 ServiceRefundSource   @default(USER)
+  method                 ServiceRefundMethod   @default(MANUAL_BANK)
+  version                Int                   @default(1)
+  decisionNote           String?               @map("decision_note") @db.VarChar(1000)
+  approvedAt             DateTime?             @map("approved_at")
+  bankId                 String?               @map("bank_id") @db.VarChar(50)
+  bankName               String?               @map("bank_name") @db.VarChar(100)
+  accountNumber          String?               @map("account_number") @db.VarChar(50)
+  accountName            String?               @map("account_name") @db.VarChar(100)
+  differentAccountReason String?               @map("different_account_reason") @db.VarChar(1000)
+  verifiedAt             DateTime?             @map("verified_at")
+  verifiedById           String?               @map("verified_by_id") @db.Uuid
+  verificationNote       String?               @map("verification_note") @db.VarChar(1000)
+  verificationReference  String?               @map("verification_reference") @db.VarChar(200)
+  processingAt           DateTime?             @map("processing_at")
+  completedAt            DateTime?             @map("completed_at")
+  refundReference        String?               @map("refund_reference") @db.VarChar(128)
+  transferredAt          DateTime?             @map("transferred_at")
+  lastError              String?               @map("last_error") @db.VarChar(1000)
+  gatewayLeaseAt         DateTime?             @map("gateway_lease_at")
+  createdAt              DateTime              @default(now()) @map("created_at")
+  updatedAt              DateTime              @default(now()) @updatedAt @map("updated_at")
+  order                  ServiceOrder          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  actions                ServiceRefundAction[]
+  proofs                 ServiceRefundProof[]
 
+  @@unique([method, refundReference])
+  @@index([status, createdAt, id])
   @@map("service_refund_requests")
+}
+
+enum ServiceRefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ServiceRefundMethod {
+  MANUAL_BANK
+  MOMO
+}
+
+enum ServiceRefundSource {
+  USER
+  SYSTEM
+}
+
+model ServiceRefundAction {
+  id         String               @id @default(uuid()) @db.Uuid
+  refundId   String               @map("refund_id") @db.Uuid
+  actorId    String?              @map("actor_id") @db.Uuid
+  action     String               @db.VarChar(50)
+  fromStatus ServiceRefundStatus? @map("from_status")
+  toStatus   ServiceRefundStatus  @map("to_status")
+  note       String               @db.VarChar(1000)
+  details    Json
+  createdAt  DateTime             @default(now()) @map("created_at")
+  refund     ServiceRefundRequest @relation(fields: [refundId], references: [id], onDelete: Cascade)
+  actor      User?                @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([refundId, createdAt, id])
+  @@map("service_refund_actions")
+}
+
+model ServiceRefundProof {
+  id           String               @id @default(uuid()) @db.Uuid
+  refundId     String               @map("refund_id") @db.Uuid
+  uploadedById String               @map("uploaded_by_id") @db.Uuid
+  data         Bytes
+  mimeType     String               @map("mime_type") @db.VarChar(100)
+  createdAt    DateTime             @default(now()) @map("created_at")
+  refund       ServiceRefundRequest @relation(fields: [refundId], references: [id], onDelete: Cascade)
+
+  @@index([refundId, createdAt])
+  @@map("service_refund_proofs")
 }
 
 model ServicePaymentEvent {

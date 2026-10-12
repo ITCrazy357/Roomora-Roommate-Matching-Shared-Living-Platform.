@@ -61,9 +61,14 @@ export class ServiceReceiptsService {
           ]
         : ['Chưa cấp quyền lợi; yêu cầu hoàn tiền đang chờ kiểm tra.']),
       ...(order.refund
-        ? [
-            'Đã tiếp nhận yêu cầu hoàn tiền. Biên nhận này không xác nhận đã hoàn tiền.',
-          ]
+        ? order.refundedAt && order.refund.status === 'COMPLETED'
+          ? [
+              `Đã hoàn đủ ${new Intl.NumberFormat('vi-VN').format(order.refund.amount)} đ ngày ${date(order.refundedAt)} (UTC+7). Mã hoàn: ${order.refund.refundReference}.`,
+              'Quyền lợi đẩy tin đã dừng sau khi hoàn tiền.',
+            ]
+          : [
+              'Đã tiếp nhận yêu cầu hoàn tiền. Biên nhận này không xác nhận đã hoàn tiền.',
+            ]
         : []),
       'Đây là biên nhận thanh toán dịch vụ, không phải hóa đơn điện tử.',
       'Biên nhận này độc lập với bảng quyết toán nhà chung và công nợ giữa các thành viên.',

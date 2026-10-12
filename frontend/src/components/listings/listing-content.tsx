@@ -5,7 +5,8 @@ import {
   listingDate,
   listingLocation,
   money,
-  listingTypes,
+  listingHasRoom,
+  listingLabel,
   listingCostUnit,
   listingAvailability,
 } from "@/lib/listings";
@@ -36,6 +37,8 @@ export function ListingContent({
   moderation?: boolean;
 }) {
   const costUnit = listingCostUnit(listing.type);
+  const hasRoom = listingHasRoom(listing);
+  const seekingRoom = !hasRoom;
   const costs = [
     [`Tiền thuê / ${costUnit} / tháng`, listing.rent],
     [`Điện dự kiến / ${costUnit} / tháng`, listing.electricityCost],
@@ -51,7 +54,7 @@ export function ListingContent({
     listing.otherCost;
   return (
     <>
-      {listing.type !== "ROOM_WANTED" && listing.photos.length > 0 && (
+      {hasRoom && listing.photos.length > 0 && (
         <div className="listing-gallery">
           {listing.photos.map((photo, index) => (
             <div key={photo.id}>
@@ -69,14 +72,20 @@ export function ListingContent({
       )}
       <div className="listing-facts">
         {[
-          [
-            listing.type === "ROOM_WANTED"
-              ? "Diện tích mong muốn"
-              : "Diện tích",
-            listing.area === null ? "Chưa cung cấp" : `${listing.area} m²`,
-          ],
+          ...(hasRoom || listing.type === "ROOM_WANTED"
+            ? [
+                [
+                  listing.type === "ROOM_WANTED"
+                    ? "Diện tích mong muốn"
+                    : "Diện tích",
+                  listing.area === null
+                    ? "Chưa cung cấp"
+                    : `${listing.area} m²`,
+                ],
+              ]
+            : []),
           ["Trạng thái", listingAvailability(listing)],
-          ...(listing.type === "ROOMMATE"
+          ...(listing.type === "ROOMMATE" && hasRoom
             ? [
                 [
                   "Đang ở",
@@ -84,7 +93,7 @@ export function ListingContent({
                 ],
               ]
             : []),
-          ...(listing.type !== "ROOM_WANTED"
+          ...(listing.type === "ROOM_RENTAL"
             ? [
                 [
                   "Dọn vào",
@@ -105,15 +114,17 @@ export function ListingContent({
         <div className="listing-sections">
           <Card>
             <h2>
-              {listing.type === "ROOM_WANTED"
-                ? "Nhu cầu tìm phòng"
+              {seekingRoom
+                ? listing.type === "ROOMMATE"
+                  ? "Nhu cầu xin ở ghép"
+                  : "Nhu cầu tìm phòng"
                 : "Về căn phòng"}
             </h2>
             <p className="listing-text">
               {listing.description || "Chưa có mô tả."}
             </p>
           </Card>
-          {listing.type !== "ROOM_WANTED" && (
+          {hasRoom && (
             <Card>
               <h2>Chi phí dự kiến hằng tháng</h2>
               <dl className="listing-costs">
@@ -138,7 +149,7 @@ export function ListingContent({
               </p>
             </Card>
           )}
-          {listing.type === "ROOM_WANTED" && (
+          {seekingRoom && (
             <Card>
               <h2>Ngân sách</h2>
               <p className="listing-price">
@@ -156,9 +167,7 @@ export function ListingContent({
           )}
           <Card>
             <h2>
-              {listing.type === "ROOM_WANTED"
-                ? "Tiện ích mong muốn"
-                : "Tiện ích và nội thất"}
+              {seekingRoom ? "Tiện ích mong muốn" : "Tiện ích và nội thất"}
             </h2>
             <div className="listing-amenities">
               {listing.amenities.length ? (
@@ -188,56 +197,49 @@ export function ListingContent({
             </p>
           </Card>
           <Card>
-            <h2>
-              {listing.type === "ROOM_WANTED"
-                ? "Khu vực muốn tìm"
-                : "Vị trí khu vực"}
-            </h2>
+            <h2>{seekingRoom ? "Khu vực muốn tìm" : "Vị trí khu vực"}</h2>
             <p>{listingLocation(listing)}</p>
-            {listing.type !== "ROOM_WANTED" && (
+            {hasRoom && (
               <AreaMap
                 latitude={listing.latitude}
                 longitude={listing.longitude}
               />
             )}
             <p className="listing-privacy">
-              {listing.type === "ROOM_WANTED"
+              {seekingRoom
                 ? "Khu vực người đăng muốn tìm phòng; đây không phải địa chỉ của một phòng cụ thể."
                 : preview
                   ? "Bản xem trước giữ đúng vị trí bạn đang chọn. Khi lưu và hiển thị công khai, vị trí được làm tròn đến khoảng 1 km. Địa chỉ cụ thể không hiển thị công khai."
                   : "Vị trí bản đồ được làm tròn đến khoảng 1 km và chỉ thể hiện khu vực gần phòng. Địa chỉ cụ thể không hiển thị công khai."}
             </p>
-            {listing.type !== "ROOM_WANTED" &&
-              listing.privateAddress !== undefined && (
-                <p className="listing-review-note">
-                  Địa chỉ riêng tư (chủ tin / admin):{" "}
-                  {listing.privateAddress || "Chưa nhập"}
-                </p>
-              )}
+            {hasRoom && listing.privateAddress !== undefined && (
+              <p className="listing-review-note">
+                Địa chỉ riêng tư (chủ tin / admin):{" "}
+                {listing.privateAddress || "Chưa nhập"}
+              </p>
+            )}
           </Card>
         </div>
         <aside className="listing-summary">
           <Card>
-            <span className="eyebrow">{listingTypes[listing.type]}</span>
+            <span className="eyebrow">{listingLabel(listing)}</span>
             <p className="listing-price">{money(listing.rent)}</p>
             <p className="text-muted">
-              {listing.type === "ROOM_WANTED"
+              {seekingRoom
                 ? "Ngân sách tối đa / tháng"
                 : listing.type === "ROOM_RENTAL"
                   ? `/ phòng / tháng · ${listingAvailability(listing)}`
                   : `/ người / tháng · ${listing.currentResidents}/${listing.currentResidents + listing.availableSlots} người đang ở`}
             </p>
             <hr />
-            {listing.type !== "ROOM_WANTED" && (
+            {listing.type === "ROOM_RENTAL" && (
               <p>
                 {listing.availableFrom
                   ? `Dọn vào ${listingDate(listing.availableFrom)}`
                   : "Ngày dọn vào: trao đổi thêm"}
               </p>
             )}
-            {listing.type !== "ROOM_WANTED" && (
-              <p>Tiền cọc: {money(listing.deposit)}</p>
-            )}
+            {hasRoom && <p>Tiền cọc: {money(listing.deposit)}</p>}
           </Card>
           <Card>
             <h2>Người đăng tin</h2>
@@ -262,8 +264,8 @@ export function ListingContent({
                 </p>
               ))}
             <p className="text-muted">
-              {listing.type === "ROOM_WANTED"
-                ? "Đây là nhu cầu tìm phòng do người đăng cung cấp."
+              {seekingRoom
+                ? "Đây là nhu cầu tìm chỗ ở do người đăng cung cấp."
                 : "Thông tin phòng, số người đang ở và chi phí do người đăng cung cấp. Khi ở ghép hoặc nhận bàn giao, cần trao đổi với chủ phòng để được chấp thuận."}
             </p>
           </Card>

@@ -376,10 +376,10 @@ export function PersonDetails({
       )}
       {publicPage && !!person.listings?.length && (
         <section className="person-listings">
-          <h2>Tin phòng công khai của {person.displayName}</h2>
+          <h2>Tin đăng công khai của {person.displayName}</h2>
           <p className="text-muted text-sm">
-            Có thể xem khu vực gần phòng trước khi kết nối. Địa chỉ chính xác
-            không được công khai.
+            Xem nhu cầu hoặc thông tin phòng trước khi kết nối. Địa chỉ chính
+            xác không được công khai.
           </p>
           {person.listings.map((listing) => (
             <article key={listing.id}>

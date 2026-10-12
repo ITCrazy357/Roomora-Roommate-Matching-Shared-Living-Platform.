@@ -39,7 +39,7 @@ Các đơn PENDING dư hoặc thuộc tin đóng được hết hạn, vẫn nh�
 | Loại tin | Form và validation |
 | --- | --- |
 | Tìm phòng | Nhu cầu, ngân sách, diện tích mong muốn, số người dự kiến, tỉnh/phường và tiêu chí. Không bản đồ, địa chỉ riêng, ngày dọn vào hoặc chi phí phòng cụ thể. Backend chuẩn hóa các trường này khi lưu; đọc dữ liệu cũ cũng không trả tọa độ/ngày/chi phí phòng. |
-| Tìm người ghép phòng | Có thể đã có chỗ ở hoặc đang tìm người cùng thuê. Bản đồ chọn khu vực/vị trí tùy chọn; không bắt buộc ảnh, diện tích, tọa độ, địa chỉ hay ngày dọn vào của phòng chưa có. Vẫn cần tiêu đề, mô tả, ngân sách và tỉnh/phường. |
+| Tìm người ghép phòng | Chọn đã có phòng hoặc chưa có phòng muốn xin ở ghép. Cả hai không có ngày dọn vào. Chưa có phòng ẩn diện tích, số người, chi phí phòng, ảnh, địa chỉ riêng và bản đồ; giữ nhu cầu, ngân sách, khu vực và tiêu chí. Xem [hai nhu cầu ở ghép](roommate-options.md). |
 | Cho thuê phòng | Giữ thông tin phòng thực tế; yêu cầu diện tích, ngày dọn vào, địa chỉ riêng, tọa độ và ít nhất một ảnh trước khi gửi duyệt. |
 
 Giữ Leaflet/Geoapify và cơ chế lưu tọa độ hai chữ số thập phân. Có vùng bản đồ

@@ -12,6 +12,7 @@ import {
 import { Button, ButtonLink, ErrorState, LoadingState } from "../ui";
 import { SaveListing } from "./listing-card";
 import { ListingContent } from "./listing-content";
+import { DeleteListingDraft } from "./delete-listing-draft";
 
 function ListingDetailView({ id }: { id: string }) {
   const { user, loading } = useAuth();
@@ -134,7 +135,13 @@ function ListingDetailView({ id }: { id: string }) {
               )}
             {listing.status === "PUBLISHED" && listing.type === "ROOMMATE" && (
               <Button variant="secondary" disabled={pending} onClick={setFull}>
-                {listing.isFull ? "Mở nhận người ở ghép" : "Đánh dấu đã đủ"}
+                {listing.hasRoom
+                  ? listing.isFull
+                    ? "Mở nhận người ở ghép"
+                    : "Đánh dấu đã đủ"
+                  : listing.isFull
+                    ? "Tiếp tục tìm chỗ ở ghép"
+                    : "Đánh dấu đã tìm được chỗ ở"}
               </Button>
             )}
             <ButtonLink
@@ -143,7 +150,12 @@ function ListingDetailView({ id }: { id: string }) {
             >
               Chỉnh sửa tin
             </ButtonLink>
-            {listing.status !== "CLOSED" && (
+            <DeleteListingDraft
+              listing={listing}
+              disabled={pending}
+              onPendingChange={setPending}
+            />
+            {listing.status !== "CLOSED" && listing.status !== "DRAFT" && (
               <Button variant="secondary" disabled={pending} onClick={close}>
                 Đóng tin
               </Button>

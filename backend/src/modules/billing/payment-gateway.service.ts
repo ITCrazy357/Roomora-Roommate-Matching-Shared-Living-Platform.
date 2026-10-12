@@ -33,4 +33,8 @@ export class PaymentGatewayService {
       message: 'Cổng thanh toán của đơn chưa sẵn sàng',
     });
   }
+
+  async read(order: ServiceOrder) {
+    return order.provider === 'PAYOS' ? this.payos.read(order) : null;
+  }
 }

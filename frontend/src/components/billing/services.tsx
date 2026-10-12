@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import {
   billingError,
   billingPost,
@@ -74,12 +74,24 @@ function ServicesContent({
       }),
       apiFetch<ServiceOrderPage>(
         `/services/orders?page=${page}&kind=${tab === "services" ? "boosts" : "all"}`,
-        { signal: controller.signal },
+        { signal: controller.signal, timeoutMs: 60000 },
       ),
     ])
       .then(([catalog, listings, orders]) => {
         setCatalog(catalog);
-        setListings(listings);
+        setListings(
+          listings.map((listing) => ({
+            ...listing,
+            paymentCompleted:
+              listing.paymentCompleted ||
+              orders.items.some(
+                (order) =>
+                  order.status === "PAID" &&
+                  order.listingId === listing.id &&
+                  order.postingRound === listing.postingRound,
+              ),
+          })),
+        );
         setOrders(orders);
       })
       .catch((error) => {
@@ -115,6 +127,11 @@ function ServicesContent({
       );
       window.location.assign(result.payUrl);
     } catch (error) {
+      if (
+        error instanceof ApiError &&
+        ["ORDER_CANCELLED", "ORDER_NOT_PENDING"].includes(error.code ?? "")
+      )
+        purchase.current = null;
       setError(billingError(error));
       reload();
     } finally {
@@ -319,9 +336,9 @@ function ServicesContent({
                   <section>
                     <h3>Cần hoàn tiền?</h3>
                     <p>
-                      Gửi lý do trong lịch sử thanh toán. Yêu cầu được kiểm tra
-                      trước khi xử lý; gửi yêu cầu chưa có nghĩa là đã hoàn
-                      tiền.
+                      Gửi lý do trong lịch sử thanh toán trong 24 giờ kể từ
+                      thanh toán thành công. Yêu cầu được kiểm tra trước khi xử
+                      lý; gửi yêu cầu chưa có nghĩa là đã hoàn tiền.
                     </p>
                   </section>
                   <section>
@@ -362,6 +379,14 @@ function ServicesContent({
                     order={order}
                     reload={reload}
                     paymentAvailable={catalog.providers[order.provider]}
+                    retryAvailable={
+                      catalog.paymentAvailable &&
+                      listings.some(
+                        (listing) =>
+                          listing.id === order.listingId &&
+                          !listing.paymentCompleted,
+                      )
+                    }
                   />
                 ))}
                 {!orders.items.length && (

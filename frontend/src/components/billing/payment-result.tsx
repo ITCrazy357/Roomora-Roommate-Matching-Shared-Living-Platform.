@@ -29,8 +29,8 @@ function ResultContent({ orderId }: { orderId: string }) {
     async function load() {
       try {
         const result = await apiFetch<ServiceOrder>(
-          `/services/orders/${orderId}`,
-          { signal: controller.signal },
+          `/services/orders/${orderId}/sync`,
+          { method: "POST", signal: controller.signal, timeoutMs: 20000 },
         );
         setOrder(result);
         setError("");
@@ -87,6 +87,11 @@ function ResultContent({ orderId }: { orderId: string }) {
             >
               Kiểm tra lại
             </Button>
+            {order.status === "CANCELLED" && (
+              <ButtonLink href={`/dich-vu?listing=${order.listingId}`}>
+                Chọn tin & tạo thanh toán mới
+              </ButtonLink>
+            )}
           </>
         )}
         <p className="text-muted">

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useAuth } from "../auth-provider";
 import { ButtonLink } from "../ui";
 import { apiFetch } from "@/lib/api";
+import { DeleteListingDraft } from "./delete-listing-draft";
 import {
   amenities,
   Listing,
@@ -13,7 +14,8 @@ import {
   listingError,
   listingLocation,
   listingStatuses,
-  listingTypes,
+  listingHasRoom,
+  listingLabel,
   listingAvailability,
   money,
 } from "@/lib/listings";
@@ -86,11 +88,14 @@ export function ListingCard({
   listing,
   manage = false,
   onSave,
+  onDelete,
 }: {
   listing: Listing;
   manage?: boolean;
   onSave?: (saved: boolean) => void;
+  onDelete?: () => void;
 }) {
+  const hasRoom = listingHasRoom(listing);
   return (
     <article className={`listing-card ${manage ? "listing-card-row" : ""}`}>
       <div className="listing-cover">
@@ -99,7 +104,7 @@ export function ListingCard({
           className="listing-cover-link"
           aria-label={`Xem ${listing.title || "bản nháp"}`}
         >
-          {listing.photos[0] ? (
+          {hasRoom && listing.photos[0] ? (
             <Image
               src={listing.photos[0].url}
               alt={`Ảnh phòng: ${listing.title}`}
@@ -115,8 +120,10 @@ export function ListingCard({
             <div className="listing-no-photo">
               <span aria-hidden="true">⌂</span>
               <span>
-                {listing.type === "ROOM_WANTED"
-                  ? "Nhu cầu tìm phòng"
+                {!hasRoom
+                  ? listing.type === "ROOMMATE"
+                    ? "Nhu cầu xin ở ghép"
+                    : "Nhu cầu tìm phòng"
                   : "Chưa có ảnh phòng"}
               </span>
             </div>
@@ -130,13 +137,15 @@ export function ListingCard({
         {!manage && <SaveListing listing={listing} onChange={onSave} />}
       </div>
       <div className="listing-card-body">
-        <span className="eyebrow">{listingTypes[listing.type]}</span>
+        <span className="eyebrow">{listingLabel(listing)}</span>
         {listing.sponsored && (
           <span className="sponsored-label">Được tài trợ</span>
         )}
         <p className="listing-area">
           {listingLocation(listing)}
-          {listing.area !== null ? ` · ${listing.area} m²` : ""}
+          {listing.area !== null && (hasRoom || listing.type === "ROOM_WANTED")
+            ? ` · ${listing.area} m²`
+            : ""}
         </p>
         <h2>
           <Link href={`/phong/${listing.id}`}>
@@ -146,7 +155,7 @@ export function ListingCard({
         <p className="listing-price">
           {money(listing.rent)}{" "}
           <small>
-            {listing.type === "ROOM_WANTED"
+            {!hasRoom
               ? "ngân sách / tháng"
               : listing.type === "ROOM_RENTAL"
                 ? "/ phòng / tháng"
@@ -154,13 +163,13 @@ export function ListingCard({
           </small>
         </p>
         <div className="listing-tags">
-          {listing.type === "ROOMMATE" && (
+          {listing.type === "ROOMMATE" && hasRoom && (
             <span>
               {listing.currentResidents}/
               {listing.currentResidents + listing.availableSlots} người đang ở
             </span>
           )}
-          {listing.isFull && <span>Đã đủ</span>}
+          {listing.isFull && <span>{listingAvailability(listing)}</span>}
           {listing.amenities.slice(0, 3).map((key) => (
             <span key={key}>{amenities[key]}</span>
           ))}
@@ -171,7 +180,7 @@ export function ListingCard({
           </p>
         )}
         <div className="listing-card-footer">
-          {listing.type !== "ROOM_WANTED" && (
+          {listing.type === "ROOM_RENTAL" && (
             <span>
               {listing.availableFrom
                 ? `Dọn vào ${listingDate(listing.availableFrom)}`
@@ -206,6 +215,7 @@ export function ListingCard({
             <Link className="text-link" href={`/phong/${listing.id}`}>
               Xem chi tiết →
             </Link>
+            <DeleteListingDraft listing={listing} onDeleted={onDelete} />
           </div>
         )}
       </div>

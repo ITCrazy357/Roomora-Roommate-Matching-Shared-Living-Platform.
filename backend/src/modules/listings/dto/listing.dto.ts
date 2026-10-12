@@ -31,6 +31,8 @@ const trim = ({ value }: { value: unknown }) =>
 export class ListingInputDto {
   @IsEnum(ListingType)
   type: ListingType = ListingType.ROOMMATE;
+  @IsBoolean()
+  hasRoom = true;
   @Transform(trim)
   @IsString()
   @MaxLength(150)

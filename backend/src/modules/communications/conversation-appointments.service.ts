@@ -195,6 +195,7 @@ export class ConversationAppointmentsService {
         id,
         status: 'PUBLISHED',
         type: { not: 'ROOM_WANTED' },
+        hasRoom: true,
         ownerId: { in: [row.connection.senderId, row.connection.receiverId] },
       },
       select: { id: true },

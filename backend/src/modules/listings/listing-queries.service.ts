@@ -23,7 +23,7 @@ export class ListingQueriesService {
       where: { id },
       include: details,
     });
-    if (!listing) this.rules.notFound();
+    if (!listing || listing.deletedAt) this.rules.notFound();
     if (listing.ownerId === userId) return this.rules.privateView(listing);
     if (listing.status !== 'PUBLISHED' || listing.owner.lockedAt)
       this.rules.notFound();
@@ -85,7 +85,7 @@ export class ListingQueriesService {
       where: { id },
       include: details,
     });
-    if (!listing) this.rules.notFound();
+    if (!listing || listing.deletedAt) this.rules.notFound();
     const reviews = await this.prisma.listingReview.findMany({
       where: { listingId: id },
       orderBy: { createdAt: 'desc' },
@@ -242,6 +242,7 @@ export class ListingQueriesService {
       });
     return {
       type: query.type,
+      deletedAt: null,
       provinceCode: query.provinceCode,
       wardCode: query.wardCode,
       rent: { gte: query.minRent, lte: query.maxRent },

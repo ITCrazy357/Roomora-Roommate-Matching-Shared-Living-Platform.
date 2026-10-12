@@ -258,3 +258,149 @@
     width: 100%;
   }
 }
+.service-refund-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.refund-proof-image {
+  display: block;
+  max-width: 100%;
+  height: 420px;
+  object-fit: contain;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.refund-history {
+  padding-left: 22px;
+  overflow-wrap: anywhere;
+}
+.refund-history li {
+  margin: 14px 0;
+}
+.refund-history p {
+  margin-top: 4px;
+}
+.refund-check {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+}
+.refund-check input {
+  margin-top: 4px;
+  flex: 0 0 auto;
+}
+.refund-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.refund-list-item {
+  text-align: left;
+  display: grid;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--foreground);
+}
+.refund-list-item[aria-pressed="true"] {
+  border-color: var(--primary-action);
+}
+.admin-refund-detail {
+  margin-top: 24px;
+  display: grid;
+  gap: 16px;
+  overflow-wrap: anywhere;
+}
+.refund-facts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+.refund-facts dt {
+  color: var(--muted);
+}
+.refund-facts dd {
+  margin: 4px 0 0;
+}
+.refund-step {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+.refund-copy-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.refund-copy-value > div {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.refund-copy-value p {
+  margin: 4px 0 0;
+}
+.refund-copy-value > p {
+  flex-basis: 100%;
+}
+.refund-copy-value .button {
+  padding: 7px 12px;
+}
+.refund-transfer-summary {
+  display: grid;
+  gap: 14px;
+}
+.refund-comparison {
+  display: grid;
+  gap: 10px;
+}
+.refund-comparison-head,
+.refund-comparison-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1.4fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.refund-comparison-head {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.refund-comparison-row {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.refund-comparison-row > * {
+  min-width: 0;
+}
+.refund-mobile-label {
+  display: none;
+}
+.refund-missing {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.refund-missing ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+.refund-missing li + li {
+  margin-top: 6px;
+}
+@media (max-width: 700px) {
+  .refund-comparison-head {
+    display: none;
+  }
+  .refund-comparison-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .refund-mobile-label {
+    display: inline;
+    color: var(--muted);
+  }
+}

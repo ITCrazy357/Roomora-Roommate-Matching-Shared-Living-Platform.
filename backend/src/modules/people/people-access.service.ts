@@ -75,6 +75,10 @@ export class PeopleAccessService {
         { id: string }[]
       >`SELECT id FROM users WHERE id IN (${userId}::uuid, ${targetId}::uuid) ORDER BY id FOR UPDATE`;
       if (users.length !== 2) this.unavailable();
+      if (
+        await tx.user.count({ where: { id: userId, lockedAt: { not: null } } })
+      )
+        this.unavailable();
       return work(tx);
     });
   }

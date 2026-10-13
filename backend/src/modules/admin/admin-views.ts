@@ -8,6 +8,7 @@ export const adminUserSelect = {
   createdAt: true,
   emailVerifiedAt: true,
   lockedAt: true,
+  closedAt: true,
   lockReason: true,
   moderationVersion: true,
   profile: { select: { displayName: true, avatarUrl: true } },

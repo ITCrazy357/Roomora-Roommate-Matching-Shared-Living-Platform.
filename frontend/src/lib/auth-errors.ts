@@ -1,6 +1,7 @@
 import { ApiError } from "./api";
 
 const messages: Record<string, string> = {
+  ACCOUNT_CLOSED: "Tài khoản đã đóng và không thể đăng nhập lại.",
   ACCOUNT_LOCKED:
     "Tài khoản đã bị khóa do vi phạm. Vui lòng liên hệ quản trị viên Roomora.",
   ADMIN_WORKSPACE_ONLY:

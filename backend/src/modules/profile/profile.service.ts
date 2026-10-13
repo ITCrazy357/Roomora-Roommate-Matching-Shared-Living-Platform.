@@ -174,8 +174,10 @@ export class ProfileService {
   async getPublic(userId: string, requesterId?: string) {
     const profile = await this.prisma.profile.findUnique({
       where: { userId },
+      include: { user: { select: { lockedAt: true, role: true } } },
     });
-    if (!profile) throw this.notFound();
+    if (!profile || profile.user.lockedAt || profile.user.role !== 'USER')
+      throw this.notFound();
 
     const owner = requesterId === userId;
     if (

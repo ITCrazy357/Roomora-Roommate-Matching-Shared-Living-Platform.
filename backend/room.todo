@@ -432,8 +432,7 @@ người dùng, báo cáo vi phạm và thông báo hệ thống. Ẩn menu ngư
 chi phí, hội thoại, kết nối, đăng tin; vẫn sử dụng bảo mật tài khoản và SSE phiên đăng nhập.
 Khóa/mở khóa có lý do và lịch sử, thu hồi phiên, chặn đăng nhập, ẩn tin/hồ sơ công khai;
 báo cáo không tự khóa tài khoản. Thông báo nháp/phát/gỡ có lịch, banner toàn giao diện, giờ bảo trì UTC+7.
-Xem src/modules/admin/README.md. Báo cáo từng tin đăng, ticket hỗ trợ và thanh toán vẫn chưa triển khai;
-không đánh dấu toàn bộ Phase 10 hoàn thành chỉ vì các phần quản trị trên đã có.
+Xem src/modules/admin/README.md. Các phần trên được dùng lại trong Phase 10.
 
 Công việc:
 
@@ -446,6 +445,25 @@ Thống kê người dùng, tin đăng, kết nối và doanh thu dịch vụ.
 Hoàn thiện cài đặt riêng tư và quy trình đóng tài khoản.
 
 Hoàn thành khi: admin xử lý được một báo cáo từ lúc tiếp nhận đến khi kết thúc, có lịch sử kiểm tra.
+
+Bổ sung 13/10/2026: đã triển khai báo cáo tin đăng với snapshot nội dung công khai,
+lọc báo cáo USER/LISTING, quyết định có phiên bản và tùy chọn gỡ tin vi phạm.
+Gỡ tin kết thúc đợt đăng, dừng boost, hết hạn đơn chờ; không tự khóa người đăng.
+Ticket hỗ trợ có trao đổi USER/ADMIN, gắn đơn của chính người gửi, phản hồi/mở lại/đóng,
+trạng thái và lịch sử append trong transaction. ADMIN có tra cứu giao dịch và nhật ký chung;
+lịch sử hoàn tiền dùng lại Phase 9, không triển khai lại cổng thanh toán.
+Dashboard bổ sung người dùng, tin tạo và kết nối theo tháng; định nghĩa số liệu trong README admin.
+Cài đặt riêng tư hiện có được dùng lại; sửa API hồ sơ công khai để chặn tài khoản bị khóa/đóng.
+Đóng tài khoản dùng OTP email riêng, chặn khi còn nhà chung/công nợ/thanh toán hoặc hoàn tiền chờ,
+thu hồi phiên, ẩn hồ sơ/tin và giữ dữ liệu đối chiếu. Theo yêu cầu người dùng,
+ADMIN được khôi phục bằng thao tác riêng có căn cứ, phiên bản và lịch sử;
+phiên cũ vẫn bị thu hồi, hồ sơ giữ riêng tư và tin đã đóng phải gửi duyệt lại.
+Migration account_closure_otp/admin_support đã áp dụng trên PostgreSQL local.
+Kiểm chứng 13/10/2026: 238 E2E trong 11 bộ qua, build/lint backend/frontend qua
+(5 warning test cũ ngoài Phase 10). Chromium kiểm tra luồng với session/PostgreSQL thật,
+55 trường hợp bố cục 320–1366 px không tràn ngang, không lỗi JavaScript.
+Đã hoàn tất triển khai và kiểm chứng nghiệp vụ local; gửi OTP qua SMTP thật chưa nghiệm thu.
+Chi tiết triển khai và bằng chứng kiểm tra: ../PHASE_10_STATUS.md.
 
 12. Phase 11 — AI hỗ trợ đúng nghiệp vụ
 

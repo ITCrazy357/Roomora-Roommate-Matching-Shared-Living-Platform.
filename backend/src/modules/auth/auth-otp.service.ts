@@ -19,7 +19,7 @@ import {
 } from './auth.constants.js';
 import type { OtpDto } from './dto/auth.dto.js';
 
-type OtpPurpose = 'EMAIL_VERIFICATION' | 'PASSWORD_RESET';
+type OtpPurpose = 'EMAIL_VERIFICATION' | 'PASSWORD_RESET' | 'ACCOUNT_CLOSURE';
 const SEND_WINDOW_MS = 60 * 60 * 1000;
 
 @Injectable()
@@ -49,7 +49,9 @@ export class AuthOtpService {
       !user.lockedAt &&
       (type === 'EMAIL_VERIFICATION'
         ? !user.emailVerifiedAt
-        : user.passwordHash),
+        : type === 'ACCOUNT_CLOSURE'
+          ? user.role === 'USER' && Boolean(user.emailVerifiedAt)
+          : user.passwordHash),
     );
   }
 
@@ -138,7 +140,9 @@ export class AuthOtpService {
       emailSent = await this.support.trySend(() =>
         type === 'EMAIL_VERIFICATION'
           ? this.mail.sendVerification(email, code)
-          : this.mail.sendPasswordReset(email, code),
+          : type === 'ACCOUNT_CLOSURE'
+            ? this.mail.sendAccountClosure(email, code)
+            : this.mail.sendPasswordReset(email, code),
       );
     }
     return {

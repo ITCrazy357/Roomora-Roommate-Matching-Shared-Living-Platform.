@@ -97,6 +97,10 @@ describe('Phase 3 listings (real PostgreSQL)', () => {
     );
   }, 30000);
   afterAll(async () => {
+    if (prisma)
+      await prisma.adminAction.deleteMany({
+        where: { actorId: { in: userIds } },
+      });
     if (prisma && userIds.length) {
       await prisma.listing.deleteMany({ where: { ownerId: { in: userIds } } });
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });

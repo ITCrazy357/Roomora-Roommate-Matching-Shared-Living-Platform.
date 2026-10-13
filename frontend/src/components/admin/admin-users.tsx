@@ -75,11 +75,15 @@ function UserLockPanel({
     setPending(true);
     setError("");
     try {
-      await adminMutation(`/admin/users/${user.id}/lock`, "PATCH", {
-        locked: !user.lockedAt,
-        version: user.moderationVersion,
-        reason: reason.trim(),
-      });
+      await adminMutation(
+        `/admin/users/${user.id}/${user.closedAt ? "restore" : "lock"}`,
+        user.closedAt ? "POST" : "PATCH",
+        {
+          ...(!user.closedAt ? { locked: !user.lockedAt } : {}),
+          version: user.moderationVersion,
+          reason: reason.trim(),
+        },
+      );
       onChanged();
     } catch (error) {
       setError(adminError(error));
@@ -93,20 +97,35 @@ function UserLockPanel({
       <span
         className={`admin-status ${user.lockedAt ? "is-danger" : "is-success"}`}
       >
-        {user.lockedAt ? "Đang bị khóa" : "Đang hoạt động"}
+        {user.closedAt
+          ? "Tài khoản đã đóng"
+          : user.lockedAt
+            ? "Đang bị khóa"
+            : "Đang hoạt động"}
       </span>
       {user.lockedAt && (
         <div className="admin-callout">
-          <strong>Khóa từ {adminTime(user.lockedAt)}</strong>
+          <strong>
+            {user.closedAt ? "Đóng" : "Khóa"} từ{" "}
+            {adminTime(user.closedAt ?? user.lockedAt)}
+          </strong>
           <p>{user.lockReason}</p>
         </div>
       )}
       <form className="form-stack" onSubmit={submit}>
-        <h3>{user.lockedAt ? "Mở khóa tài khoản" : "Khóa do vi phạm"}</h3>
+        <h3>
+          {user.closedAt
+            ? "Khôi phục theo yêu cầu người dùng"
+            : user.lockedAt
+              ? "Mở khóa tài khoản"
+              : "Khóa do vi phạm"}
+        </h3>
         <p className="text-muted text-sm">
-          {user.lockedAt
-            ? "Người dùng cần đăng nhập lại sau khi được mở khóa."
-            : "Thu hồi mọi phiên đăng nhập và ẩn tin công khai. Giữ lịch sử để đối chiếu khi xử lý vi phạm."}
+          {user.closedAt
+            ? "Ghi rõ căn cứ xác nhận yêu cầu của chủ tài khoản. Người dùng phải đăng nhập lại; hồ sơ vẫn riêng tư và tin đã đóng cần gửi duyệt lại."
+            : user.lockedAt
+              ? "Người dùng cần đăng nhập lại sau khi được mở khóa."
+              : "Thu hồi mọi phiên đăng nhập và ẩn tin công khai. Giữ lịch sử để đối chiếu khi xử lý vi phạm."}
         </p>
         <Textarea
           id={`lock-reason-${user.id}`}
@@ -123,9 +142,11 @@ function UserLockPanel({
         <Button type="submit" disabled={pending}>
           {pending
             ? "Đang lưu…"
-            : user.lockedAt
-              ? "Xác nhận mở khóa"
-              : "Xác nhận khóa tài khoản"}
+            : user.closedAt
+              ? "Khôi phục tài khoản"
+              : user.lockedAt
+                ? "Xác nhận mở khóa"
+                : "Xác nhận khóa tài khoản"}
         </Button>
       </form>
       {history ? (
@@ -197,6 +218,7 @@ export function AdminUsers() {
           <option value="">Tất cả</option>
           <option value="ACTIVE">Đang hoạt động</option>
           <option value="LOCKED">Đã khóa</option>
+          <option value="CLOSED">Đã đóng tài khoản</option>
         </Select>
       </form>
       {notice && (
@@ -241,7 +263,11 @@ export function AdminUsers() {
                           <span
                             className={`admin-status ${item.lockedAt ? "is-danger" : "is-success"}`}
                           >
-                            {item.lockedAt ? "Đã khóa" : "Hoạt động"}
+                            {item.closedAt
+                              ? "Đã đóng"
+                              : item.lockedAt
+                                ? "Đã khóa"
+                                : "Hoạt động"}
                           </span>
                           {!item.emailVerifiedAt && (
                             <small className="text-muted">
@@ -258,7 +284,11 @@ export function AdminUsers() {
                               setNotice("");
                             }}
                           >
-                            {item.lockedAt ? "Xem / mở khóa" : "Xem / xử lý"}
+                            {item.closedAt
+                              ? "Xem / khôi phục"
+                              : item.lockedAt
+                                ? "Xem / mở khóa"
+                                : "Xem / xử lý"}
                           </Button>
                         </td>
                       </tr>
@@ -284,7 +314,9 @@ export function AdminUsers() {
               user={user}
               onChanged={() => {
                 setNotice(
-                  user.lockedAt
+                  user.closedAt
+                    ? "Đã khôi phục tài khoản. Người dùng cần đăng nhập lại."
+                    : user.lockedAt
                     ? "Đã mở khóa. Người dùng có thể đăng nhập lại."
                     : "Đã khóa và thu hồi các phiên đăng nhập.",
                 );

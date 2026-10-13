@@ -15,6 +15,7 @@ import { apiFetch } from "@/lib/api";
 import { authErrorMessage } from "@/lib/auth-errors";
 import type { MyProfile } from "@/lib/profile";
 import { GoogleAccountCard } from "./google-account-card";
+import { AccountClosureCard } from "./account-closure-card";
 
 interface LoginSession {
   id: string;
@@ -212,6 +213,7 @@ export function SettingsPanel() {
         </Button>
       </Card>
       {error && <div className="error-state settings-error">{error}</div>}
+      <AccountClosureCard />
     </div>
   );
 }

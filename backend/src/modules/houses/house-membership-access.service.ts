@@ -45,6 +45,11 @@ export class HouseMembershipAccessService {
 
   async requireNoActiveHouse(tx: Prisma.TransactionClient, userId: string) {
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+    const user = await tx.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { lockedAt: true },
+    });
+    if (user.lockedAt) this.unavailable();
     const membership = await tx.houseMember.findFirst({
       where: { userId, leftAt: null },
       select: { houseId: true },

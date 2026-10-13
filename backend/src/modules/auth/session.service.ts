@@ -33,8 +33,13 @@ export class SessionService {
       await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
       const user = await tx.user.findUniqueOrThrow({
         where: { id: userId },
-        select: { lockedAt: true },
+        select: { lockedAt: true, closedAt: true },
       });
+      if (user.closedAt)
+        throw new ForbiddenException({
+          code: 'ACCOUNT_CLOSED',
+          message: 'Tài khoản đã đóng',
+        });
       if (user.lockedAt)
         throw new ForbiddenException({
           code: 'ACCOUNT_LOCKED',

@@ -7,7 +7,11 @@ import {
 import { PrismaService } from '../../database/prisma.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { adminPage, adminUserSelect } from './admin-views.js';
-import type { AccountLockDto, AdminUsersQuery } from './dto/admin.dto.js';
+import type {
+  AccountLockDto,
+  AccountRestoreDto,
+  AdminUsersQuery,
+} from './dto/admin.dto.js';
 
 @Injectable()
 export class AdminUsersService {
@@ -16,6 +20,12 @@ export class AdminUsersService {
   async list(query: AdminUsersQuery) {
     const where: Prisma.UserWhereInput = {
       role: 'USER',
+      closedAt:
+        query.status === 'CLOSED'
+          ? { not: null }
+          : query.status
+            ? null
+            : undefined,
       lockedAt:
         query.status === 'LOCKED'
           ? { not: null }
@@ -60,7 +70,14 @@ export class AdminUsersService {
       actions: await this.prisma.adminAction.findMany({
         where: {
           entityId: id,
-          action: { in: ['USER_LOCKED', 'USER_UNLOCKED'] },
+          action: {
+            in: [
+              'USER_LOCKED',
+              'USER_UNLOCKED',
+              'ACCOUNT_CLOSED',
+              'ACCOUNT_REOPENED',
+            ],
+          },
         },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 50,
@@ -73,7 +90,21 @@ export class AdminUsersService {
     };
   }
 
-  async setLock(actorId: string, id: string, dto: AccountLockDto) {
+  restore(actorId: string, id: string, dto: AccountRestoreDto) {
+    return this.setLock(
+      actorId,
+      id,
+      { version: dto.version, reason: dto.reason, locked: false },
+      true,
+    );
+  }
+
+  async setLock(
+    actorId: string,
+    id: string,
+    dto: AccountLockDto,
+    restore = false,
+  ) {
     if (actorId === id)
       throw new BadRequestException({ code: 'ADMIN_LOCK_FORBIDDEN' });
     return this.prisma.$transaction(async (tx) => {
@@ -83,12 +114,13 @@ export class AdminUsersService {
         select: adminUserSelect,
       });
       if (!user) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
-      if (user.role !== 'USER')
+      if (user.role !== 'USER' || (user.closedAt && !restore))
         throw new BadRequestException({ code: 'ADMIN_LOCK_FORBIDDEN' });
-      if (
-        user.moderationVersion !== dto.version ||
-        Boolean(user.lockedAt) === dto.locked
-      ) {
+      if (user.moderationVersion !== dto.version)
+        throw new ConflictException({ code: 'ADMIN_VERSION_CONFLICT' });
+      if (restore && !user.closedAt)
+        throw new BadRequestException({ code: 'ACCOUNT_NOT_CLOSED' });
+      if (Boolean(user.lockedAt) === dto.locked) {
         throw new ConflictException({
           code: 'ADMIN_VERSION_CONFLICT',
           message: 'Tài khoản đã thay đổi, hãy tải lại',
@@ -99,6 +131,7 @@ export class AdminUsersService {
         where: { id },
         data: {
           lockedAt: dto.locked ? now : null,
+          closedAt: restore ? null : undefined,
           lockReason: dto.locked ? dto.reason : null,
           moderationVersion: { increment: 1 },
         },
@@ -123,7 +156,11 @@ export class AdminUsersService {
         data: {
           actorId,
           entityId: id,
-          action: dto.locked ? 'USER_LOCKED' : 'USER_UNLOCKED',
+          action: restore
+            ? 'ACCOUNT_REOPENED'
+            : dto.locked
+              ? 'USER_LOCKED'
+              : 'USER_UNLOCKED',
           reason: dto.reason,
           snapshot: { version: updated.moderationVersion, locked: dto.locked },
         },

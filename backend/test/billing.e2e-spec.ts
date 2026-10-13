@@ -173,6 +173,9 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
   afterEach(() => vi.restoreAllMocks());
   afterAll(async () => {
     if (prisma) {
+      await prisma.adminAction.deleteMany({
+        where: { actorId: { in: userIds } },
+      });
       await clear();
       await prisma.listing.deleteMany({ where: { id: { in: listingIds } } });
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });

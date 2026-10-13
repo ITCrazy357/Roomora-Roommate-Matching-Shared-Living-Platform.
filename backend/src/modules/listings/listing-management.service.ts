@@ -191,6 +191,15 @@ export class ListingManagementService {
           version: input.version,
         },
       });
+      await tx.adminAction.create({
+        data: {
+          actorId: adminId,
+          entityId: id,
+          action: `LISTING_${input.decision}`,
+          reason: input.reason || null,
+          snapshot: { version: input.version + 1, status: input.decision },
+        },
+      });
     });
     return this.queries.getModeration(id);
   }

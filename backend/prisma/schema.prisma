@@ -12,6 +12,7 @@ enum AuthTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
   PASSWORD_RESET_GRANT
+  ACCOUNT_CLOSURE
 }
 
 enum ProfileVisibility {
@@ -616,21 +617,21 @@ model UserBlock {
 }
 
 model UserReport {
-  id           String           @id @default(uuid()) @db.Uuid
-  reporterId   String           @map("reporter_id") @db.Uuid
-  targetId     String           @map("target_id") @db.Uuid
-  listingId    String?          @map("listing_id") @db.Uuid
-  listingSnapshot Json?         @map("listing_snapshot")
-  listing      Listing?         @relation(fields: [listingId], references: [id], onDelete: Restrict)
-  reason       UserReportReason
-  details      String           @db.VarChar(1000)
-  status       UserReportStatus @default(OPEN)
-  createdAt    DateTime         @default(now()) @map("created_at")
-  version      Int              @default(1)
-  handledAt    DateTime?        @map("handled_at")
-  handlingNote String?          @map("handling_note") @db.VarChar(1000)
-  reporter     User             @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  target       User             @relation("ReportedUser", fields: [targetId], references: [id], onDelete: Cascade)
+  id              String           @id @default(uuid()) @db.Uuid
+  reporterId      String           @map("reporter_id") @db.Uuid
+  targetId        String           @map("target_id") @db.Uuid
+  listingId       String?          @map("listing_id") @db.Uuid
+  listingSnapshot Json?            @map("listing_snapshot")
+  listing         Listing?         @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  reason          UserReportReason
+  details         String           @db.VarChar(1000)
+  status          UserReportStatus @default(OPEN)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  version         Int              @default(1)
+  handledAt       DateTime?        @map("handled_at")
+  handlingNote    String?          @map("handling_note") @db.VarChar(1000)
+  reporter        User             @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  target          User             @relation("ReportedUser", fields: [targetId], references: [id], onDelete: Cascade)
 
   // Partial unique indexes distinguish account reports from listing reports.
   @@index([reporterId, targetId])
@@ -1361,16 +1362,16 @@ enum SupportStatus {
 }
 
 model SupportTicket {
-  id        String @id @default(uuid()) @db.Uuid
-  userId    String @map("user_id") @db.Uuid
-  orderId   String? @map("order_id") @db.Uuid
-  subject   String @db.VarChar(150)
-  status    SupportStatus @default(OPEN)
-  version   Int @default(1)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  user      User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  order     ServiceOrder? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  orderId   String?          @map("order_id") @db.Uuid
+  subject   String           @db.VarChar(150)
+  status    SupportStatus    @default(OPEN)
+  version   Int              @default(1)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order     ServiceOrder?    @relation(fields: [orderId], references: [id], onDelete: Restrict)
   messages  SupportMessage[]
 
   @@index([userId, createdAt, id])
@@ -1379,14 +1380,14 @@ model SupportTicket {
 }
 
 model SupportMessage {
-  id        String @id @default(uuid()) @db.Uuid
-  ticketId  String @map("ticket_id") @db.Uuid
-  authorId  String @map("author_id") @db.Uuid
-  fromAdmin Boolean @default(false) @map("from_admin")
-  body      String @db.VarChar(2000)
-  createdAt DateTime @default(now()) @map("created_at")
+  id        String        @id @default(uuid()) @db.Uuid
+  ticketId  String        @map("ticket_id") @db.Uuid
+  authorId  String        @map("author_id") @db.Uuid
+  fromAdmin Boolean       @default(false) @map("from_admin")
+  body      String        @db.VarChar(2000)
+  createdAt DateTime      @default(now()) @map("created_at")
   ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  author    User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
 
   @@index([ticketId, createdAt, id])
   @@map("support_messages")

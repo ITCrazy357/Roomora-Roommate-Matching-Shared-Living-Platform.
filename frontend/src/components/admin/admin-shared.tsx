@@ -103,6 +103,14 @@ export function AdminPagination({
   );
 }
 const actionNames: Record<string, string> = {
+  LISTING_PUBLISHED: "Duyệt tin đăng",
+  LISTING_REJECTED: "Từ chối tin đăng",
+  ACCOUNT_CLOSED: "Người dùng đóng tài khoản",
+  ACCOUNT_REOPENED: "Khôi phục theo yêu cầu người dùng",
+  SUPPORT_IN_PROGRESS: "Tiếp nhận hỗ trợ",
+  SUPPORT_WAITING_USER: "Yêu cầu bổ sung thông tin",
+  SUPPORT_RESOLVED: "Giải quyết hỗ trợ",
+  SUPPORT_CLOSED: "Đóng yêu cầu hỗ trợ",
   USER_LOCKED: "Khóa tài khoản",
   USER_UNLOCKED: "Mở khóa tài khoản",
   REPORT_RESOLVED: "Đã xử lý vi phạm",
@@ -112,7 +120,13 @@ const actionNames: Record<string, string> = {
   ANNOUNCEMENT_PUBLISHED: "Phát thông báo",
   ANNOUNCEMENT_WITHDRAWN: "Gỡ thông báo",
 };
-export function AdminHistory({ actions }: { actions: AdminAction[] }) {
+export function AdminHistory({
+  actions,
+  showEntity = false,
+}: {
+  actions: AdminAction[];
+  showEntity?: boolean;
+}) {
   return (
     <div className="admin-history">
       <h3>Lịch sử thao tác</h3>
@@ -126,6 +140,9 @@ export function AdminHistory({ actions }: { actions: AdminAction[] }) {
                 {action.actor.profile?.displayName ?? "Quản trị viên"}
               </small>
               {action.reason && <p>{action.reason}</p>}
+              {showEntity && action.entityId && (
+                <small>Mã đối tượng: {action.entityId}</small>
+              )}
             </li>
           ))}
         </ol>

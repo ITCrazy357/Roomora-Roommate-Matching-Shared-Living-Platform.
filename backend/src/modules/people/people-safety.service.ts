@@ -44,8 +44,8 @@ export class PeopleSafetyService {
   async report(userId: string, targetId: string, dto: ReportUserDto) {
     this.access.assertDifferentUsers(userId, targetId);
     return this.access.withUserLocks(userId, targetId, async (tx) => {
-      const existing = await tx.userReport.findUnique({
-        where: { reporterId_targetId: { reporterId: userId, targetId } },
+      const existing = await tx.userReport.findFirst({
+        where: { reporterId: userId, targetId, listingId: null },
       });
       if (existing)
         throw new ConflictException({

@@ -26,6 +26,21 @@ export const adminLinks = [
     label: "Hoàn tiền dịch vụ",
     hint: "Duyệt, xác minh và đối soát",
   },
+  {
+    href: "/admin/ho-tro",
+    label: "Yêu cầu hỗ trợ",
+    hint: "Trao đổi và giải quyết",
+  },
+  {
+    href: "/admin/giao-dich",
+    label: "Tra cứu giao dịch",
+    hint: "Đơn dịch vụ và kết quả thanh toán",
+  },
+  {
+    href: "/admin/nhat-ky",
+    label: "Nhật ký thao tác",
+    hint: "Lịch sử quyết định quản trị",
+  },
 ];
 export interface AdminUser {
   id: string;
@@ -34,6 +49,7 @@ export interface AdminUser {
   createdAt: string;
   emailVerifiedAt: string | null;
   lockedAt: string | null;
+  closedAt: string | null;
   lockReason: string | null;
   moderationVersion: number;
   profile: { displayName: string; avatarUrl: string | null } | null;
@@ -49,6 +65,21 @@ export interface AdminReport {
   handledAt: string | null;
   reporter: AdminUser;
   target: AdminUser;
+  listingId: string | null;
+  listing: {
+    id: string;
+    title: string;
+    status: string;
+    version: number;
+    deletedAt: string | null;
+  } | null;
+  listingSnapshot: {
+    title: string;
+    description: string;
+    type: string;
+    rent: number | null;
+    version: number;
+  } | null;
 }
 export interface Announcement {
   id: string;
@@ -65,6 +96,7 @@ export interface Announcement {
 }
 export interface AdminAction {
   id: string;
+  entityId?: string;
   action: string;
   reason: string | null;
   createdAt: string;
@@ -117,8 +149,12 @@ export function adminError(error: unknown): string {
         "Lịch hiển thị phải có ngày kết thúc sau ngày bắt đầu và bao trùm toàn bộ thời gian bảo trì.",
       ADMIN_LOCK_FORBIDDEN:
         "Không thể khóa tài khoản quản trị hoặc chính mình.",
+      ACCOUNT_NOT_CLOSED:
+        "Tài khoản không còn ở trạng thái đóng. Tải lại trước khi xử lý tiếp.",
       LISTING_OWNER_LOCKED:
         "Người đăng đang bị khóa. Không thể duyệt công khai tin này.",
+      REPORT_EXISTS: "Bạn đã gửi báo cáo cho nội dung này.",
+      RATE_LIMITED: "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.",
     };
     if (error.code && messages[error.code]) return messages[error.code];
     if (error.status === 401)

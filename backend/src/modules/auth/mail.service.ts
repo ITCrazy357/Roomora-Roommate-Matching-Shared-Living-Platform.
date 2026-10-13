@@ -31,6 +31,9 @@ export class MailService {
   async sendPasswordReset(email: string, code: string): Promise<void> {
     await this.sendOtp(email, 'Đặt lại mật khẩu Roomora', code);
   }
+  async sendAccountClosure(email: string, code: string): Promise<void> {
+    await this.sendOtp(email, 'Xác nhận đóng tài khoản Roomora', code);
+  }
 
   async sendNotification(
     email: string,

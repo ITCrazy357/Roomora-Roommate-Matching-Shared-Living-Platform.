@@ -18,6 +18,13 @@ export interface AdminSummary {
     pendingListings: number;
     openReports: number;
     pendingRefunds: number;
+    openSupport: number;
+  };
+  users: { registered: number; total: number };
+  activity: {
+    createdListings: number;
+    connections: number;
+    acceptedConnections: number;
   };
   revenue: { receivedAmount: number; refundAmount: number; netAmount: number };
   processed: {
@@ -192,6 +199,37 @@ export function AdminOverview({
         </Card>
       </div>
       {data && <AdminResults data={data} />}
+      {data && (
+        <Card className="dashboard-panel">
+          <h2>Người dùng và hoạt động</h2>
+          <dl className="phase-ten-stats">
+            <div>
+              <dt>Tài khoản mới trong tháng</dt>
+              <dd>{data.users.registered}</dd>
+            </div>
+            <div>
+              <dt>Tài khoản đã tạo đến cuối tháng</dt>
+              <dd>{data.users.total}</dd>
+            </div>
+            <div>
+              <dt>Tin tạo trong tháng, chưa xóa</dt>
+              <dd>{data.activity.createdListings}</dd>
+            </div>
+            <div>
+              <dt>Cặp kết nối tạo trong tháng</dt>
+              <dd>{data.activity.connections}</dd>
+            </div>
+            <div>
+              <dt>Trong đó đang được chấp nhận</dt>
+              <dd>{data.activity.acceptedConnections}</dd>
+            </div>
+          </dl>
+          <Link href="/admin/ho-tro">
+            {data.currentQueues.openSupport} yêu cầu hỗ trợ cần xử lý, tất cả
+            thời gian ↗
+          </Link>
+        </Card>
+      )}
       <Card className="dashboard-panel admin-operations-panel">
         <div className="dashboard-panel-heading">
           <div>

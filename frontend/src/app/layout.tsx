@@ -8,6 +8,7 @@ import { SystemBanner } from "@/components/admin/system-banner";
 import { AdminRouteGate } from "@/components/admin/admin-route-gate";
 import "./admin.css";
 import "./globals.css";
+import "./support.css";
 import "leaflet/dist/leaflet.css";
 import "./profile-editor.css";
 import "./listings.css";

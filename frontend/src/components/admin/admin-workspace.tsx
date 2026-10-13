@@ -23,6 +23,9 @@ const icons: HouseholdIconName[] = [
   "chores",
   "calendar",
   "wallet",
+  "chores",
+  "wallet",
+  "report",
 ];
 
 function Workspace({ children }: { children: React.ReactNode }) {

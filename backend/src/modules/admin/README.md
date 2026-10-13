@@ -94,4 +94,82 @@ Migration `20261011120000_admin_operations` thêm trạng thái khóa vào User,
 
 `test/admin.e2e-spec.ts` kiểm tra với PostgreSQL thật: quyền ADMIN/USER, giới hạn dữ liệu riêng tư, khóa/đăng nhập đồng thời, thu hồi phiên, ẩn/khôi phục nội dung công khai, xử lý báo cáo đồng thời, thời gian/timezone, vòng đời nháp/phát/gỡ và lịch sử.
 
-Đây là phần quản trị được triển khai trước theo yêu cầu. Chưa bao gồm tiếp nhận báo cáo từng tin đăng, ticket hỗ trợ, xử lý thanh toán hay cấp quyền quản trị.
+## Phase 10 bổ sung ngày 13/10/2026
+
+Các luồng khóa/mở khóa, thông báo và thống kê tài chính ở trên được dùng lại.
+Hoàn tiền tiếp tục sử dụng module billing của Phase 9; không có chức năng cấp quyền ADMIN.
+
+### Báo cáo tin đăng
+
+USER gửi `POST /listings/:id/reports` với `{ reason, details }` như báo cáo người dùng.
+Chỉ báo cáo được tin công khai của người khác, chủ tin còn hoạt động. Tối đa 5 báo cáo
+mỗi 24 giờ, tính chung báo cáo tài khoản và tin đăng. Mỗi người gửi có một báo cáo
+cho mỗi tin và một báo cáo riêng cho mỗi tài khoản. Partial unique index và row lock
+bảo vệ chống gửi trùng/đồng thời. Báo cáo lưu snapshot tiêu đề, mô tả, loại, giá, phiên bản;
+không lưu địa chỉ riêng, hồ sơ riêng hoặc URL thanh toán.
+
+`GET /admin/reports` thêm bộ lọc `type=USER|LISTING`. `PATCH /admin/reports/:id`
+vẫn nhận quyết định/ghi chú/phiên bản; `removeListing=true` cần kết quả `RESOLVED`
+và `listingVersion` hiện tại. Nếu tin đang công khai và phiên bản khớp, chuyển
+tin sang `REJECTED`, lưu lý do/review, tăng đợt đăng, dừng boost và hết hạn đơn chờ.
+Thao tác và đóng báo cáo ở cùng transaction. Phiên bản cũ làm rollback toàn bộ.
+Chủ tin có thể chỉnh sửa/gửi duyệt lại; báo cáo không tự khóa tài khoản.
+
+### Hỗ trợ, giao dịch và nhật ký
+
+- USER: `GET/POST /support/tickets`, `GET /support/tickets/:id`,
+  `POST /support/tickets/:id/replies` và `POST /support/tickets/:id/close`.
+- ADMIN: `GET /admin/support/tickets`, `GET /admin/support/tickets/:id`,
+  `PATCH /admin/support/tickets/:id`.
+- Tạo ticket nhận `{ subject, body, orderId? }`; đơn phải của người gửi.
+  Tối đa 5 ticket mỗi 24 giờ. Phản hồi/đóng cần `{ version, body }`;
+  ADMIN cần thêm `status`. Nội dung phản hồi không sửa/xóa sau khi lưu.
+- Trạng thái `OPEN → IN_PROGRESS/WAITING_USER → RESOLVED → CLOSED`.
+  USER phản hồi vào `WAITING_USER` đưa về `IN_PROGRESS`; phản hồi vào `RESOLVED`
+  mở lại `OPEN`. `CLOSED` là kết thúc, cần tạo ticket mới nếu có vấn đề khác.
+  Quyết định ADMIN và phản hồi được ghi cùng transaction, có kiểm tra phiên bản.
+- `GET /admin/orders?search=&status=&page=&limit=` tìm theo UUID đơn, mã cổng/
+  giao dịch, tên/email người mua hoặc tiêu đề tin. `GET /admin/orders/:id` trả
+  chi tiết và tối đa 50 sự kiện thanh toán gần nhất. Không trả URL trả tiền,
+  chữ ký callback, thông tin ngân hàng hoặc dữ liệu nhạy cảm của tài khoản.
+- `GET /admin/audit?entityId=&action=&page=&limit=` tra `AdminAction`;
+  duyệt/từ chối tin từ Phase 10 trở đi ghi thêm vào nhật ký chung. Review cũ
+  vẫn giữ trong `ListingReview`; lịch sử hoàn tiền giữ trong `ServiceRefundAction`.
+
+Dashboard bổ sung `users.registered` (USER tạo trong tháng), `users.total`
+(USER đã tạo trước cuối tháng, kể cả đã khóa/đóng), `activity.createdListings`
+(tin tạo trong tháng chưa xóa), `activity.connections` (cặp kết nối tạo trong tháng)
+và `activity.acceptedConnections` (trong những cặp đó, số đang `ACCEPTED`).
+Đây là trạng thái hiện tại của các cặp tạo trong tháng, không phải số lần chấp nhận
+trong tháng; schema kết nối không có thời điểm chấp nhận riêng.
+`currentQueues.openSupport` là tất cả ticket `OPEN/IN_PROGRESS/WAITING_USER`, không giới hạn tháng.
+
+### Riêng tư và đóng tài khoản
+
+Tiếp tục dùng cài đặt `visibility/showBudget/showDesiredAreas/showLifestyle` hiện có.
+API hồ sơ công khai kiểm tra tài khoản chủ hồ sơ, chặn ADMIN và người bị khóa/đóng
+kể cả khi truy cập trực tiếp bằng ID.
+
+USER bắt đầu tại Cài đặt tài khoản. `POST /auth/account-closure/request` gửi OTP
+riêng loại `ACCOUNT_CLOSURE`; `POST /auth/account-closure` nhận
+`{ challengeId, code, confirmed: true }`. OTP phải của người đang đăng nhập,
+chỉ dùng một lần, có hạn và giới hạn thử/gửi lại như OTP hiện có; dùng được cả
+tài khoản chỉ có Google. ADMIN không có quyền tự đóng tài khoản qua API này.
+
+Chặn đóng khi còn thành viên nhà chung, còn số dư/tiền chờ trong nhà cũ, còn đơn
+`PENDING` hoặc hoàn tiền `PENDING/APPROVED/PROCESSING/FAILED`. Lỗi nghiệp vụ rollback
+việc tiêu thụ OTP để người dùng hoàn tất nghĩa vụ rồi thử lại trong hạn mã.
+Đóng đặt `closedAt` và `lockedAt`, chuyển hồ sơ riêng tư, đóng tin, thu hồi phiên/token,
+thu hồi lời mời nhà, hủy kết nối và lịch hẹn tương lai (có lịch sử hủy).
+Giữ tài khoản/email và các dữ liệu đối chiếu, không xóa dây chuyền dữ liệu nhà/giao dịch.
+Không tự mở lại hoặc đăng ký lại cùng email. Mở khóa thông thường không được dùng cho tài khoản đã đóng.
+Theo yêu cầu của chủ tài khoản, ADMIN sử dụng `POST /admin/users/:id/restore`
+với `{ version, reason }`. Ghi rõ căn cứ xác nhận yêu cầu trước khi khôi phục;
+API xóa `closedAt/lockedAt/lockReason`, tăng phiên bản và ghi `ACCOUNT_REOPENED`
+trong cùng transaction. Không áp dụng cho ADMIN, tài khoản chưa đóng hoặc phiên bản cũ.
+Không phục hồi phiên cũ, không tự công khai hồ sơ hoặc tin đăng đã đóng;
+người dùng cần đăng nhập lại, chủ động công khai hồ sơ/gửi duyệt tin theo quy trình hiện có.
+Danh sách người dùng thêm `status=CLOSED`, phân biệt với khóa do vi phạm.
+
+Migration `20261013025000_account_closure_otp` và `20261013030000_admin_support`
+đã deploy trên PostgreSQL local. Bằng chứng kiểm tra: `../../../../PHASE_10_STATUS.md`.

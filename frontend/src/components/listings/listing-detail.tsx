@@ -13,6 +13,7 @@ import { Button, ButtonLink, ErrorState, LoadingState } from "../ui";
 import { SaveListing } from "./listing-card";
 import { ListingContent } from "./listing-content";
 import { DeleteListingDraft } from "./delete-listing-draft";
+import { ReportListing } from "./report-listing";
 
 function ListingDetailView({ id }: { id: string }) {
   const { user, loading } = useAuth();
@@ -167,6 +168,9 @@ function ListingDetailView({ id }: { id: string }) {
         <ErrorState message={`Lý do từ chối: ${listing.rejectionReason}`} />
       )}
       <ListingContent listing={listing} />
+      {!owner && user?.role === "USER" && listing.status === "PUBLISHED" && (
+        <ReportListing id={id} />
+      )}
     </section>
   );
 }

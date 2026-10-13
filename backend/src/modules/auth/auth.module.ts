@@ -14,10 +14,12 @@ import { SessionService } from './session.service.js';
 import { GoogleAuthController } from './google-auth.controller.js';
 import { GoogleAuthService } from './google-auth.service.js';
 import { GoogleClientService } from './google-client.service.js';
+import { AccountClosureController } from './account-closure.controller.js';
+import { AccountClosureService } from './account-closure.service.js';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [AuthController, GoogleAuthController],
+  controllers: [AuthController, GoogleAuthController, AccountClosureController],
   providers: [
     AuthService,
     AuthAccountsService,
@@ -32,6 +34,7 @@ import { GoogleClientService } from './google-client.service.js';
     SessionService,
     GoogleAuthService,
     GoogleClientService,
+    AccountClosureService,
   ],
   exports: [AuthGuard, OptionalAuthGuard, SessionService, MailService],
 })

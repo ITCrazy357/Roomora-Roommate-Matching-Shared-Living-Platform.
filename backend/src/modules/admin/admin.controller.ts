@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Header,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -17,8 +18,13 @@ import { AdminService } from './admin.service.js';
 import { AdminUsersService } from './admin-users.service.js';
 import { AdminReportsService } from './admin-reports.service.js';
 import { AdminAnnouncementsService } from './admin-announcements.service.js';
+import { AdminOrdersService } from './admin-orders.service.js';
+import { AdminAuditService } from './admin-audit.service.js';
 import {
   AccountLockDto,
+  AccountRestoreDto,
+  AdminOrdersQuery,
+  AdminAuditQuery,
   AdminPageQuery,
   AdminReportsQuery,
   AdminSummaryQuery,
@@ -37,7 +43,18 @@ export class AdminController {
     private readonly users: AdminUsersService,
     private readonly reports: AdminReportsService,
     private readonly announcements: AdminAnnouncementsService,
+    private readonly orders: AdminOrdersService,
+    private readonly audit: AdminAuditService,
   ) {}
+  @Get('orders') listOrders(@Query() query: AdminOrdersQuery) {
+    return this.orders.list(query);
+  }
+  @Get('orders/:id') orderDetail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.orders.detail(id);
+  }
+  @Get('audit') actions(@Query() query: AdminAuditQuery) {
+    return this.audit.list(query);
+  }
   @Get('summary') summary(@Query() query: AdminSummaryQuery) {
     return this.admin.summary(query);
   }
@@ -55,6 +72,13 @@ export class AdminController {
     @Body() dto: AccountLockDto,
   ) {
     return this.users.setLock(req.auth.userId, id, dto);
+  }
+  @Post('users/:id/restore') @HttpCode(200) restore(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AccountRestoreDto,
+  ) {
+    return this.users.restore(req.auth.userId, id, dto);
   }
   @Get('reports') listReports(@Query() query: AdminReportsQuery) {
     return this.reports.list(query);

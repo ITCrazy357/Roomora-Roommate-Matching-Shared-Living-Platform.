@@ -1,5 +1,6 @@
 "use client";
 import { type FormEvent, useState } from "react";
+import Link from "next/link";
 import {
   adminError,
   adminMutation,
@@ -27,6 +28,7 @@ function ReportDetail({
   onChanged: () => void;
 }) {
   const [note, setNote] = useState("");
+  const [removeListing, setRemoveListing] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const { data: history } = useAdminPage<{ actions: AdminAction[] }>(
@@ -45,6 +47,9 @@ function ReportDetail({
         status,
         version: report.version,
         note: note.trim(),
+        ...(status === "RESOLVED" && removeListing
+          ? { removeListing: true, listingVersion: report.listing?.version }
+          : {}),
       });
       onChanged();
     } catch (error) {
@@ -59,6 +64,24 @@ function ReportDetail({
         <span className="content-label">NỘI DUNG BÁO CÁO</span>
         <h2>{reportReasons[report.reason]}</h2>
         <p className="admin-report-text">{report.details}</p>
+        {report.listingSnapshot && (
+          <div className="admin-callout">
+            <h3>Tin đăng lúc gửi báo cáo</h3>
+            <strong>{report.listingSnapshot.title}</strong>
+            <p className="admin-report-text">
+              {report.listingSnapshot.description}
+            </p>
+            <p>
+              Phiên bản {report.listingSnapshot.version} · Hiện tại:{" "}
+              {report.listing?.status ?? "Không còn hiển thị"}
+            </p>
+            {report.listing && !report.listing.deletedAt && (
+              <Link href={`/admin/tin-dang/${report.listing.id}`}>
+                Xem nội dung hiện tại ↗
+              </Link>
+            )}
+          </div>
+        )}
         <p className="text-muted text-sm">
           Gửi lúc {adminTime(report.createdAt)}
         </p>
@@ -66,6 +89,20 @@ function ReportDetail({
         <AdminPerson user={report.reporter} />
         {report.status === "OPEN" ? (
           <form className="form-stack" onSubmit={submit}>
+            {report.listing?.status === "PUBLISHED" && (
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={removeListing}
+                  disabled={pending}
+                  onChange={(event) => setRemoveListing(event.target.checked)}
+                />
+                <span>
+                  Gỡ tin vi phạm khi chọn “Đã xử lý vi phạm”. Chủ tin phải gửi
+                  duyệt lại.
+                </span>
+              </label>
+            )}
             <Textarea
               id="report-handling-note"
               label="Kết quả kiểm tra và lý do xử lý"
@@ -118,10 +155,11 @@ function ReportDetail({
 export function AdminReports() {
   const [status, setStatus] = useState<AdminReport["status"]>("OPEN");
   const [page, setPage] = useState(1);
+  const [type, setType] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const { data, error, reload } = useAdminPage<AdminPage<AdminReport>>(
-    `/admin/reports?page=${page}&status=${status}`,
+    `/admin/reports?page=${page}&status=${status}${type ? `&type=${type}` : ""}`,
   );
   const report = data?.items.find((item) => item.id === selected);
   return (
@@ -138,6 +176,20 @@ export function AdminReports() {
         </Button>
       </div>
       <div className="admin-filters">
+        <Select
+          id="report-type"
+          label="Đối tượng báo cáo"
+          value={type}
+          onChange={(event) => {
+            setType(event.target.value);
+            setPage(1);
+            setSelected(null);
+          }}
+        >
+          <option value="">Tất cả</option>
+          <option value="USER">Người dùng</option>
+          <option value="LISTING">Tin đăng</option>
+        </Select>
         <Select
           id="admin-report-status"
           label="Trạng thái báo cáo"
@@ -186,7 +238,9 @@ export function AdminReports() {
                       {reportReasons[item.reason]}
                     </span>
                     <strong>
-                      {item.target.profile?.displayName ?? item.target.email}
+                      {item.listingSnapshot?.title ??
+                        item.target.profile?.displayName ??
+                        item.target.email}
                     </strong>
                     <span className="admin-report-excerpt">{item.details}</span>
                     <small>

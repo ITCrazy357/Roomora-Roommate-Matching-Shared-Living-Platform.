@@ -6,6 +6,7 @@ import {
   IsISO8601,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
@@ -28,12 +29,26 @@ export class AdminSummaryQuery {
   month?: string;
 }
 
+export class AdminOrdersQuery extends AdminPageQuery {
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(150) search?: string;
+  @IsOptional()
+  @IsIn(['PENDING', 'PAID', 'FAILED', 'EXPIRED', 'CANCELLED'])
+  status?: 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED' | 'CANCELLED';
+}
+
+export class AdminAuditQuery extends AdminPageQuery {
+  @IsOptional() @IsUUID() entityId?: string;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(50) action?: string;
+}
+
 export class AdminUsersQuery extends AdminPageQuery {
   @IsOptional() @Transform(trim) @IsString() @MaxLength(120) search?: string;
-  @IsOptional() @IsIn(['ACTIVE', 'LOCKED']) status?: 'ACTIVE' | 'LOCKED';
+  @IsOptional() @IsIn(['ACTIVE', 'LOCKED', 'CLOSED']) status?:
+    'ACTIVE' | 'LOCKED' | 'CLOSED';
 }
 
 export class AdminReportsQuery extends AdminPageQuery {
+  @IsOptional() @IsIn(['USER', 'LISTING']) type?: 'USER' | 'LISTING';
   @IsIn(['OPEN', 'RESOLVED', 'DISMISSED']) status:
     'OPEN' | 'RESOLVED' | 'DISMISSED' = 'OPEN';
 }
@@ -47,7 +62,13 @@ export class AccountLockDto extends AdminVersionDto {
   @Transform(trim) @IsString() @MinLength(5) @MaxLength(1000) reason!: string;
 }
 
+export class AccountRestoreDto extends AdminVersionDto {
+  @Transform(trim) @IsString() @MinLength(5) @MaxLength(1000) reason!: string;
+}
+
 export class HandleReportDto extends AdminVersionDto {
+  @IsOptional() @IsBoolean() removeListing?: boolean;
+  @IsOptional() @IsInt() @Min(1) listingVersion?: number;
   @IsIn(['RESOLVED', 'DISMISSED']) status!: 'RESOLVED' | 'DISMISSED';
   @Transform(trim) @IsString() @MinLength(5) @MaxLength(1000) note!: string;
 }

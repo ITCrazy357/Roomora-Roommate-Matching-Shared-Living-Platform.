@@ -28,6 +28,11 @@ export class AdminService {
       currentOpenReports,
       currentPendingRefunds,
       processedListings,
+      registeredUsers,
+      totalUsers,
+      createdListings,
+      connections,
+      openSupport,
     ] = await this.prisma.$transaction(
       [
         this.prisma.listing.count({
@@ -114,6 +119,22 @@ export class AdminService {
             },
           },
         }),
+        this.prisma.user.count({ where: { role: 'USER', createdAt: period } }),
+        this.prisma.user.count({
+          where: { role: 'USER', createdAt: { lt: to } },
+        }),
+        this.prisma.listing.count({
+          where: { createdAt: period, deletedAt: null },
+        }),
+        // Current outcomes of pairs created in this month, not acceptance events.
+        this.prisma.connection.groupBy({
+          by: ['status'],
+          where: { createdAt: period },
+          _count: { _all: true },
+        }),
+        this.prisma.supportTicket.count({
+          where: { status: { in: ['OPEN', 'IN_PROGRESS', 'WAITING_USER'] } },
+        }),
       ],
       { isolationLevel: 'RepeatableRead' },
     );
@@ -137,6 +158,15 @@ export class AdminService {
         pendingListings: currentPendingListings,
         openReports: currentOpenReports,
         pendingRefunds: currentPendingRefunds,
+        openSupport,
+      },
+      users: { registered: registeredUsers, total: totalUsers },
+      activity: {
+        createdListings,
+        connections: connections.reduce((sum, row) => sum + row._count._all, 0),
+        acceptedConnections:
+          connections.find((row) => row.status === 'ACCEPTED')?._count._all ??
+          0,
       },
       revenue: {
         receivedAmount: paid?._sum.amount ?? 0,

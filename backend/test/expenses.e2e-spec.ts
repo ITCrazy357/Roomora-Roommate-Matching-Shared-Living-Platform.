@@ -11,6 +11,7 @@ import { ExpenseRemindersService } from '../src/modules/expenses/expense-reminde
 import { HouseAccessService } from '../src/modules/houses/house-access.service.js';
 import { ConfigService } from '@nestjs/config';
 import { vietnamDate } from '../src/modules/expenses/expense-promises.service.js';
+import type { BalanceDetails } from '../src/modules/expenses/expense-ledger.js';
 
 describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
   let app: INestApplication, prisma: PrismaService, houseId: string;
@@ -67,6 +68,48 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       balance: number;
       pendingSent: number;
     }[];
+
+  async function detailedBalances(index = 0) {
+    const result = (await agents[index].get(base() + '/balances').expect(200))
+      .body;
+    const rows = result.balances as {
+      id: string;
+      displayName: string;
+      paid: number;
+      owed: number;
+      sent: number;
+      received: number;
+      pendingSent: number;
+      pendingReceived: number;
+      details: BalanceDetails;
+      current: { paid: number; owed: number; sent: number; received: number };
+      balance: number;
+    }[];
+    for (const row of rows) {
+      for (const key of [
+        'paid',
+        'owed',
+        'sent',
+        'received',
+        'pendingSent',
+        'pendingReceived',
+      ] as const)
+        expect(
+          row.details[key].reduce((total, item) => total + item.amount, 0),
+        ).toBe(
+          key === 'pendingSent' || key === 'pendingReceived'
+            ? row[key]
+            : row.current[key],
+        );
+      expect(
+        row.current.paid -
+          row.current.owed +
+          row.current.sent -
+          row.current.received,
+      ).toBe(row.balance);
+    }
+    return rows;
+  }
 
   beforeAll(async () => {
     const fixture = await Test.createTestingModule({
@@ -304,6 +347,297 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       reason: 'Trưởng nhà chỉnh sửa',
     }).expect(200);
   });
+  it('returns all expense shares and confirmed/pending payments independently of list pagination', async () => {
+    const first = await create({
+      ...expenseBody(),
+      title: 'Hóa đơn điện cần đối chiếu',
+      spentOn: '2026-10-02',
+    });
+    for (let index = 0; index < 20; index++)
+      await create({ ...expenseBody(), title: `Khoản chi chung ${index}` });
+    const cancelled = await create({
+      ...expenseBody(),
+      title: 'Khoản hủy không được tính',
+    });
+    await post(0, base() + `/${cancelled.id}/cancel`, {
+      version: cancelled.version,
+      reason: 'Ghi nhầm',
+    }).expect(201);
+    const confirmed = (
+      await post(1, base() + '/payments', paymentBody(250)).expect(201)
+    ).body;
+    await post(0, base() + `/payments/${confirmed.id}`, {
+      version: 1,
+      action: 'confirm',
+    }).expect(201);
+    const pending = (
+      await post(1, base() + '/payments', paymentBody(200)).expect(201)
+    ).body;
+    const rejected = (
+      await post(1, base() + '/payments', paymentBody(100)).expect(201)
+    ).body;
+    await post(0, base() + `/payments/${rejected.id}`, {
+      version: 1,
+      action: 'reject',
+    }).expect(201);
+    const cancelledPayment = (
+      await post(1, base() + '/payments', paymentBody(100)).expect(201)
+    ).body;
+    await post(1, base() + `/payments/${cancelledPayment.id}`, {
+      version: 1,
+      action: 'cancel',
+    }).expect(201);
+    expect(
+      (await agents[0].get(base() + '?limit=1').expect(200)).body.items,
+    ).toHaveLength(1);
+    const rows = await detailedBalances();
+    const owner = rows.find((row) => row.id === ids[0])!,
+      member = rows.find((row) => row.id === ids[1])!;
+    expect(owner.details.paid).toHaveLength(21);
+    expect(member.details.owed).toHaveLength(21);
+    expect(
+      owner.details.paid.find((item) => item.id === first.id),
+    ).toMatchObject({
+      title: first.title,
+      kind: 'EXPENSE',
+      amount: 1000,
+      occurredOn: '2026-10-02T00:00:00.000Z',
+    });
+    expect(
+      member.details.owed.find((item) => item.id === first.id),
+    ).toMatchObject({ amount: 500, totalAmount: 1000 });
+    expect(JSON.stringify(rows)).not.toContain(cancelled.title);
+    expect(owner.received).toBe(250);
+    expect(member.sent).toBe(250);
+    expect(owner.details.received).toEqual([
+      expect.objectContaining({
+        id: confirmed.id,
+        personName: member.displayName,
+        amount: 250,
+        method: 'BANK_TRANSFER',
+      }),
+    ]);
+    expect(owner.details.pendingReceived).toEqual([
+      expect.objectContaining({ id: pending.id, amount: 200 }),
+    ]);
+    expect(member.details.pendingSent).toEqual([
+      expect.objectContaining({
+        id: pending.id,
+        personName: owner.displayName,
+      }),
+    ]);
+    expect(JSON.stringify(rows)).not.toContain(rejected.id);
+    expect(JSON.stringify(rows)).not.toContain(cancelledPayment.id);
+  });
+
+  it('records partial supplier payments separately and deduplicates retries without changing member debt', async () => {
+    const body = { ...expenseBody(), paidAmount: 200 };
+    const row = await create(body);
+    expect(row).toMatchObject({ paidAmount: 200, remainingAmount: 800 });
+    expect(
+      (await detailedBalances()).find((person) => person.id === ids[0])!
+        .current,
+    ).toMatchObject({
+      paid: 1000,
+      owed: 500,
+      supplierTotal: 1000,
+      supplierPaid: 200,
+    });
+    const before = await balances();
+    const payment = {
+      version: row.version,
+      clientId: randomUUID(),
+      amount: 300,
+      method: 'CASH',
+      paidOn: '2026-10-13',
+    };
+    const url = base() + `/${row.id}/supplier-payments`;
+    await post(1, url, payment).expect(403);
+    const [first, retry] = await Promise.all([
+      post(0, url, payment),
+      post(0, url, payment),
+    ]);
+    expect([first.status, retry.status]).toEqual([201, 201]);
+    expect(first.body).toMatchObject({
+      paidAmount: 500,
+      remainingAmount: 500,
+      supplierPaymentCount: 1,
+      version: 2,
+    });
+    expect(
+      (await balances()).map(({ id, balance, pendingSent }) => ({
+        id,
+        balance,
+        pendingSent,
+      })),
+    ).toEqual(
+      before.map(({ id, balance, pendingSent }) => ({
+        id,
+        balance,
+        pendingSent,
+      })),
+    );
+    expect(
+      await prisma.expenseSupplierPayment.count({
+        where: { expenseId: row.id },
+      }),
+    ).toBe(1);
+    await post(0, url, { ...payment, amount: 301 }).expect(409);
+    await post(0, url, { ...payment, clientId: randomUUID() }).expect(409);
+    await post(0, url, {
+      ...payment,
+      version: 2,
+      clientId: randomUUID(),
+      amount: 501,
+    }).expect(400);
+    const history = (
+      await agents[0].get(base() + `/${row.id}/history`).expect(200)
+    ).body;
+    expect(
+      history.find(
+        (item: { action: string }) => item.action === 'SUPPLIER_PAYMENT',
+      ),
+    ).toMatchObject({
+      oldSnapshot: { paidAmount: 200 },
+      newSnapshot: { paidAmount: 500 },
+    });
+    await patch(0, row.id, {
+      ...body,
+      paidAmount: 100,
+      version: 2,
+      reason: 'Sửa sai số đã trả',
+    }).expect(409);
+    const edited = (
+      await patch(0, row.id, {
+        ...body,
+        paidAmount: 500,
+        title: 'Đổi tiêu đề khoản chi',
+        version: 2,
+        reason: 'Ghi rõ nội dung',
+      }).expect(200)
+    ).body;
+    const paid = (
+      await post(0, url, {
+        ...payment,
+        clientId: randomUUID(),
+        version: edited.version,
+        amount: 500,
+      }).expect(201)
+    ).body;
+    expect(paid).toMatchObject({
+      paidAmount: 1000,
+      remainingAmount: 0,
+      supplierPaymentCount: 2,
+    });
+  });
+
+  it('validates initial amounts and serializes competing supplier payments', async () => {
+    for (const paidAmount of [-1, 1001, 0.5])
+      await post(0, base(), { ...expenseBody(), paidAmount }).expect(400);
+    const row = await create({ ...expenseBody(), paidAmount: 0 });
+    const url = base() + `/${row.id}/supplier-payments`;
+    for (const amount of [0, -1, 0.5])
+      await post(0, url, {
+        version: 1,
+        clientId: randomUUID(),
+        amount,
+        method: 'CASH',
+        paidOn: '2026-10-13',
+      }).expect(400);
+    const results = await Promise.all(
+      [1, 2].map(() =>
+        post(0, url, {
+          version: 1,
+          clientId: randomUUID(),
+          amount: 600,
+          method: 'CASH',
+          paidOn: '2026-10-13',
+        }),
+      ),
+    );
+    expect(
+      results
+        .map((result) => result.status)
+        .sort((first, second) => first - second),
+    ).toEqual([201, 409]);
+    expect(
+      await prisma.expense.findUniqueOrThrow({ where: { id: row.id } }),
+    ).toMatchObject({ paidAmount: 600 });
+  });
+
+  it('blocks settlement until supplier bills are paid and clears only the closed round from card details', async () => {
+    const body = { ...expenseBody(), paidAmount: 200 };
+    const row = await create(body);
+    const memberPayment = (
+      await post(1, base() + '/payments', paymentBody()).expect(201)
+    ).body;
+    // Supplier progress can be recorded while a member transfer awaits confirmation.
+    const supplierPayment = {
+      version: 1,
+      clientId: randomUUID(),
+      amount: 300,
+      method: 'BANK_TRANSFER',
+      paidOn: '2026-10-13',
+    };
+    await post(
+      0,
+      base() + `/${row.id}/supplier-payments`,
+      supplierPayment,
+    ).expect(201);
+    await post(0, base() + `/payments/${memberPayment.id}`, {
+      version: 1,
+      action: 'confirm',
+    }).expect(201);
+    expect((await post(0, base() + '/settle').expect(409)).body.code).toBe(
+      'EXPENSE_SUPPLIER_UNPAID',
+    );
+    await post(0, base() + `/${row.id}/supplier-payments`, {
+      ...supplierPayment,
+      version: 2,
+      clientId: randomUUID(),
+      amount: 500,
+    }).expect(201);
+    await post(0, base() + '/settle').expect(201);
+    const closed = (await agents[0].get(base()).expect(200)).body.items[0];
+    await post(0, base() + `/${row.id}/supplier-payments`, {
+      ...supplierPayment,
+      version: closed.version,
+      clientId: randomUUID(),
+      amount: 1,
+    }).expect(409);
+    const cleared = await detailedBalances();
+    for (const person of cleared) {
+      expect(person.current).toMatchObject({
+        paid: 0,
+        owed: 0,
+        sent: 0,
+        received: 0,
+        supplierTotal: 0,
+        supplierPaid: 0,
+      });
+      expect(person.details.paid).toEqual([]);
+      expect(person.details.received).toEqual([]);
+    }
+    expect(
+      (
+        await prisma.debtPayment.findUniqueOrThrow({
+          where: { id: memberPayment.id },
+        })
+      ).settledAt,
+    ).not.toBeNull();
+    const next = await create();
+    const currentOwner = (await detailedBalances()).find(
+      (person) => person.id === ids[0],
+    )!;
+    expect(currentOwner.details.paid.map((item) => item.id)).toEqual([next.id]);
+    expect(currentOwner.current).toMatchObject({
+      paid: 1000,
+      received: 0,
+      supplierPaid: 1000,
+    });
+    expect(currentOwner.paid).toBe(2000); // Existing historical aggregates retain their contract.
+  });
+
   it('keeps pending payments out of balances and allows only the recipient to confirm once', async () => {
     await create();
     const payment = (
@@ -552,6 +886,23 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       await post(0, base() + '/corrections', correctionBody(row)).expect(201)
     ).body;
     expect(correction.amountDelta).toBe(-200);
+    const detailRows = await detailedBalances();
+    const ownerDetails = detailRows.find(
+      (person) => person.id === ids[0],
+    )!.details;
+    expect(ownerDetails.paid).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: correction.id,
+          kind: 'CORRECTION',
+          amount: -200,
+          reason: correction.reason,
+        }),
+      ]),
+    );
+    expect(
+      ownerDetails.owed.find((item) => item.id === correction.id)?.amount,
+    ).toBe(-100);
     const transfer = (await agents[0].get(base() + '/settlements').expect(200))
       .body[0];
     expect(transfer).toMatchObject({
@@ -584,6 +935,7 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
     expect(
       (await agents[0].get(base() + '/balances').expect(200)).body.isSettled,
     ).toBe(true);
+    await detailedBalances();
     expect(
       await prisma.expense.findUniqueOrThrow({ where: { id: row.id } }),
     ).toMatchObject({ amount: 1000, status: 'SETTLED', version: row.version });
@@ -777,6 +1129,18 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       expect(
         (await agents[1].get(base() + '/balances').expect(200)).body.balances,
       ).toEqual([expect.objectContaining({ id: ids[1], balance: 100 })]);
+      const former = await detailedBalances(1);
+      expect(former).toHaveLength(1);
+      expect(JSON.stringify(former)).not.toContain(unrelated.title);
+      expect(former[0].details.owed).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            expenseId: row.id,
+            kind: 'CORRECTION',
+            amount: -100,
+          }),
+        ]),
+      );
     } finally {
       await prisma.houseMember.update({
         where: { houseId_userId: { houseId, userId: ids[1] } },

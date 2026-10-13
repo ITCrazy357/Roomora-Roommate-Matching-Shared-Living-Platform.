@@ -1,11 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
+import type { AdminSummaryQuery } from './dto/admin.dto.js';
 
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
-  async summary() {
+  async summary(query: AdminSummaryQuery = {}) {
     const now = new Date();
+    // Calendar months in Vietnam, with an inclusive start and exclusive end.
+    const offset = 7 * 3600000;
+    const month =
+      query.month ?? new Date(now.getTime() + offset).toISOString().slice(0, 7);
+    const [year, number] = month.split('-').map(Number);
+    const from = new Date(Date.UTC(year, number - 1, 1) - offset);
+    const to = new Date(Date.UTC(year, number, 1) - offset);
+    const period = { gte: from, lt: to };
     const [
       pendingListings,
       lockedUsers,
@@ -15,39 +24,95 @@ export class AdminService {
       reports,
       refunds,
       payments,
+      currentPendingListings,
+      currentOpenReports,
+      currentPendingRefunds,
+      processedListings,
     ] = await this.prisma.$transaction(
       [
-        this.prisma.listing.count({ where: { status: 'PENDING' } }),
-        this.prisma.user.count({
-          where: { role: 'USER', lockedAt: { not: null } },
+        this.prisma.listing.count({
+          where: { status: 'PENDING', submittedAt: period },
+        }),
+        this.prisma.adminAction.findMany({
+          where: { action: 'USER_LOCKED', createdAt: period },
+          select: { entityId: true },
+          distinct: ['entityId'],
         }),
         this.prisma.systemAnnouncement.count({
           where: {
             published: true,
-            displayFrom: { lte: now },
-            displayUntil: { gt: now },
+            displayFrom: { lt: to },
+            displayUntil: { gt: from },
           },
         }),
         // Count each listing once per outcome, even after multiple reviews.
         this.prisma.listing.count({
-          where: { reviews: { some: { decision: 'PUBLISHED' } } },
+          where: {
+            reviews: { some: { decision: 'PUBLISHED', createdAt: period } },
+          },
         }),
         this.prisma.listing.count({
-          where: { reviews: { some: { decision: 'REJECTED' } } },
+          where: {
+            reviews: { some: { decision: 'REJECTED', createdAt: period } },
+          },
         }),
         this.prisma.userReport.groupBy({
           by: ['status'],
+          where: {
+            OR: [
+              { status: 'OPEN', createdAt: period },
+              { status: { in: ['RESOLVED', 'DISMISSED'] }, handledAt: period },
+            ],
+          },
           _count: { _all: true },
         }),
         this.prisma.serviceRefundRequest.groupBy({
           by: ['status'],
+          where: {
+            OR: [
+              { status: 'COMPLETED', completedAt: period },
+              {
+                status: 'REJECTED',
+                actions: { some: { toStatus: 'REJECTED', createdAt: period } },
+              },
+              {
+                status: { in: ['PENDING', 'APPROVED', 'PROCESSING', 'FAILED'] },
+                createdAt: period,
+              },
+            ],
+          },
           _count: { _all: true },
           _sum: { amount: true },
         }),
         this.prisma.serviceOrder.groupBy({
           by: ['status'],
+          where: {
+            OR: [
+              { status: 'PAID', paidAt: period },
+              { status: { not: 'PAID' }, createdAt: period },
+            ],
+          },
           _count: { _all: true },
           _sum: { amount: true },
+        }),
+        // Operational pages retain the complete current queue across months.
+        this.prisma.listing.count({ where: { status: 'PENDING' } }),
+        this.prisma.userReport.count({ where: { status: 'OPEN' } }),
+        this.prisma.serviceRefundRequest.count({
+          where: {
+            status: { in: ['PENDING', 'APPROVED', 'PROCESSING', 'FAILED'] },
+          },
+        }),
+        // A listing reviewed several times still represents one processed item.
+        this.prisma.listing.count({
+          where: {
+            reviews: {
+              some: {
+                decision: { in: ['PUBLISHED', 'REJECTED'] },
+                createdAt: period,
+              },
+            },
+          },
         }),
       ],
       { isolationLevel: 'RepeatableRead' },
@@ -58,11 +123,35 @@ export class AdminService {
       refunds.find((row) => row.status === status)?._count._all ?? 0;
     const paid = payments.find((row) => row.status === 'PAID');
     const completed = refunds.find((row) => row.status === 'COMPLETED');
+    const processedReports = reportCount('RESOLVED') + reportCount('DISMISSED');
+    const processedRefunds = refundCount('COMPLETED') + refundCount('REJECTED');
     return {
       generatedAt: now.toISOString(),
+      period: {
+        month,
+        timeZone: 'Asia/Ho_Chi_Minh',
+        from: from.toISOString(),
+        to: to.toISOString(),
+      },
+      currentQueues: {
+        pendingListings: currentPendingListings,
+        openReports: currentOpenReports,
+        pendingRefunds: currentPendingRefunds,
+      },
+      revenue: {
+        receivedAmount: paid?._sum.amount ?? 0,
+        refundAmount: -(completed?._sum.amount ?? 0),
+        netAmount: (paid?._sum.amount ?? 0) - (completed?._sum.amount ?? 0),
+      },
+      processed: {
+        listings: processedListings,
+        reports: processedReports,
+        refunds: processedRefunds,
+        total: processedListings + processedReports + processedRefunds,
+      },
       pendingListings,
       openReports: reportCount('OPEN'),
-      lockedUsers,
+      lockedUsers: lockedUsers.length,
       activeAnnouncements,
       pendingRefunds:
         refundCount('PENDING') +

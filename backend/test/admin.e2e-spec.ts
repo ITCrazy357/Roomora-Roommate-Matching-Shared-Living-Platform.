@@ -494,7 +494,7 @@ describe('ADMIN operations (real PostgreSQL)', () => {
     ).toBe(false);
   });
 
-  it('counts historical listings once and separates paid, completed, rejected and retryable refunds', async () => {
+  it('counts listings once per monthly outcome and separates paid, completed, rejected and retryable refunds', async () => {
     const baseline = (await admin.get(`${url}/admin/summary`).expect(200)).body;
     const listing = await prisma.listing.create({
       data: {
@@ -577,6 +577,18 @@ describe('ADMIN operations (real PostgreSQL)', () => {
             amount: order.amount,
             status,
             ...(status === 'COMPLETED' ? { completedAt: new Date() } : {}),
+            ...(status === 'REJECTED'
+              ? {
+                  actions: {
+                    create: {
+                      action: 'REJECTED',
+                      toStatus: 'REJECTED',
+                      note: 'Decision test',
+                      details: {},
+                    },
+                  },
+                }
+              : {}),
           },
         }),
       );
@@ -611,6 +623,12 @@ describe('ADMIN operations (real PostgreSQL)', () => {
     expect(summary.reports.dismissed).toBe(baseline.reports.dismissed + 1);
     expect(summary.openReports).toBe(baseline.openReports + 1);
     expect(summary.pendingRefunds).toBe(baseline.pendingRefunds + 4);
+    expect(summary.processed).toEqual({
+      listings: baseline.processed.listings + 1,
+      reports: baseline.processed.reports + 2,
+      refunds: baseline.processed.refunds + 2,
+      total: baseline.processed.total + 5,
+    });
     for (const key of [
       'pending',
       'approved',
@@ -654,6 +672,322 @@ describe('ADMIN operations (real PostgreSQL)', () => {
     expect(updated.pendingRefunds).toBe(summary.pendingRefunds - 1);
     expect(updated.listings.approved).toBe(summary.listings.approved);
     expect(updated.payments.paidAmount).toBe(summary.payments.paidAmount);
+    expect(updated.processed.total).toBe(summary.processed.total + 1);
+  });
+
+  it('validates summary months and returns Vietnam calendar boundaries', async () => {
+    for (const month of [
+      '2026-00',
+      '2026-13',
+      '2026-2',
+      '0000-01',
+      '1999-12',
+      '2101-01',
+      '',
+      '2026-10-01',
+    ]) {
+      await admin.get(`${url}/admin/summary`).query({ month }).expect(400);
+    }
+    await admin
+      .get(`${url}/admin/summary?month=2032-02&extra=true`)
+      .expect(400);
+    const leap = (
+      await admin.get(`${url}/admin/summary?month=2032-02`).expect(200)
+    ).body;
+    expect(leap.period).toEqual({
+      month: '2032-02',
+      timeZone: 'Asia/Ho_Chi_Minh',
+      from: '2032-01-31T17:00:00.000Z',
+      to: '2032-02-29T17:00:00.000Z',
+    });
+    const december = (
+      await admin.get(`${url}/admin/summary?month=2032-12`).expect(200)
+    ).body;
+    expect(december.period.to).toBe('2032-12-31T17:00:00.000Z');
+    const current = (await admin.get(`${url}/admin/summary`).expect(200)).body;
+    expect(current.period.month).toBe(
+      new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 7),
+    );
+  });
+
+  it('separates receipt and refund months, excludes boundary dates, and filters every dashboard result', async () => {
+    const before = new Date('2096-01-31T16:59:59.999Z');
+    const from = new Date('2096-01-31T17:00:00.000Z');
+    const last = new Date('2096-02-29T16:59:59.999Z');
+    const to = new Date('2096-02-29T17:00:00.000Z');
+    const baseline = (
+      await admin.get(`${url}/admin/summary?month=2096-02`).expect(200)
+    ).body;
+    const listing = await prisma.listing.create({
+      data: {
+        ownerId: ids[2],
+        title: `${prefix}-monthly`,
+        status: 'CLOSED',
+        createdAt: before,
+        reviews: {
+          create: [
+            {
+              adminId: ids[0],
+              decision: 'PUBLISHED',
+              version: 1,
+              createdAt: before,
+            },
+            {
+              adminId: ids[0],
+              decision: 'REJECTED',
+              version: 2,
+              createdAt: from,
+            },
+            {
+              adminId: ids[0],
+              decision: 'PUBLISHED',
+              version: 3,
+              createdAt: last,
+            },
+            {
+              adminId: ids[0],
+              decision: 'PUBLISHED',
+              version: 4,
+              createdAt: last,
+            },
+            {
+              adminId: ids[0],
+              decision: 'PUBLISHED',
+              version: 5,
+              createdAt: to,
+            },
+          ],
+        },
+      },
+    });
+    for (const submittedAt of [before, from]) {
+      await prisma.listing.create({
+        data: {
+          ownerId: ids[2],
+          title: `${prefix}-monthly-pending`,
+          status: 'PENDING',
+          createdAt: before,
+          submittedAt,
+        },
+      });
+    }
+    async function order(
+      amount: number,
+      paidAt: Date | null,
+      createdAt = before,
+      status: 'PAID' | 'FAILED' = 'PAID',
+    ) {
+      return prisma.serviceOrder.create({
+        data: {
+          userId: ids[2],
+          listingId: listing.id,
+          clientId: randomUUID(),
+          planCode: 'MONTHLY',
+          planName: 'Monthly statistics test',
+          amount,
+          durationDays: 1,
+          buyerName: 'Test',
+          buyerEmail: `${prefix}@example.test`,
+          listingTitle: listing.title,
+          status,
+          paidAt,
+          createdAt,
+          updatedAt: from,
+          expiresAt: to,
+        },
+      });
+    }
+    const received = await order(98000, from);
+    const previous = await order(49000, before);
+    await order(2000, to);
+    await order(1000, null, from, 'FAILED');
+    await order(1000, null, before, 'FAILED');
+    await prisma.serviceRefundRequest.createMany({
+      data: [
+        {
+          orderId: received.id,
+          reason: 'Refund in next month',
+          amount: 98000,
+          status: 'COMPLETED',
+          createdAt: from,
+          completedAt: to,
+        },
+        {
+          orderId: previous.id,
+          reason: 'Previous receipt refunded this month',
+          amount: 49000,
+          status: 'COMPLETED',
+          createdAt: before,
+          completedAt: from,
+        },
+        {
+          orderId: (await order(3000, before)).id,
+          reason: 'New pending refund',
+          amount: 3000,
+          status: 'PENDING',
+          createdAt: from,
+        },
+        {
+          orderId: (await order(4000, before)).id,
+          reason: 'Older failed refund',
+          amount: 4000,
+          status: 'FAILED',
+          createdAt: before,
+          updatedAt: from,
+        },
+      ],
+    });
+    for (const dates of [[from, last], [before], [to]]) {
+      await prisma.serviceRefundRequest.create({
+        data: {
+          orderId: (await order(5000, before)).id,
+          reason: 'Rejected refund from previous month',
+          amount: 5000,
+          status: 'REJECTED',
+          createdAt: before,
+          actions: {
+            create: dates.map((createdAt) => ({
+              action: 'REJECTED',
+              toStatus: 'REJECTED',
+              createdAt,
+              actorId: ids[0],
+              note: 'Monthly decision test',
+              details: {},
+            })),
+          },
+        },
+      });
+    }
+    const cases = [
+      { status: 'RESOLVED' as const, createdAt: before, handledAt: from },
+      { status: 'DISMISSED' as const, createdAt: from, handledAt: to },
+      { status: 'OPEN' as const, createdAt: from, handledAt: null },
+      { status: 'OPEN' as const, createdAt: before, handledAt: null },
+    ];
+    for (const [index, data] of cases.entries()) {
+      const target = await prisma.user.create({
+        data: { email: `${prefix}-month-${index}@example.test` },
+      });
+      ids.push(target.id);
+      await prisma.userReport.create({
+        data: {
+          ...data,
+          reporterId: ids[2],
+          targetId: target.id,
+          reason: 'SPAM',
+          details: 'Monthly report test',
+        },
+      });
+    }
+    await prisma.adminAction.createMany({
+      data: [from, last].map((createdAt) => ({
+        actorId: ids[0],
+        entityId: ids.at(-1)!,
+        action: 'USER_LOCKED',
+        createdAt,
+        snapshot: {},
+      })),
+    });
+    for (const [displayFrom, displayUntil] of [
+      [before, to],
+      [before, from],
+      [to, new Date('2096-04-01T00:00:00Z')],
+    ]) {
+      await prisma.systemAnnouncement.create({
+        data: {
+          authorId: ids[0],
+          title: 'Monthly announcement',
+          message: 'Monthly statistics test',
+          kind: 'GENERAL',
+          published: true,
+          displayFrom,
+          displayUntil,
+        },
+      });
+    }
+    const february = (
+      await admin.get(`${url}/admin/summary?month=2096-02`).expect(200)
+    ).body;
+    expect(february.revenue).toEqual({
+      receivedAmount: 98000,
+      refundAmount: -49000,
+      netAmount: 49000,
+    });
+    expect(february.payments).toMatchObject({
+      paid: 1,
+      paidAmount: 98000,
+      failed: 1,
+    });
+    expect(february.refunds).toMatchObject({
+      completed: 1,
+      completedAmount: 49000,
+      pending: 1,
+      failed: 0,
+    });
+    expect(february.listings).toEqual({ approved: 1, rejected: 1 });
+    expect(february.reports).toEqual({ resolved: 1, dismissed: 0 });
+    expect(february.processed).toEqual({
+      listings: 1,
+      reports: 1,
+      refunds: 2,
+      total: 4,
+    });
+    expect(february.refunds.rejected).toBe(1);
+    expect(february.openReports).toBe(1);
+    expect(february.pendingListings).toBe(1);
+    expect(february.pendingRefunds).toBe(1);
+    expect(february.lockedUsers).toBe(1);
+    expect(february.activeAnnouncements).toBe(1);
+    expect(february.currentQueues.pendingListings).toBe(
+      baseline.currentQueues.pendingListings + 2,
+    );
+    expect(february.currentQueues.openReports).toBe(
+      baseline.currentQueues.openReports + 2,
+    );
+    expect(february.currentQueues.pendingRefunds).toBe(
+      baseline.currentQueues.pendingRefunds + 2,
+    );
+    const march = (
+      await admin.get(`${url}/admin/summary?month=2096-03`).expect(200)
+    ).body;
+    expect(march.revenue).toEqual({
+      receivedAmount: 2000,
+      refundAmount: -98000,
+      netAmount: -96000,
+    });
+    expect(march.refunds.completed).toBe(1);
+    expect(march.listings).toEqual({ approved: 1, rejected: 0 });
+    expect(march.reports).toEqual({ resolved: 0, dismissed: 1 });
+    expect(march.processed).toEqual({
+      listings: 1,
+      reports: 1,
+      refunds: 2,
+      total: 4,
+    });
+    expect(march.refunds.rejected).toBe(1);
+    const empty = (
+      await admin.get(`${url}/admin/summary?month=2096-05`).expect(200)
+    ).body;
+    expect(empty.revenue).toEqual({
+      receivedAmount: 0,
+      refundAmount: 0,
+      netAmount: 0,
+    });
+    expect(empty.listings).toEqual({ approved: 0, rejected: 0 });
+    expect(empty.reports).toEqual({ resolved: 0, dismissed: 0 });
+    expect(empty.processed).toEqual({
+      listings: 0,
+      reports: 0,
+      refunds: 0,
+      total: 0,
+    });
+    expect(
+      empty.pendingListings +
+        empty.openReports +
+        empty.pendingRefunds +
+        empty.lockedUsers +
+        empty.activeAnnouncements,
+    ).toBe(0);
   });
 
   it('serializes a simultaneous login and suspension and prevents publishing a locked user listing', async () => {

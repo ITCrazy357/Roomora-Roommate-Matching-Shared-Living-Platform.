@@ -173,6 +173,7 @@ model User {
   lockedAt          DateTime? @map("locked_at")
   lockReason        String?   @map("lock_reason") @db.VarChar(1000)
   moderationVersion Int       @default(1) @map("moderation_version")
+  closedAt          DateTime? @map("closed_at")
 
   profile             Profile?
   sessions            Session[]
@@ -212,12 +213,15 @@ model User {
   refundActions       ServiceRefundAction[]
   systemAnnouncements SystemAnnouncement[]
   serviceOrders       ServiceOrder[]
+  supportTickets      SupportTicket[]
+  supportMessages     SupportMessage[]
 
   @@index([role, lockedAt, createdAt])
   @@map("users")
 }
 
 model Listing {
+  reports           UserReport[]
   id                String             @id @default(uuid()) @db.Uuid
   boostUntil        DateTime?          @map("boost_until")
   postingRound      Int                @default(1) @map("posting_round")
@@ -615,6 +619,9 @@ model UserReport {
   id           String           @id @default(uuid()) @db.Uuid
   reporterId   String           @map("reporter_id") @db.Uuid
   targetId     String           @map("target_id") @db.Uuid
+  listingId    String?          @map("listing_id") @db.Uuid
+  listingSnapshot Json?         @map("listing_snapshot")
+  listing      Listing?         @relation(fields: [listingId], references: [id], onDelete: Restrict)
   reason       UserReportReason
   details      String           @db.VarChar(1000)
   status       UserReportStatus @default(OPEN)
@@ -625,7 +632,9 @@ model UserReport {
   reporter     User             @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
   target       User             @relation("ReportedUser", fields: [targetId], references: [id], onDelete: Cascade)
 
-  @@unique([reporterId, targetId])
+  // Partial unique indexes distinguish account reports from listing reports.
+  @@index([reporterId, targetId])
+  @@index([listingId])
   @@index([reporterId, createdAt])
   @@index([status, createdAt])
   @@map("user_reports")
@@ -771,6 +780,7 @@ model Expense {
   description String?          @db.VarChar(2000)
 
   amount     Int
+  paidAmount Int     @default(0) @map("paid_amount")
   receiptUrl String? @map("receipt_url") @db.VarChar(2048)
 
   status   ExpenseStatus   @default(ACTIVE)
@@ -784,14 +794,15 @@ model Expense {
   payer     HouseParticipant @relation("ExpensePayer", fields: [houseId, payerId], references: [houseId, id], onDelete: Restrict)
   createdBy User             @relation("ExpenseCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
-  splits          ExpenseSplit[]
-  adjustments     ExpenseAdjustment[]
-  corrections     ExpenseCorrection[]
-  receipt         ExpenseReceipt?
-  recurringDraft  RecurringExpenseDraft?
-  sharingPeriodId String?                @map("sharing_period_id") @db.Uuid
-  sharingSnapshot Json?                  @map("sharing_snapshot")
-  sharingPeriod   CostSharingPeriod?     @relation(fields: [houseId, sharingPeriodId], references: [houseId, id], onDelete: Restrict)
+  splits           ExpenseSplit[]
+  adjustments      ExpenseAdjustment[]
+  supplierPayments ExpenseSupplierPayment[]
+  corrections      ExpenseCorrection[]
+  receipt          ExpenseReceipt?
+  recurringDraft   RecurringExpenseDraft?
+  sharingPeriodId  String?                  @map("sharing_period_id") @db.Uuid
+  sharingSnapshot  Json?                    @map("sharing_snapshot")
+  sharingPeriod    CostSharingPeriod?       @relation(fields: [houseId, sharingPeriodId], references: [houseId, id], onDelete: Restrict)
 
   @@unique([houseId, createdById, clientId])
   @@index([houseId, createdAt])
@@ -799,6 +810,22 @@ model Expense {
   @@index([payerId])
   @@index([createdById])
   @@map("expenses")
+}
+
+// Thanh toán cho chủ phòng/người bán, tách khỏi bù trừ giữa thành viên.
+model ExpenseSupplierPayment {
+  id          String        @id @default(uuid()) @db.Uuid
+  expenseId   String        @map("expense_id") @db.Uuid
+  clientId    String        @map("client_id") @db.VarChar(100)
+  contentHash String        @map("content_hash") @db.VarChar(64)
+  amount      Int
+  method      PaymentMethod
+  paidOn      DateTime      @map("paid_on") @db.Date
+  createdAt   DateTime      @default(now()) @map("created_at")
+  expense     Expense       @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseId, clientId])
+  @@map("expense_supplier_payments")
 }
 
 // Phần tiền mỗi thành viên chịu cho khoản chi.
@@ -836,6 +863,7 @@ model DebtPayment {
 
   createdAt     DateTime  @default(now()) @map("created_at")
   confirmedAt   DateTime? @map("confirmed_at")
+  settledAt     DateTime? @map("settled_at")
   version       Int       @default(1)
   createdById   String    @map("created_by_id") @db.Uuid
   confirmedById String?   @map("confirmed_by_id") @db.Uuid
@@ -1280,6 +1308,7 @@ enum ServiceOrderStatus {
 }
 
 model ServiceOrder {
+  supportTickets    SupportTicket[]
   id                String                @id @default(uuid()) @db.Uuid
   userId            String                @map("user_id") @db.Uuid
   listingId         String                @map("listing_id") @db.Uuid
@@ -1321,6 +1350,46 @@ model ServiceOrder {
   @@index([status, expiresAt])
   @@index([listingId, postingRound, status])
   @@map("service_orders")
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_USER
+  RESOLVED
+  CLOSED
+}
+
+model SupportTicket {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+  orderId   String? @map("order_id") @db.Uuid
+  subject   String @db.VarChar(150)
+  status    SupportStatus @default(OPEN)
+  version   Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order     ServiceOrder? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  messages  SupportMessage[]
+
+  @@index([userId, createdAt, id])
+  @@index([status, updatedAt, id])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id        String @id @default(uuid()) @db.Uuid
+  ticketId  String @map("ticket_id") @db.Uuid
+  authorId  String @map("author_id") @db.Uuid
+  fromAdmin Boolean @default(false) @map("from_admin")
+  body      String @db.VarChar(2000)
+  createdAt DateTime @default(now()) @map("created_at")
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author    User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt, id])
+  @@map("support_messages")
 }
 
 model ListingBoost {

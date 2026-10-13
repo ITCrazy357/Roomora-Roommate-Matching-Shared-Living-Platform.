@@ -260,6 +260,14 @@ Trạng thái bổ sung 10/10/2026:
 - Người ở cùng không dùng app được thêm vào sổ chi phí, không tạo tài khoản/quyền chat.
   Với người nhận ngoài app, trưởng nhà ghi nhận thủ công sau khi kiểm tra với họ;
   giao diện ghi rõ đây là xác nhận thủ công.
+- Bổ sung 13/10/2026: khoản chi ghi số đã trả một phần cho chủ phòng/người bán,
+  số còn phải trả và nút Ghi trả thêm. Lưu lịch sử, chống gửi trùng/ghi đè/trả vượt;
+  không thay đổi phần chia và bù trừ giữa thành viên. Chốt yêu cầu hóa đơn đã trả đủ.
+  Ô công nợ thu gọn theo đợt chưa chốt; liệt kê giá từng khoản rồi tổng, đã trả,
+  còn thiếu. Phần bù trừ/tiền thành viên trả nhau nằm riêng, chi tiết mở khi cần.
+  Đánh dấu thanh toán đã chốt để không cộng lại tiền đợt cũ; giữ lịch sử đối chiếu.
+  Hai migration đã deploy local; 89 E2E liên quan qua, build và lint không có lỗi.
+  Edge kiểm tra luồng thật và responsive 320–1920 px. Xem src/modules/expenses/README.md.
 - Thành viên rời nhà vẫn xem được lịch sử liên quan và trả/xác nhận nợ cũ qua Lịch sử công nợ.
   Có thanh toán đang chờ thì phải xác nhận/từ chối/hủy trước khi thay đổi khoản chi.
 - Nút mở form/lịch sử/chi tiết chuyển focus và cuộn tới nội dung khi nằm ngoài màn hình.

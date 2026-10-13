@@ -21,6 +21,7 @@ import {
   AccountLockDto,
   AdminPageQuery,
   AdminReportsQuery,
+  AdminSummaryQuery,
   AdminUsersQuery,
   AdminVersionDto,
   AnnouncementDto,
@@ -37,8 +38,8 @@ export class AdminController {
     private readonly reports: AdminReportsService,
     private readonly announcements: AdminAnnouncementsService,
   ) {}
-  @Get('summary') summary() {
-    return this.admin.summary();
+  @Get('summary') summary(@Query() query: AdminSummaryQuery) {
+    return this.admin.summary(query);
   }
   @Get('users') listUsers(@Query() query: AdminUsersQuery) {
     return this.users.list(query);

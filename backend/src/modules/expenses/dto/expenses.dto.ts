@@ -43,6 +43,11 @@ export class ExpenseSplitDto {
   @IsInt() @Min(0) @Max(2_000_000_000) amount!: number;
 }
 export class CreateExpenseDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(2_000_000_000)
+  paidAmount?: number;
   @IsOptional() @IsEnum(ExpenseCategory) category?: ExpenseCategory;
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
@@ -74,6 +79,28 @@ export class CreateExpenseDto {
   @ValidateNested({ each: true })
   @Type(() => ExpenseSplitDto)
   splits?: ExpenseSplitDto[];
+}
+
+export class CreateSupplierPaymentDto {
+  @IsInt()
+  @Min(1)
+  version: number;
+
+  @IsString()
+  @Length(1, 100)
+  clientId: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(2_000_000_000)
+  amount: number;
+
+  @IsEnum(PaymentMethod)
+  method: PaymentMethod;
+
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  paidOn: string;
 }
 export class ExpenseVersionDto {
   @IsInt() @Min(1) version!: number;

@@ -11,6 +11,7 @@ export const personSelect = {
 } as const;
 
 export const expenseInclude = {
+  _count: { select: { supplierPayments: true } },
   payer: { select: personSelect },
   createdBy: { select: { profile: { select: { displayName: true } } } },
   splits: {
@@ -57,10 +58,13 @@ export function expenseView(row: ExpenseRow) {
     createdBy,
     splits,
     receipt,
+    _count,
     ...expense
   } = row;
   return {
     ...expense,
+    remainingAmount: row.amount - row.paidAmount,
+    supplierPaymentCount: _count.supplierPayments,
     payer: participantView(payer),
     createdByName: createdBy.profile?.displayName ?? 'Thành viên Roomora',
     hasReceipt: !!receipt,

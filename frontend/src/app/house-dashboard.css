@@ -1,0 +1,530 @@
+.house-workspace-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.house-workspace-title {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  min-width: 0;
+}
+.house-workspace-title h1 {
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  letter-spacing: -0.04em;
+  margin: 5px 0 7px;
+  overflow-wrap: anywhere;
+}
+.house-workspace-title > div {
+  min-width: 0;
+}
+.house-workspace-title p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.house-workspace-title .dashboard-breadcrumb {
+  font-size: 0.68rem;
+}
+.house-workspace-symbol {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: var(--primary-soft);
+  color: var(--primary-foreground);
+  border-radius: 12px;
+}
+.house-workspace-symbol svg {
+  width: 25px;
+  height: 25px;
+}
+.house-workspace-meta {
+  display: grid;
+  gap: 8px;
+  text-align: right;
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow-wrap: anywhere;
+}
+.house-workspace-meta > span {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+.house-workspace-meta small {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.house-workspace {
+  display: grid;
+  grid-template-columns: 185px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.house-workspace-content {
+  min-width: 0;
+}
+.house-sidebar {
+  position: sticky;
+  top: 20px;
+  border-right: 1px solid var(--border);
+  padding-right: 18px;
+}
+.house-nav-group {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 22px;
+}
+.house-nav-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.65rem;
+  margin-bottom: 6px;
+  padding-left: 10px;
+}
+.house-nav-group button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  min-height: 42px;
+  padding: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.house-nav-group button:hover {
+  background: var(--surface-muted);
+}
+.house-nav-group button[aria-current="page"] {
+  background: var(--primary-soft);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+.house-nav-group svg,
+.house-history-link svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.house-history-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 8px 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.67rem;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.house-mobile-navigation {
+  display: none;
+}
+.house-sidebar button:focus-visible,
+.house-history-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.house-overview-dashboard .dashboard-heading h2 {
+  font-size: clamp(1.3rem, 2vw, 1.7rem);
+}
+.house-overview-dashboard .house-dashboard-metrics {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+.house-spending-summary {
+  background: var(--primary-subtle);
+  border-color: color-mix(in srgb, var(--primary) 25%, var(--border));
+}
+.house-spending-summary .dashboard-icon-tile {
+  background: var(--primary-soft);
+  color: var(--primary-foreground);
+}
+.house-spending-summary > strong {
+  color: var(--primary-foreground);
+}
+.house-spending-summary .dashboard-metric-bottom button {
+  margin-left: auto;
+  font-size: 0.68rem;
+}
+.house-pending-summary {
+  grid-column: auto !important;
+  gap: 14px;
+}
+.house-pending-summary > small {
+  color: color-mix(in srgb, var(--on-primary) 80%, var(--foreground));
+}
+.house-pending-summary .dashboard-featured-link {
+  width: 100%;
+}
+.house-overview-actions {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 20px;
+}
+.house-overview-actions .button {
+  min-height: 38px;
+  padding: 9px 13px;
+}
+.house-overview-charts {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+.house-chart-switch {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.house-chart-switch button {
+  font-size: 0.68rem;
+  padding: 6px 8px;
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.house-chart-switch button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: 0 1px 4px var(--shadow-card);
+}
+.house-overview-charts .dashboard-panel-heading {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.house-overview-charts > .dashboard-panel {
+  display: flex;
+  flex-direction: column;
+}
+.house-overview-charts .dashboard-distribution {
+  grid-template-columns: minmax(150px, 0.95fr) minmax(0, 1.05fr);
+  flex: 1;
+}
+.house-overview-charts .dashboard-donut {
+  height: auto;
+  aspect-ratio: 1;
+  max-width: 218px;
+}
+.house-overview-charts .dashboard-legend button {
+  padding-block: 7px;
+}
+.house-dashboard-living-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 20px;
+}
+.house-dashboard-expense-list {
+  display: grid;
+}
+.house-dashboard-expense-list > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--border);
+}
+.house-dashboard-expense-list > div > div {
+  min-width: 0;
+  flex: 1;
+}
+.house-dashboard-expense-list > div > div strong {
+  display: block;
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+.house-dashboard-expense-list small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.65rem;
+  line-height: 1.7;
+  margin-top: 5px;
+}
+.house-dashboard-expense-list > div > strong {
+  font-size: 0.78rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+.house-widget-footer {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 16px;
+  padding: 8px 0 0;
+  background: transparent;
+  border: 0;
+  color: var(--primary-foreground);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+.house-task-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 0.67rem;
+  color: var(--muted);
+}
+.house-task-overdue {
+  color: var(--danger-foreground);
+  background: var(--danger-soft);
+  border-radius: 5px;
+  padding: 4px 7px;
+}
+.house-dashboard-task-list button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 14px 0;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+.house-task-marker {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.house-task-marker svg {
+  width: 14px;
+  height: 14px;
+}
+.house-dashboard-task-list button > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.house-dashboard-task-list strong {
+  display: block;
+  font-size: 0.74rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.house-dashboard-task-list small {
+  color: var(--muted);
+  font-size: 0.65rem;
+  display: block;
+  margin-top: 4px;
+}
+.house-dashboard-task-list button > span:last-child {
+  font-size: 0.61rem;
+  text-align: right;
+  line-height: 1.7;
+  max-width: 78px;
+}
+.house-task-date {
+  color: var(--muted);
+}
+.house-dashboard-empty {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-height: 165px;
+  padding: 18px;
+  text-align: center;
+  color: var(--muted);
+  gap: 10px;
+}
+.house-dashboard-empty svg {
+  width: 26px;
+  height: 26px;
+  color: var(--primary-foreground);
+}
+.house-dashboard-empty strong {
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.house-dashboard-empty p {
+  font-size: 0.7rem;
+  line-height: 1.8;
+  margin: 0;
+}
+.house-widget-error {
+  font-size: 0.76rem;
+  color: var(--danger-foreground);
+  line-height: 1.8;
+}
+.house-widget-error .button {
+  margin-top: 8px;
+  font-size: 0.7rem;
+}
+.house-dashboard-members {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 0;
+  border-block: 1px solid var(--border);
+  font-size: 0.7rem;
+}
+.house-dashboard-members > span {
+  color: var(--muted);
+}
+.house-dashboard-members > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.house-dashboard-person {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+}
+.house-dashboard-person .person-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+.house-dashboard-person > span:last-child {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.house-dashboard-members > button {
+  margin-left: auto;
+  font-size: 0.68rem;
+}
+.house-workspace-content > .house-grid {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 20px;
+}
+.house-workspace-content .house-grid h2 {
+  font-size: 1rem;
+}
+.house-workspace-content .house-grid p {
+  font-size: 0.8rem;
+  line-height: 1.8;
+}
+.house-dashboard-announcements .house-announcement {
+  padding-block: 16px;
+}
+.house-dashboard-announcements .house-announcement > p {
+  margin-top: 10px;
+}
+.house-dashboard-announcements .house-row strong {
+  font-size: 0.78rem;
+}
+.house-dashboard-announcements .house-row small {
+  font-size: 0.65rem;
+}
+@media (max-width: 1200px) {
+  .house-workspace {
+    grid-template-columns: 165px minmax(0, 1fr);
+    gap: 22px;
+  }
+  .house-overview-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .house-overview-charts .dashboard-distribution {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+  .house-dashboard-living-grid,
+  .house-workspace-content > .house-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 1000px) {
+  .house-workspace {
+    display: block;
+  }
+  .house-sidebar {
+    display: none;
+  }
+  .house-mobile-navigation {
+    display: block;
+    margin-bottom: 24px;
+  }
+  .house-mobile-navigation .field {
+    max-width: 340px;
+  }
+  .house-dashboard-living-grid,
+  .house-workspace-content > .house-grid {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .house-workspace-heading {
+    align-items: start;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .house-workspace-meta {
+    display: flex;
+    text-align: left;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    max-width: 100%;
+  }
+  .house-workspace-symbol {
+    width: 40px;
+    height: 40px;
+  }
+  .house-workspace-title {
+    gap: 12px;
+  }
+  .house-overview-dashboard .house-dashboard-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .house-spending-summary {
+    grid-column: 1 / -1;
+  }
+  .house-dashboard-living-grid,
+  .house-workspace-content > .house-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .house-overview-charts .dashboard-distribution {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .house-pending-summary .dashboard-featured-link {
+    font-size: 0.65rem;
+  }
+  .house-dashboard-expense-list > div {
+    flex-wrap: wrap;
+  }
+  .house-dashboard-expense-list > div > strong {
+    margin-left: 44px;
+    text-align: left;
+  }
+  .house-workspace-heading {
+    padding-bottom: 18px;
+  }
+  .house-workspace-meta > span,
+  .house-workspace-meta small {
+    font-size: 0.65rem;
+  }
+  .house-dashboard-members {
+    gap: 12px;
+  }
+  .house-dashboard-members > span {
+    flex-basis: 100%;
+  }
+}

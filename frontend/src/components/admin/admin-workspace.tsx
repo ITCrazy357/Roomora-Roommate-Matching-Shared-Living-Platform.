@@ -1,33 +1,53 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { adminLinks } from "@/lib/admin";
 import { ListingAccess } from "../listings/listing-access";
 import { useAdminPage } from "./admin-shared";
 import { AdminOverview, type AdminSummary } from "./admin-overview";
+import { HouseholdIcon, type HouseholdIconName } from "../houses/household-ui";
+
+const navigation = [
+  {
+    href: "/admin/tong-quan",
+    label: "Tổng quan",
+    hint: "Giao dịch và kết quả xử lý",
+  },
+  ...adminLinks,
+];
+const icons: HouseholdIconName[] = [
+  "report",
+  "home",
+  "people",
+  "chores",
+  "calendar",
+  "wallet",
+];
 
 function Workspace({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const { data, error, reload } = useAdminPage<AdminSummary>("/admin/summary");
+  const [month, setMonth] = useState(() =>
+    new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 7),
+  );
+  const { data, error, reload } = useAdminPage<AdminSummary>(
+    `/admin/summary?month=${month}`,
+  );
   return (
     <div className="container admin-workspace">
       <aside className="admin-sidebar">
-        <h2>
-          Vận hành
-          <br />& kiểm duyệt
-        </h2>
-        <p>
-          Giữ cộng đồng an toàn,
-          <br />
-          thông tin rõ ràng.
-        </p>
+        <div className="admin-workspace-label">
+          <span className="dashboard-small-dot" aria-hidden="true" /> Không gian
+          quản trị
+        </div>
         <nav aria-label="Chức năng quản trị">
-          {adminLinks.map((link) => (
+          {navigation.map((link, index) => (
             <Link
               key={link.href}
               href={link.href}
               aria-current={path === link.href ? "page" : undefined}
             >
+              <HouseholdIcon name={icons[index]} />
               <span>
                 {link.label}
                 <small>{link.hint}</small>
@@ -43,7 +63,13 @@ function Workspace({ children }: { children: React.ReactNode }) {
         </Link>
       </aside>
       <div className="admin-content">
-        <AdminOverview data={data} reload={reload} />
+        <AdminOverview
+          data={data}
+          reload={reload}
+          expanded={path === "/admin/tong-quan"}
+          month={month}
+          onMonth={setMonth}
+        />
         {error && (
           <p className="error-state" role="alert">
             {error}{" "}

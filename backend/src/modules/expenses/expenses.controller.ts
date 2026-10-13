@@ -22,6 +22,7 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import {
   CreateDebtPaymentDto,
   CreateExpenseDto,
+  CreateSupplierPaymentDto,
   ExpenseQueryDto,
   ExpenseListQueryDto,
   CreateExpenseCorrectionDto,
@@ -68,6 +69,15 @@ export class ExpensesController {
     @Param('houseId', ParseUUIDPipe) houseId: string,
   ) {
     return this.expenses.balances(req.auth.userId, houseId);
+  }
+
+  @Post(':expenseId/supplier-payments') paySupplier(
+    @Req() req: AuthenticatedRequest,
+    @Param('houseId', ParseUUIDPipe) houseId: string,
+    @Param('expenseId', ParseUUIDPipe) expenseId: string,
+    @Body() dto: CreateSupplierPaymentDto,
+  ) {
+    return this.expenses.paySupplier(req.auth.userId, houseId, expenseId, dto);
   }
   @Get('corrections') corrections(
     @Req() req: AuthenticatedRequest,

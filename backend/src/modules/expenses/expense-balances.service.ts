@@ -31,7 +31,7 @@ export class ExpenseBalancesService {
     return this.prisma.$transaction(
       async (tx) => {
         const house = await this.access.finance(tx, userId, houseId);
-        const all = await this.calculate(tx, houseId);
+        const all = await calculateHouseBalances(tx, houseId, true);
         const openExpenses = await tx.expense.count({
           where: {
             houseId,
@@ -148,6 +148,9 @@ export class ExpenseBalancesService {
         where: { houseId, status: { in: ['ACTIVE', 'ADJUSTMENT_REQUIRED'] } },
         include: expenseInclude,
       });
+      const settledAt = new Date();
+      if (rows.some((row) => row.paidAmount < row.amount))
+        throw new ConflictException({ code: 'EXPENSE_SUPPLIER_UNPAID' });
       for (const previous of rows) {
         const updated = await tx.expense.update({
           where: { id: previous.id },
@@ -165,9 +168,13 @@ export class ExpenseBalancesService {
       }
       const corrections = await tx.expenseCorrection.updateMany({
         where: { houseId, settledAt: null },
-        data: { settledAt: new Date() },
+        data: { settledAt },
       });
       if (rows.length || corrections.count) {
+        await tx.debtPayment.updateMany({
+          where: { houseId, status: 'CONFIRMED', settledAt: null },
+          data: { settledAt },
+        });
         const members = await tx.houseMember.findMany({
           where: { houseId, leftAt: null },
           select: { userId: true },

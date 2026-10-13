@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type {
   CreateExpenseDto,
+  CreateSupplierPaymentDto,
   UpdateExpenseDto,
   CancelExpenseDto,
   ExpenseQueryDto,
@@ -18,6 +19,7 @@ import { ExpensePaymentsService } from './expense-payments.service.js';
 import { ExpenseReceiptsService } from './expense-receipts.service.js';
 import { ExpensePromisesService } from './expense-promises.service.js';
 import { ExpenseCorrectionsService } from './expense-corrections.service.js';
+import { ExpenseSupplierPaymentsService } from './expense-supplier-payments.service.js';
 
 @Injectable()
 export class ExpensesService {
@@ -29,10 +31,20 @@ export class ExpensesService {
     private readonly receipts: ExpenseReceiptsService,
     private readonly promises: ExpensePromisesService,
     private readonly correctionsService: ExpenseCorrectionsService,
+    private readonly supplierPayments: ExpenseSupplierPaymentsService,
   ) {}
 
   create(userId: string, houseId: string, dto: CreateExpenseDto) {
     return this.records.create(userId, houseId, dto);
+  }
+
+  paySupplier(
+    userId: string,
+    houseId: string,
+    expenseId: string,
+    dto: CreateSupplierPaymentDto,
+  ) {
+    return this.supplierPayments.create(userId, houseId, expenseId, dto);
   }
 
   update(userId: string, houseId: string, id: string, dto: UpdateExpenseDto) {

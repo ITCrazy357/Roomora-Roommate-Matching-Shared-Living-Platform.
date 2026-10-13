@@ -27,6 +27,9 @@ export interface Expense {
   description: string | null;
   amount: number;
   payerId: string;
+  paidAmount: number;
+  remainingAmount: number;
+  supplierPaymentCount: number;
   payer: Participant;
   splitMode: "EQUAL" | "CUSTOM";
   status: "ACTIVE" | "SETTLED" | "ADJUSTMENT_REQUIRED" | "CANCELLED";
@@ -72,6 +75,22 @@ export interface ExpenseCorrection {
   }[];
 }
 export interface Balance extends Participant {
+  current: {
+    paid: number;
+    owed: number;
+    sent: number;
+    received: number;
+    supplierTotal: number;
+    supplierPaid: number;
+  };
+  details: {
+    paid: BalanceExpenseDetail[];
+    owed: BalanceExpenseDetail[];
+    sent: BalancePaymentDetail[];
+    received: BalancePaymentDetail[];
+    pendingSent: BalancePaymentDetail[];
+    pendingReceived: BalancePaymentDetail[];
+  };
   participantId: string;
   paid: number;
   owed: number;
@@ -81,6 +100,24 @@ export interface Balance extends Participant {
   pendingReceived: number;
   balance: number;
   reminderPausedUntil: string | null;
+}
+export interface BalanceExpenseDetail {
+  id: string;
+  expenseId: string;
+  kind: "EXPENSE" | "CORRECTION";
+  title: string;
+  amount: number;
+  totalAmount: number | null;
+  paidAmount: number | null;
+  occurredOn: string;
+  reason: string | null;
+}
+export interface BalancePaymentDetail {
+  id: string;
+  personName: string;
+  amount: number;
+  method: "CASH" | "BANK_TRANSFER";
+  occurredOn: string;
 }
 export interface RepaymentPromise {
   payerId: string;
@@ -132,6 +169,7 @@ export interface ExpensePage {
   houseName: string;
 }
 export interface ExpenseSnapshot {
+  paidAmount?: number;
   title: string;
   amount: number;
   status: Expense["status"];
@@ -169,6 +207,14 @@ export function expenseError(error: unknown) {
       EXPENSE_NOT_FOUND: "Khoản chi không tồn tại hoặc bạn không có quyền xem.",
       EXPENSE_FORBIDDEN:
         "Chỉ người tạo khoản chi hoặc trưởng nhà được thực hiện thao tác này.",
+      EXPENSE_PAID_AMOUNT_INVALID:
+        "Số đã thanh toán phải từ 0 đến tổng khoản chi.",
+      EXPENSE_PAYMENT_EXCEEDS_REMAINING:
+        "Số trả thêm vượt số tiền còn phải thanh toán. Hãy tải lại khoản chi.",
+      EXPENSE_PAYMENT_HISTORY_LOCKED:
+        "Đã có lần trả thêm: giữ nguyên người phụ trách và số đã trả; dùng Ghi trả thêm để cập nhật thanh toán.",
+      EXPENSE_SUPPLIER_UNPAID:
+        "Còn khoản chưa thanh toán đủ cho chủ phòng/người bán. Ghi trả thêm trước khi chốt.",
       EXPENSE_CHANGED: "Khoản chi đã thay đổi. Tải lại trước khi tiếp tục.",
       EXPENSE_SETTLED:
         "Khoản chi đã chốt, chỉ được xem. Hãy dùng Điều chỉnh sau chốt để ghi chênh lệch riêng.",

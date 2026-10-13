@@ -97,6 +97,9 @@ export class ExpenseRecordsService {
         JSON.stringify({
           ...data,
           splits,
+          ...(dto.paidAmount !== undefined
+            ? { paidAmount: dto.paidAmount }
+            : {}),
           ...(dto.category ? { category: dto.category } : {}),
           ...(dto.spentOn ? { spentOn: dto.spentOn } : {}),
         }),
@@ -119,6 +122,9 @@ export class ExpenseRecordsService {
       return expenseView(existing);
     }
     await this.expenseAccess.noPending(tx, houseId);
+    const paidAmount = dto.paidAmount ?? dto.amount;
+    if (paidAmount > dto.amount)
+      throw new BadRequestException({ code: 'EXPENSE_PAID_AMOUNT_INVALID' });
     const category = dto.category ?? 'OTHER';
     const spentOn = dto.spentOn ?? vietnamDate(new Date());
     const rule = await this.sharing.apply(
@@ -133,6 +139,7 @@ export class ExpenseRecordsService {
     const row = await tx.expense.create({
       data: {
         ...data,
+        paidAmount,
         category,
         spentOn: new Date(`${spentOn}T00:00:00Z`),
         ...(rule
@@ -175,6 +182,19 @@ export class ExpenseRecordsService {
       );
       this.expenseAccess.editable(userId, house.ownerId, previous, dto.version);
       await this.expenseAccess.noPending(tx, houseId);
+      const hasPayments = previous._count.supplierPayments > 0;
+      const paidAmount =
+        dto.paidAmount ??
+        (previous.paidAmount === previous.amount && !hasPayments
+          ? dto.amount
+          : previous.paidAmount);
+      if (paidAmount > dto.amount)
+        throw new BadRequestException({ code: 'EXPENSE_PAID_AMOUNT_INVALID' });
+      if (
+        hasPayments &&
+        (paidAmount !== previous.paidAmount || dto.payerId !== previous.payerId)
+      )
+        throw new ConflictException({ code: 'EXPENSE_PAYMENT_HISTORY_LOCKED' });
       const category = dto.category ?? previous.category;
       const spentOn =
         dto.spentOn ?? previous.spentOn.toISOString().slice(0, 10);
@@ -225,6 +245,7 @@ export class ExpenseRecordsService {
           description: dto.description,
           payerId: dto.payerId,
           amount: dto.amount,
+          paidAmount,
           receiptUrl: dto.receiptUrl ?? previous.receiptUrl,
           splitMode: rule
             ? rule.mode === 'EQUAL'

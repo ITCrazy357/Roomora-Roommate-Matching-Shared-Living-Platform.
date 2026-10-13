@@ -26,27 +26,54 @@ Banner chạy trên mọi trang, cả khách chưa đăng nhập; cập nhật s
 
 ## API
 
-`GET /admin/summary` trả hàng chờ hiện tại và thống kê toàn thời gian trong một
-snapshot `RepeatableRead`, kèm `generatedAt`. Các trường hàng chờ cũ được giữ nguyên.
+`GET /admin/summary?month=YYYY-MM` trả thống kê tháng trong một snapshot
+`RepeatableRead`, kèm `generatedAt` và `period`. Không truyền tháng thì dùng
+tháng hiện tại ở Việt Nam. Tháng hợp lệ từ 2000–2100; khoảng tính từ 00:00 ngày
+đầu tháng đến trước 00:00 ngày đầu tháng sau, theo `Asia/Ho_Chi_Minh` (UTC+7).
 
 - `listings.approved` / `listings.rejected`: số tin có lịch sử duyệt / từ chối,
-  mỗi tin tính một lần trong mỗi nhóm, kể cả tin đã đóng. Một tin có thể thuộc
+  theo ngày `ListingReview.createdAt` trong tháng; mỗi tin tính một lần trong
+  mỗi nhóm, kể cả tin đã đóng. Một tin có thể thuộc
   cả hai nhóm; đây không phải hai phần của một tổng số tin.
 - `reports.resolved` / `reports.dismissed`: báo cáo đã xử lý vi phạm / đã bác bỏ;
-  `openReports` là báo cáo vẫn chờ xử lý.
+  theo `handledAt` trong tháng; `openReports` là báo cáo gửi trong tháng và vẫn
+  chờ xử lý, theo `createdAt`.
 - `refunds`: số yêu cầu ở từng trạng thái hiện tại; `completedAmount` chỉ cộng
-  tiền của yêu cầu `COMPLETED`. `pendingRefunds` gồm `PENDING`, `APPROVED`,
+  tiền của yêu cầu `COMPLETED` có `completedAt` trong tháng, kể cả yêu cầu gửi
+  trước tháng đó. Yêu cầu `REJECTED` theo ngày ghi quyết định từ chối trong
+  `ServiceRefundAction`; trạng thái còn lại theo `createdAt` trong tháng.
+  `pendingRefunds` gồm `PENDING`, `APPROVED`,
   `PROCESSING` và `FAILED`, vì các trạng thái này vẫn cần xử lý.
 - `payments`: số đơn thanh toán ở từng trạng thái; `paidAmount` là tổng tiền
-  đơn `PAID`, bao gồm đơn đã được hoàn tiền. Không coi số này là doanh thu ròng.
+  đơn `PAID` theo `paidAt` trong tháng, kể cả đơn được tạo trước tháng đó và
+  đơn đã được hoàn tiền. Trạng thái khác tính theo `createdAt` trong tháng.
+- `revenue.receivedAmount`: tiền dịch vụ đã nhận trong tháng;
+  `revenue.refundAmount`: tiền hoàn tất trong tháng mang dấu âm;
+  `revenue.netAmount = receivedAmount + refundAmount`. Tháng hoàn tiền có thể
+  khác tháng thu và doanh thu sau hoàn tiền có thể âm; không ép về 0.
+- `pendingListings`: tin đang chờ, có `submittedAt` trong tháng.
+- `lockedUsers`: số tài khoản có thao tác `USER_LOCKED` trong tháng, mỗi tài
+  khoản tính một lần, kể cả sau đó đã mở khóa. `activeAnnouncements`: thông báo
+  còn được phát theo lịch có khoảng hiển thị giao với tháng được chọn.
+- `currentQueues`: toàn bộ tin/báo cáo/hoàn tiền hiện vẫn cần xử lý, không giới
+  hạn tháng; dùng cho thanh hàng chờ trên các trang vận hành.
+- `processed`: số mục đã có kết quả trong tháng. `listings` đếm mỗi tin có
+  review duyệt/từ chối một lần, kể cả có cả hai kết quả hoặc được duyệt lặp.
+  `reports` gồm báo cáo đã xử lý vi phạm/không đủ căn cứ theo `handledAt`.
+  `refunds` gồm khoản hoàn tất theo `completedAt` và yêu cầu đã từ chối theo
+  ngày ghi quyết định trong `ServiceRefundAction`, kể cả yêu cầu gửi tháng trước.
+  `total` là tổng ba nhóm; không cộng mục chờ, đang thực hiện hoặc lỗi cần thử lại.
 
-Dashboard admin hiển thị các nhóm trên cùng số tiền đã hoàn thành công. Số liệu
-không lọc theo ngày; trạng thái hoàn tiền/thanh toán phản ánh trạng thái hiện tại
-của đơn/yêu cầu, không phải số lần thử giao dịch trong lịch sử.
+Dashboard admin hiển thị doanh thu dịch vụ sau hoàn tiền và tổng tiền đã hoàn
+bằng dấu âm trong hai ô riêng. Bộ chọn tháng áp dụng cho toàn bộ dashboard.
+Ô thứ ba là "Đã xử lý trong tháng", kèm số tin, báo cáo và yêu cầu hoàn tiền
+đã có kết quả; liên kết mở phần thống kê kết quả ngay bên dưới.
+Thống kê là số đơn/yêu cầu, không phải số lần thử giao dịch; các nhóm chưa hoàn
+tất phản ánh trạng thái hiện tại của dữ liệu phát sinh trong tháng.
 
 | API                                                                | Chức năng                                                                                  |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `GET /admin/summary`                                               | Số tin chờ duyệt, báo cáo mở, tài khoản bị khóa và thông báo đang hiển thị                 |
+| `GET /admin/summary?month=YYYY-MM`                                  | Doanh thu sau hoàn tiền, hoàn tiền và kết quả vận hành trong tháng                       |
 | `GET /admin/users?search=&status=ACTIVE\|LOCKED&page=&limit=`      | Tìm và phân trang người dùng                                                               |
 | `GET /admin/users/:id/history`                                     | Thông tin tài khoản và 50 thao tác khóa/mở khóa gần nhất                                   |
 | `PATCH /admin/users/:id/lock`                                      | `{ locked, reason, version }`                                                              |

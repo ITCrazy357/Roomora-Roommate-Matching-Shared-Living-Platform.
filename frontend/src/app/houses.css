@@ -47,6 +47,12 @@
   align-items: center;
   gap: 8px;
 }
+.expense-payment-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 12px 0;
+}
 .expense-share .field {
   flex: 1 1 190px;
   max-width: 280px;
@@ -85,7 +91,7 @@
 }
 .balance-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 16px;
 }
 .balance-amount {
@@ -204,6 +210,76 @@
 }
 .balance-card {
   border-top: 4px solid var(--border-strong);
+  align-self: start;
+}
+.balance-name {
+  margin: 0;
+  font-size: 1rem;
+}
+.balance-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.balance-section h4,
+.balance-pending h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.balance-section-hint,
+.balance-empty,
+.balance-pending p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.balance-detail-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 12px;
+}
+.balance-detail-row,
+.balance-section-total {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.balance-detail-row strong,
+.balance-section-total strong {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.balance-section > .balance-detail-row,
+.balance-section > div > .balance-detail-row {
+  margin-top: 8px;
+}
+.balance-section-total {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+.balance-more {
+  margin-top: 12px;
+  font-size: 0.85rem;
+}
+.balance-more summary {
+  cursor: pointer;
+  color: var(--primary-foreground);
+}
+.balance-pending {
+  margin-top: 20px;
+  padding: 14px;
+  border-radius: var(--radius-control);
+  background: var(--warning-soft);
+  color: var(--warning-foreground);
 }
 .balance-receivable {
   border-color: var(--success);

@@ -19,6 +19,7 @@ export class ExpenseEventsService {
       description: row.description,
       payerId: row.payerId,
       amount: row.amount,
+      paidAmount: row.paidAmount,
       status: row.status,
       splitMode: row.splitMode,
       sharingPeriodId: row.sharingPeriodId,

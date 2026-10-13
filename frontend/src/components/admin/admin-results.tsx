@@ -1,87 +1,117 @@
 import Link from "next/link";
-import { money } from "@/lib/expenses";
 import { Card } from "../ui";
-import { DashboardDonut } from "../dashboard-charts";
+import { DashboardDonut, DashboardStatusBars } from "../dashboard-charts";
 import type { AdminSummary } from "./admin-overview";
 
 export function AdminResults({ data }: { data: AdminSummary }) {
+  const payments = [
+    {
+      label: "Thành công",
+      amount: data.payments.paid,
+      color: "var(--chart-coral)",
+    },
+    {
+      label: "Chờ thanh toán",
+      amount: data.payments.pending,
+      color: "var(--chart-amber)",
+    },
+    { label: "Thất bại", amount: data.payments.failed, color: "var(--danger)" },
+    {
+      label: "Đã hủy",
+      amount: data.payments.cancelled,
+      color: "var(--chart-brown)",
+    },
+    {
+      label: "Hết hạn",
+      amount: data.payments.expired,
+      color: "var(--chart-blue)",
+    },
+  ];
   const refunds = [
-    { label: "Đã hoàn thành công", amount: data.refunds.completed },
-    { label: "Đã từ chối", amount: data.refunds.rejected },
-    { label: "Chờ xét duyệt", amount: data.refunds.pending },
-    { label: "Đã duyệt, chưa hoàn", amount: data.refunds.approved },
-    { label: "Đang thực hiện", amount: data.refunds.processing },
-    { label: "Thất bại, cần xử lý lại", amount: data.refunds.failed },
+    {
+      label: "Đã hoàn thành công",
+      amount: data.refunds.completed,
+      color: "var(--chart-green)",
+    },
+    {
+      label: "Đã từ chối",
+      amount: data.refunds.rejected,
+      color: "var(--danger)",
+    },
+    {
+      label: "Chờ xét duyệt",
+      amount: data.refunds.pending,
+      color: "var(--chart-amber)",
+    },
+    {
+      label: "Đã duyệt, chưa hoàn",
+      amount: data.refunds.approved,
+      color: "var(--chart-blue)",
+    },
+    {
+      label: "Đang thực hiện",
+      amount: data.refunds.processing,
+      color: "var(--chart-violet)",
+    },
+    {
+      label: "Thất bại",
+      amount: data.refunds.failed,
+      color: "var(--chart-brown)",
+    },
   ];
   const reports = [
-    { label: "Đã xử lý vi phạm", amount: data.reports.resolved },
-    { label: "Đã bác bỏ báo cáo", amount: data.reports.dismissed },
-    { label: "Chờ xử lý", amount: data.openReports },
+    {
+      label: "Đã xử lý vi phạm",
+      amount: data.reports.resolved,
+      color: "var(--chart-coral)",
+    },
+    {
+      label: "Không đủ căn cứ",
+      amount: data.reports.dismissed,
+      color: "var(--chart-blue)",
+    },
+    {
+      label: "Chờ xử lý",
+      amount: data.openReports,
+      color: "var(--chart-amber)",
+    },
   ];
+  const totalPayments = payments.reduce((sum, row) => sum + row.amount, 0);
   return (
-    <section className="admin-results" aria-label="Thống kê kết quả xử lý">
-      <div className="dashboard-panel-heading">
-        <div>
-          <span className="content-label">KẾT QUẢ XỬ LÝ</span>
-          <h3>Thống kê toàn thời gian</h3>
-        </div>
-        <span className="dashboard-period">
-          Cập nhật{" "}
-          {new Date(data.generatedAt).toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
-            timeZone: "Asia/Ho_Chi_Minh",
-          })}
-        </span>
-      </div>
+    <div
+      id="admin-results"
+      className="admin-results"
+      aria-label="Thống kê kết quả xử lý"
+    >
       <div className="dashboard-chart-grid admin-results-grid">
         <Card className="dashboard-panel admin-payment-results">
           <div className="dashboard-panel-heading">
             <div>
-              <span className="content-label">GIAO DỊCH DỊCH VỤ</span>
-              <h3>Thanh toán thành công</h3>
+              <h3>Giao dịch dịch vụ</h3>
+              <p>Thanh toán thành công và đơn mới trong tháng</p>
             </div>
-            <span className="dashboard-period">{data.payments.paid} đơn</span>
+            <span className="dashboard-period">{totalPayments} đơn</span>
           </div>
-          <strong className="admin-result-amount">
-            {money(data.payments.paidAmount)}
-          </strong>
-          <dl className="admin-result-rows">
-            <div>
-              <dt>Chờ thanh toán</dt>
-              <dd>{data.payments.pending}</dd>
-            </div>
-            <div>
-              <dt>Thanh toán thất bại</dt>
-              <dd>{data.payments.failed}</dd>
-            </div>
-            <div>
-              <dt>Đã hủy</dt>
-              <dd>{data.payments.cancelled}</dd>
-            </div>
-            <div>
-              <dt>Hết hạn</dt>
-              <dd>{data.payments.expired}</dd>
-            </div>
-          </dl>
-          <p className="dashboard-caption">
-            Tổng tiền các đơn đã thanh toán, bao gồm đơn được hoàn tiền; chưa
-            trừ tiền hoàn và phí.
-          </p>
+          <DashboardStatusBars rows={payments} />
+          <div className="dashboard-panel-footnote">
+            <span className="dashboard-small-dot" aria-hidden="true" /> Tổng
+            tiền đã nhận tính theo ngày thanh toán; doanh thu đã trừ khoản hoàn
+            tất trong tháng. Trạng thái khác tính theo ngày tạo đơn.
+          </div>
         </Card>
         <Card className="dashboard-panel admin-refund-results">
           <div className="dashboard-panel-heading">
             <div>
-              <span className="content-label">HOÀN TIỀN DỊCH VỤ</span>
               <h3>Kết quả hoàn tiền</h3>
+              <p>Kết quả xử lý và yêu cầu mới trong tháng</p>
             </div>
-            <Link className="text-link" href="/admin/hoan-tien">
-              Quản lý ↗
+            <Link
+              className="dashboard-view-link"
+              href="/admin/hoan-tien"
+              aria-label="Quản lý hoàn tiền"
+            >
+              ↗
             </Link>
-          </div>
-          <div className="admin-result-money">
-            <span>Tiền đã hoàn thành công</span>
-            <strong>{money(data.refunds.completedAmount)}</strong>
           </div>
           <DashboardDonut
             rows={refunds}
@@ -90,33 +120,49 @@ export function AdminResults({ data }: { data: AdminSummary }) {
             format={String}
           />
           <p className="dashboard-caption">
-            Chỉ cộng số tiền đã hoàn thành công. Các yêu cầu mới được duyệt,
-            đang chuyển tiền hoặc thất bại vẫn cần tiếp tục xử lý.
+            Hoàn tất và từ chối tính theo ngày có kết quả; trạng thái khác theo
+            ngày gửi yêu cầu. Đã duyệt chưa đồng nghĩa với đã hoàn tiền.
           </p>
         </Card>
         <Card className="dashboard-panel admin-listing-results">
           <div className="dashboard-panel-heading">
             <div>
-              <span className="content-label">KIỂM DUYỆT NỘI DUNG</span>
-              <h3>Tin đã duyệt / từ chối</h3>
+              <h3>Kiểm duyệt tin đăng</h3>
+              <p>Theo ngày duyệt hoặc từ chối trong tháng</p>
             </div>
-            <Link className="text-link" href="/admin/tin-dang">
-              Quản lý ↗
+            <Link
+              className="dashboard-view-link"
+              href="/admin/tin-dang"
+              aria-label="Quản lý tin đăng"
+            >
+              ↗
             </Link>
           </div>
-          <div className="admin-result-counts">
-            <div className="admin-result-success">
-              <strong>{data.listings.approved}</strong>
-              <span>Tin từng được duyệt</span>
-            </div>
-            <div className="admin-result-danger">
-              <strong>{data.listings.rejected}</strong>
-              <span>Tin từng bị từ chối</span>
-            </div>
+          <div className="admin-review-totals">
+            <span>
+              <strong>{data.listings.approved}</strong> đã duyệt trong tháng
+            </span>
+            <span>
+              <strong>{data.listings.rejected}</strong> đã từ chối trong tháng
+            </span>
           </div>
+          <DashboardStatusBars
+            rows={[
+              {
+                label: "Đã duyệt",
+                amount: data.listings.approved,
+                color: "var(--primary)",
+              },
+              {
+                label: "Đã từ chối",
+                amount: data.listings.rejected,
+                color: "var(--chart-blue)",
+              },
+            ]}
+          />
           <p className="dashboard-caption">
-            Dựa trên lịch sử kiểm duyệt, mỗi tin tính một lần trong mỗi nhóm, kể
-            cả tin đã đóng. Tin bị từ chối rồi duyệt lại có thể thuộc cả hai
+            Mỗi tin tính một lần trong mỗi nhóm của tháng, kể cả tin đã đóng.
+            Tin được duyệt sau từ chối trong cùng tháng có thể thuộc cả hai
             nhóm.
           </p>
         </Card>
@@ -124,9 +170,14 @@ export function AdminResults({ data }: { data: AdminSummary }) {
           <div className="dashboard-panel-heading">
             <div>
               <h3>Báo cáo vi phạm</h3>
+              <p>Kết quả xử lý và báo cáo mới trong tháng</p>
             </div>
-            <Link className="text-link" href="/admin/bao-cao">
-              Quản lý ↗
+            <Link
+              className="dashboard-view-link"
+              href="/admin/bao-cao"
+              aria-label="Quản lý báo cáo vi phạm"
+            >
+              ↗
             </Link>
           </div>
           <DashboardDonut
@@ -136,11 +187,11 @@ export function AdminResults({ data }: { data: AdminSummary }) {
             format={String}
           />
           <p className="dashboard-caption">
-            Báo cáo đã xử lý vi phạm được tách riêng với báo cáo không đủ căn
-            cứ.
+            Kết quả theo ngày xử lý; báo cáo đang chờ theo ngày gửi trong tháng.
+            Đã xử lý vi phạm và không đủ căn cứ được thống kê riêng.
           </p>
         </Card>
       </div>
-    </section>
+    </div>
   );
 }

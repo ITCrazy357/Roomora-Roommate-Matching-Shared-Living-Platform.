@@ -29,6 +29,8 @@ import { FocusPanel } from "../focus-panel";
 import { ExpenseCorrectionForm } from "./expense-correction-form";
 import { PaymentForm } from "./payment-form";
 import { RepaymentPromiseForm, vietnamDate } from "./repayment-promise-form";
+import { BalanceCard } from "./balance-card";
+import { SupplierPaymentForm } from "./supplier-payment-form";
 
 interface FinanceData {
   expenses: ExpensePage;
@@ -62,6 +64,7 @@ export function HouseFinances({
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
   const [form, setForm] = useState<Expense | "new" | null>(null);
+  const [supplierExpense, setSupplierExpense] = useState<Expense | null>(null);
   const [transfer, setTransfer] = useState<Transfer | null>(null);
   const [promiseTransfer, setPromiseTransfer] = useState<Transfer | null>(null);
   const [cancelExpense, setCancelExpense] = useState<Expense | null>(null);
@@ -146,6 +149,7 @@ export function HouseFinances({
   }, [receipt]);
 
   function changed() {
+    setSupplierExpense(null);
     setForm(null);
     setShowCorrectionForm(false);
     setTransfer(null);
@@ -253,7 +257,19 @@ export function HouseFinances({
     data.unsettledCount > 0 &&
     data.balances.every(
       (row) =>
-        row.balance === 0 && row.pendingSent === 0 && row.pendingReceived === 0,
+        row.balance === 0 &&
+        row.pendingSent === 0 &&
+        row.pendingReceived === 0 &&
+        row.current.supplierTotal === row.current.supplierPaid,
+    );
+  const supplierPaymentUnavailable =
+    supplierExpense &&
+    data.expenses.items.some(
+      (expense) =>
+        expense.id === supplierExpense.id &&
+        (expense.status === "SETTLED" ||
+          expense.status === "CANCELLED" ||
+          expense.remainingAmount === 0),
     );
   return (
     <div className="house-stack finance-section">
@@ -330,6 +346,38 @@ export function HouseFinances({
           hoặc thay biên nhận. Khoản chi mới và điều chỉnh riêng sẽ bắt đầu đợt
           mới.
         </p>
+      )}
+      {data.balances.some(
+        (row) => row.current.supplierTotal > row.current.supplierPaid,
+      ) && (
+        <p className="finance-note">
+          Còn khoản chưa thanh toán đủ cho chủ phòng/người bán. Mở sổ khoản chi,
+          chọn Ghi trả thêm trước khi chốt quyết toán.
+        </p>
+      )}
+      {supplierPaymentUnavailable && (
+        <p className="finance-note" role="status">
+          Khoản chi đã thanh toán đủ, đã chốt hoặc đã hủy. Không còn lần trả
+          thêm cần ghi.
+        </p>
+      )}
+      {supplierExpense && active && !supplierPaymentUnavailable && (
+        <FocusPanel
+          className="card house-panel"
+          label="Ghi trả thêm"
+          focusKey={supplierExpense}
+        >
+          <SupplierPaymentForm
+            key={`${supplierExpense.id}:${supplierExpense.version}`}
+            houseId={houseId}
+            expense={supplierExpense}
+            onSaved={() => {
+              changed();
+              setNotice("Đã ghi thanh toán cho chủ phòng/người bán.");
+            }}
+            onCancel={() => setSupplierExpense(null)}
+          />
+        </FocusPanel>
       )}
       {showCorrectionForm && active && (
         <FocusPanel className="card house-panel" label="Điều chỉnh sau chốt">
@@ -477,6 +525,13 @@ export function HouseFinances({
                 · {item.createdBy.profile?.displayName ?? "Thành viên Roomora"}
               </strong>
               <p>{item.reason}</p>
+              {item.newSnapshot?.paidAmount !== undefined && (
+                <p className="text-muted">
+                  Đã thanh toán cho chủ phòng/người bán:{" "}
+                  {money(item.oldSnapshot?.paidAmount ?? 0)} →{" "}
+                  {money(item.newSnapshot.paidAmount)}
+                </p>
+              )}
               {item.action === "POST_SETTLEMENT_CORRECTION" && (
                 <p className="text-muted">
                   Nội dung điều chỉnh được ghi riêng; khoản gốc đã chốt được giữ
@@ -560,7 +615,7 @@ export function HouseFinances({
                     </span>
                     <h3>{expense.title}</h3>
                     <p className="text-muted">
-                      {expense.payer.displayName} đã trả ·{" "}
+                      {expense.payer.displayName} phụ trách thanh toán ·{" "}
                       {formatTime(expense.createdAt)}
                     </p>
                     <p className="text-muted">
@@ -575,6 +630,21 @@ export function HouseFinances({
                 {expense.description && (
                   <p className="house-preline">{expense.description}</p>
                 )}
+                <div className="expense-payment-progress">
+                  <span>
+                    Đã thanh toán: <strong>{money(expense.paidAmount)}</strong>
+                  </span>
+                  <span
+                    className={
+                      expense.remainingAmount > 0
+                        ? "text-danger"
+                        : "text-success-foreground"
+                    }
+                  >
+                    Còn phải trả:{" "}
+                    <strong>{money(expense.remainingAmount)}</strong>
+                  </span>
+                </div>
                 <p className="text-muted">
                   {expense.splitMode === "EQUAL"
                     ? "Chia đều"
@@ -629,6 +699,19 @@ export function HouseFinances({
                     expense.status !== "SETTLED" &&
                     (owner || expense.createdById === userId) && (
                       <>
+                        {expense.remainingAmount > 0 && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => {
+                              setSupplierExpense(expense);
+                              setForm(null);
+                              setCancelExpense(null);
+                              setShowCorrectionForm(false);
+                            }}
+                          >
+                            Ghi trả thêm
+                          </Button>
+                        )}
                         <Button
                           variant="secondary"
                           onClick={() => setForm(expense)}
@@ -785,70 +868,19 @@ export function HouseFinances({
       )}
       {mode === "balances" && (
         <>
+          <p className="text-muted">
+            Chỉ hiển thị đợt chưa chốt. Tiền thanh toán cho chủ phòng/người bán
+            và tiền trả nhau giữa thành viên được ghi riêng. Các đợt đã chốt
+            được giữ trong lịch sử.
+          </p>
           <div className="balance-grid">
             {data.balances.map((row) => (
-              <Card
-                className={`house-panel balance-card balance-${row.balance > 0 ? "receivable" : row.balance < 0 ? "debt" : "clear"}`}
+              <BalanceCard
                 key={row.id}
-              >
-                <div className="house-row">
-                  <strong>
-                    {row.displayName}
-                    {row.userId === userId && " (Bạn)"}
-                  </strong>
-                  <span className="badge">
-                    {row.isGuest
-                      ? "Không dùng app"
-                      : row.leftAt
-                        ? "Đã rời nhà"
-                        : row.userId === data.expenses.ownerId
-                          ? "Trưởng nhà"
-                          : "Thành viên"}
-                  </span>
-                </div>
-                <strong className="balance-amount">
-                  {row.balance > 0 ? "+" : row.balance < 0 ? "−" : ""}
-                  {money(Math.abs(row.balance))}
-                </strong>
-                <p>
-                  {row.balance > 0
-                    ? "Cần nhận lại"
-                    : row.balance < 0
-                      ? "Cần trả"
-                      : "Đã cân bằng"}
-                </p>
-                <dl>
-                  <div>
-                    <dt>Đã chi</dt>
-                    <dd>{money(row.paid)}</dd>
-                  </div>
-                  <div>
-                    <dt>Phần phải chịu</dt>
-                    <dd>{money(row.owed)}</dd>
-                  </div>
-                  <div>
-                    <dt>Đã trả / đã nhận</dt>
-                    <dd>
-                      {money(row.sent)} / {money(row.received)}
-                    </dd>
-                  </div>
-                </dl>
-                {(row.pendingSent > 0 || row.pendingReceived > 0) && (
-                  <p className="text-muted">
-                    Chờ xác nhận: trả {money(row.pendingSent)} · nhận{" "}
-                    {money(row.pendingReceived)}
-                  </p>
-                )}
-                {row.reminderPausedUntil && (
-                  <p className="text-muted">
-                    Tạm dừng email nhắc nợ đến hết{" "}
-                    {new Intl.DateTimeFormat("vi-VN", {
-                      timeZone: "Asia/Ho_Chi_Minh",
-                    }).format(new Date(row.reminderPausedUntil))}
-                    .
-                  </p>
-                )}
-              </Card>
+                balance={row}
+                userId={userId}
+                ownerId={data.expenses.ownerId}
+              />
             ))}
           </div>
           <Card className="house-panel">

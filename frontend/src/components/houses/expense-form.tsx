@@ -88,6 +88,13 @@ export function ExpenseForm({
     ),
   );
   const [reason, setReason] = useState("");
+  const [partialPayment, setPartialPayment] = useState(
+    !!expense && expense.paidAmount < expense.amount,
+  );
+  const [paidAmount, setPaidAmount] = useState(
+    String(expense?.paidAmount ?? 0),
+  );
+  const paymentHistoryLocked = (expense?.supplierPaymentCount ?? 0) > 0;
   const [receipt, setReceipt] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -159,6 +166,18 @@ export function ExpenseForm({
     }
     setPending(true);
     setError("");
+    const paid = paymentHistoryLocked
+      ? expense!.paidAmount
+      : partialPayment
+        ? Number(paidAmount)
+        : total;
+    if (!saved && (!Number.isInteger(paid) || paid < 0 || paid > total)) {
+      setError(
+        "Số đã thanh toán phải từ 0 đến tổng khoản chi, dùng số nguyên VNĐ.",
+      );
+      setPending(false);
+      return;
+    }
     try {
       let row = saved;
       if (!row) {
@@ -169,6 +188,7 @@ export function ExpenseForm({
           description: description.trim(),
           payerId,
           amount: total,
+          paidAmount: paid,
           splitMode: automatic ? "CUSTOM" : splitMode,
           ...(automatic
             ? { splits: automatic }
@@ -231,9 +251,9 @@ export function ExpenseForm({
       </h2>
       {recurringDraft && (
         <p className="finance-note">
-          Kiểm tra số tiền thực tế, người đã trả và danh sách chia trước khi xác
-          nhận. Người đã rời nhà được bỏ khỏi lựa chọn mặc định; khoản này chỉ
-          vào sổ sau khi bạn xác nhận.
+          Kiểm tra số tiền thực tế, người phụ trách thanh toán và danh sách chia
+          trước khi xác nhận. Người đã rời nhà được bỏ khỏi lựa chọn mặc định;
+          khoản này chỉ vào sổ sau khi bạn xác nhận.
         </p>
       )}
       {saved && (
@@ -289,7 +309,8 @@ export function ExpenseForm({
           />
           <Select
             id="expense-payer"
-            label="Người đã trả tiền"
+            label="Người phụ trách thanh toán"
+            disabled={paymentHistoryLocked}
             value={payerId}
             onChange={(event) => setPayerId(event.target.value)}
           >
@@ -302,6 +323,57 @@ export function ExpenseForm({
             ))}
           </Select>
         </div>
+        <Select
+          id="expense-payment-status"
+          label="Thanh toán cho chủ phòng/người bán"
+          value={
+            (
+              paymentHistoryLocked
+                ? expense!.paidAmount < total
+                : partialPayment
+            )
+              ? "PARTIAL"
+              : "FULL"
+          }
+          disabled={paymentHistoryLocked}
+          onChange={(event) =>
+            setPartialPayment(event.target.value === "PARTIAL")
+          }
+        >
+          <option value="FULL">Đã thanh toán đủ</option>
+          <option value="PARTIAL">Chưa thanh toán đủ</option>
+        </Select>
+        {(partialPayment || paymentHistoryLocked) && (
+          <>
+            <Input
+              id="expense-paid-amount"
+              label="Số đã thanh toán (VNĐ)"
+              type="number"
+              min={0}
+              max={total > 0 ? total : 0}
+              step={1}
+              required
+              readOnly={paymentHistoryLocked}
+              value={paymentHistoryLocked ? expense!.paidAmount : paidAmount}
+              onChange={(event) => setPaidAmount(event.target.value)}
+            />
+            <p className="text-muted">
+              Còn phải thanh toán:{" "}
+              {money(
+                Math.max(
+                  0,
+                  total -
+                    (paymentHistoryLocked
+                      ? expense!.paidAmount
+                      : Number(paidAmount) || 0),
+                ),
+              )}
+              .
+              {paymentHistoryLocked &&
+                " Dùng Ghi trả thêm để cập nhật các lần thanh toán tiếp theo."}
+            </p>
+          </>
+        )}
         <Textarea
           id="expense-description"
           label="Ghi chú (tùy chọn)"

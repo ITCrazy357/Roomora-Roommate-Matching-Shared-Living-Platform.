@@ -19,6 +19,7 @@ import { ExpenseRemindersService } from './expense-reminders.service.js';
 import { ExpensePromisesService } from './expense-promises.service.js';
 import { ExpenseCorrectionsService } from './expense-corrections.service.js';
 import { CostSharingModule } from '../cost-sharing/cost-sharing.module.js';
+import { ExpenseSupplierPaymentsService } from './expense-supplier-payments.service.js';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { CostSharingModule } from '../cost-sharing/cost-sharing.module.js';
     ExpenseRemindersService,
     ExpensePromisesService,
     ExpenseCorrectionsService,
+    ExpenseSupplierPaymentsService,
   ],
 })
 export class ExpensesModule {}

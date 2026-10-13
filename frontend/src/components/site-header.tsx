@@ -39,7 +39,11 @@ export function SiteHeader() {
   const isAdmin = user?.role === "ADMIN";
   const navigation = isAdmin ? [adminLinks[0]] : links;
   const menu = isAdmin
-    ? [...adminLinks, { href: "/admin/tai-khoan", label: "Bảo mật tài khoản" }]
+    ? [
+        { href: "/admin/tong-quan", label: "Tổng quan quản trị" },
+        ...adminLinks,
+        { href: "/admin/tai-khoan", label: "Bảo mật tài khoản" },
+      ]
     : userMenu;
   const updates = useUpdates();
   const [open, setOpen] = useState(false);

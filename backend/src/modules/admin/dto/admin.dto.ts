@@ -21,6 +21,13 @@ export class AdminPageQuery {
   @Type(() => Number) @IsInt() @Min(1) @Max(50) limit = 15;
 }
 
+export class AdminSummaryQuery {
+  @IsOptional()
+  @IsString()
+  @Matches(/^(20\d{2}|2100)-(0[1-9]|1[0-2])$/)
+  month?: string;
+}
+
 export class AdminUsersQuery extends AdminPageQuery {
   @IsOptional() @Transform(trim) @IsString() @MaxLength(120) search?: string;
   @IsOptional() @IsIn(['ACTIVE', 'LOCKED']) status?: 'ACTIVE' | 'LOCKED';

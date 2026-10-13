@@ -5,6 +5,7 @@ import { useAuth } from "../auth-provider";
 import {
   Button,
   ButtonLink,
+  Checkbox,
   EmptyState,
   ErrorState,
   Input,
@@ -152,6 +153,7 @@ export function ListingBrowser({
             id="search"
             label="Tìm kiếm tin đăng"
             name="search"
+            type="search"
             placeholder="Tên phòng hoặc khu vực…"
             maxLength={150}
           />
@@ -282,10 +284,7 @@ export function ListingBrowser({
               <fieldset className="listing-checkboxes">
                 <legend>Tiện ích</legend>
                 {Object.entries(amenities).map(([key, label]) => (
-                  <label key={key}>
-                    <input type="checkbox" name="amenities" value={key} />
-                    {label}
-                  </label>
+                  <Checkbox key={key} name="amenities" value={key} label={label} />
                 ))}
               </fieldset>
               <Button type="submit">Áp dụng bộ lọc</Button>

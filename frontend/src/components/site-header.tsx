@@ -10,6 +10,7 @@ import { ProfileIcon } from "./profile-icon";
 import { useUpdates } from "./communications/updates-provider";
 import { adminLinks } from "@/lib/admin";
 import { PersonAvatar } from "./person-avatar";
+import { ThemeToggle } from "./theme-toggle";
 
 const userMenu = [
   { href: "/tai-khoan/ho-so", label: "Hồ sơ của tôi" },
@@ -188,6 +189,7 @@ export function SiteHeader() {
             </>
           )}
         </nav>
+        <ThemeToggle />
         <button
           ref={toggle}
           type="button"

@@ -18,7 +18,7 @@ export default function Home() {
             bạn. So sánh chi phí, tiện ích và khu vực trước khi kết nối.
           </p>
           <div className="hero-actions">
-            <ButtonLink href="/tim-phong">Khám phá tin đăng</ButtonLink>
+            <ButtonLink href="/tim-phong" arrow>Khám phá tin đăng</ButtonLink>
             <ButtonLink href="/dang-tin" variant="secondary">
               Đăng tin
             </ButtonLink>

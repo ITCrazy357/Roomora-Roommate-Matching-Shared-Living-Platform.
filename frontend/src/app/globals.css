@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./theme.css";
+@import "./uiverse.css";
 
 .focus-panel {
   scroll-margin-block: 24px;
@@ -1489,7 +1490,7 @@ h3 {
   padding: 20px;
   border-radius: 12px;
   background: var(--primary-subtle);
-  color: var(--primary-hover);
+  color: var(--primary-foreground);
 }
 .error-state {
   background: var(--danger-soft);
@@ -1904,7 +1905,7 @@ h3 {
   padding: 8px 12px;
   border-radius: 999px;
   background: var(--primary-subtle);
-  color: var(--primary-hover);
+  color: var(--primary-foreground);
   font-size: 0.82rem;
 }
 @keyframes spin {

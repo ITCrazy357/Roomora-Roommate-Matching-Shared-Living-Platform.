@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingState,
   Select,
+  Switch,
 } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
 import { authErrorMessage } from "@/lib/auth-errors";
@@ -145,30 +146,24 @@ export function SettingsPanel() {
             <option value="PUBLIC">Công khai</option>
             <option value="PRIVATE">Riêng tư</option>
           </Select>
-          <label className="check-row">
-            <input
-              type="checkbox"
-              name="showBudget"
-              defaultChecked={profile.showBudget}
-            />
-            <span>Hiển thị khoảng ngân sách</span>
-          </label>
-          <label className="check-row">
-            <input
-              type="checkbox"
-              name="showDesiredAreas"
-              defaultChecked={profile.showDesiredAreas}
-            />
-            <span>Hiển thị khu vực mong muốn</span>
-          </label>
-          <label className="check-row">
-            <input
-              type="checkbox"
-              name="showLifestyle"
-              defaultChecked={profile.showLifestyle}
-            />
-            <span>Hiển thị thói quen sinh hoạt</span>
-          </label>
+          <Switch
+            name="showBudget"
+            label="Hiển thị khoảng ngân sách"
+            defaultChecked={profile.showBudget}
+            disabled={pending}
+          />
+          <Switch
+            name="showDesiredAreas"
+            label="Hiển thị khu vực mong muốn"
+            defaultChecked={profile.showDesiredAreas}
+            disabled={pending}
+          />
+          <Switch
+            name="showLifestyle"
+            label="Hiển thị thói quen sinh hoạt"
+            defaultChecked={profile.showLifestyle}
+            disabled={pending}
+          />
           {saved && <div className="success-state">Đã lưu quyền riêng tư.</div>}
           <Button type="submit" disabled={pending}>
             Lưu cài đặt

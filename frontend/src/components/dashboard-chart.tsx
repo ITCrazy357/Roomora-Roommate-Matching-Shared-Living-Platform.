@@ -82,8 +82,10 @@ export function DashboardChart({ option, rows, format, label, onSelect }: {
     resize.observe(element);
     observer.observe(element);
     motion.addEventListener("change", update);
+    const theme = new MutationObserver(update);
+    theme.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     return () => {
-      observer.disconnect(); resize.disconnect(); motion.removeEventListener("change", update);
+      observer.disconnect(); resize.disconnect(); theme.disconnect(); motion.removeEventListener("change", update);
       instance.current?.dispose(); instance.current = null;
     };
   }, []);

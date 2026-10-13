@@ -1,0 +1,207 @@
+/* Adapted from Uiverse. Sources and MIT notices: ../components/UI-LICENSES.md. */
+
+/* cssbuttons-io: a directional CTA with an expanding arrow plate. */
+.button-arrow-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--on-primary) 16%, transparent);
+}
+.button-arrow-icon svg { width: 18px; height: 18px; }
+.button-arrow:focus-visible .button-arrow-icon {
+  background: color-mix(in srgb, var(--on-primary) 25%, transparent);
+}
+
+/* satyamchaudharydev: inset search icon and a visible focus state. */
+.search-input { position: relative; min-width: 0; }
+.field .search-input input { padding-inline-start: 44px; }
+.search-input-icon {
+  position: absolute;
+  inset-inline-start: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.search-input-icon svg { width: 19px; height: 19px; }
+.search-input:focus-within .search-input-icon { color: var(--primary-foreground); }
+.field .search-input input:focus-visible {
+  border-color: var(--primary);
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Nawsome: diagonal fill, with a tick and the native checkbox kept focusable. */
+.ui-checkbox, .ui-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.ui-checkbox-control {
+  position: relative;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
+.ui-checkbox .ui-checkbox-control input,
+.ui-switch .ui-switch-control input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  min-height: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.ui-checkbox-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  pointer-events: none;
+}
+.ui-checkbox-box::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: var(--primary-action);
+  transform: translate(-100%, -100%) rotate(45deg);
+}
+.ui-checkbox-box svg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--on-primary);
+  stroke-width: 2.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+}
+.ui-checkbox-control input:checked + .ui-checkbox-box { border-color: var(--primary-action); }
+.ui-checkbox-control input:checked + .ui-checkbox-box::before { transform: translate(0, 0) rotate(45deg); }
+.ui-checkbox-control input:checked + .ui-checkbox-box svg { stroke-dashoffset: 0; }
+.ui-checkbox-control input:focus-visible + .ui-checkbox-box,
+.ui-switch-control input:focus-visible + .ui-switch-track {
+  outline: 3px solid var(--primary);
+  outline-offset: 4px;
+}
+.ui-checkbox:has(input:disabled), .ui-switch:has(input:disabled) { opacity: 0.55; cursor: not-allowed; }
+
+/* Subaashbala: coral/cream track with a sliding thumb. */
+.ui-switch-control {
+  position: relative;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 28px;
+}
+.ui-switch-track {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 28px;
+  background: var(--surface-muted);
+  pointer-events: none;
+}
+.ui-switch-track::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.ui-switch-control input:checked + .ui-switch-track { background: var(--primary-action); border-color: var(--primary-action); }
+.ui-switch-control input:checked + .ui-switch-track::before { background: var(--on-primary); transform: translateX(20px); }
+
+/* JkHuger: day/night track, reduced to a compact control without glow. */
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  flex: 0 0 60px;
+  min-height: 44px;
+  width: 60px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-control);
+}
+.theme-toggle-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 56px;
+  height: 30px;
+  border-radius: 30px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-muted);
+  color: var(--foreground);
+}
+.theme-toggle-track svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; z-index: 1; }
+.theme-sun { color: var(--on-primary); }
+.theme-toggle-thumb {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary-action);
+}
+.theme-toggle[aria-checked="true"] .theme-toggle-thumb { transform: translateX(26px); }
+.theme-toggle[aria-checked="true"] .theme-sun { color: var(--foreground); }
+.theme-toggle[aria-checked="true"] .theme-moon { color: var(--on-primary); }
+
+/* barisdogansutcu: SVG spinner with an expanding arc. */
+.ui-loader { width: 24px; height: 24px; flex-shrink: 0; color: var(--primary-foreground); }
+.ui-loader circle { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 80, 200; }
+@keyframes ui-loader-rotate { to { transform: rotate(360deg); } }
+@keyframes ui-loader-dash {
+  0% { stroke-dasharray: 1, 200; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 90, 200; stroke-dashoffset: -35; }
+  100% { stroke-dashoffset: -125; }
+}
+
+/* Keep the entire card still; keyboard navigation gets the same clear border. */
+.listing-card:focus-within, .person-card:focus-within { border-color: var(--primary); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ui-checkbox-box::before { transition: transform 180ms ease; }
+  .ui-checkbox-box svg { transition: stroke-dashoffset 160ms ease 60ms; }
+  .ui-switch-track, .ui-switch-track::before, .theme-toggle-thumb { transition: background-color 180ms ease, transform 180ms ease; }
+  .search-input-icon { transition: color 160ms ease; }
+  .button-arrow-icon { transition: transform 180ms ease, background-color 180ms ease; }
+  .ui-loader { animation: ui-loader-rotate 2s linear infinite; }
+  .ui-loader circle { animation: ui-loader-dash 1.5s ease-in-out infinite; }
+  @media (hover: hover) and (pointer: fine) {
+    .button-arrow:hover .button-arrow-icon { transform: translateX(3px); background: color-mix(in srgb, var(--on-primary) 25%, transparent); }
+  }
+}
+@media (forced-colors: active) {
+  .ui-checkbox .ui-checkbox-control input, .ui-switch .ui-switch-control input { opacity: 1; appearance: auto; }
+  .ui-checkbox-box, .ui-switch-track { display: none; }
+  .theme-toggle-thumb { background: Highlight; }
+}
+@media (max-width: 767px) {
+  .header-inner .theme-toggle { margin-inline-start: auto; }
+}
+@media (max-width: 359px) {
+  .header-inner .menu-toggle { padding-inline: 8px; }
+  .header-inner .menu-toggle > span:last-child { display: none; }
+  .header-inner .brand small { letter-spacing: 0; }
+}

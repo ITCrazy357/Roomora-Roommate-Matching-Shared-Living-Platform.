@@ -179,13 +179,13 @@ button.dashboard-metric {
   font-size: 0.65rem;
 }
 .dashboard-featured {
-  background: var(--foreground);
-  color: var(--on-primary);
-  border-color: var(--foreground);
+  background: var(--surface-inverse);
+  color: var(--on-inverse);
+  border-color: var(--surface-inverse);
 }
 .dashboard-featured .dashboard-metric-label,
 .dashboard-processed-note {
-  color: color-mix(in srgb, var(--on-primary) 80%, var(--foreground));
+  color: color-mix(in srgb, var(--on-inverse) 80%, var(--surface-inverse));
 }
 .admin-processed-summary {
   gap: 12px;
@@ -213,8 +213,8 @@ button.dashboard-metric {
   padding-top: 12px;
   background: transparent;
   border: 0;
-  border-top: 1px solid color-mix(in srgb, var(--on-primary) 20%, transparent);
-  color: var(--on-primary);
+  border-top: 1px solid color-mix(in srgb, var(--on-inverse) 20%, transparent);
+  color: var(--on-inverse);
   font-size: 0.7rem;
   cursor: pointer;
 }
@@ -582,10 +582,10 @@ button.dashboard-metric {
   gap: 16px;
 }
 .house-dashboard-metrics > .dashboard-featured strong {
-  color: var(--on-primary);
+  color: var(--on-inverse);
 }
 .house-dashboard-metrics .dashboard-featured > small {
-  color: color-mix(in srgb, var(--on-primary) 80%, var(--foreground));
+  color: color-mix(in srgb, var(--on-inverse) 80%, var(--surface-inverse));
 }
 .dashboard-quick-actions {
   display: flex;

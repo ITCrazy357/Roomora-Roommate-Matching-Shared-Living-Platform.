@@ -162,7 +162,7 @@
   gap: 14px;
 }
 .house-pending-summary > small {
-  color: color-mix(in srgb, var(--on-primary) 80%, var(--foreground));
+  color: color-mix(in srgb, var(--on-inverse) 80%, var(--surface-inverse));
 }
 .house-pending-summary .dashboard-featured-link {
   width: 100%;

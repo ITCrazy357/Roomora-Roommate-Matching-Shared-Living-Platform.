@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { Button, Input, Select, Textarea } from "../ui";
+import { Button, Checkbox, Input, Select, Textarea } from "../ui";
 import {
   amenities,
   listingTypes,
@@ -421,21 +421,19 @@ export function ListingEditorFields({
             {seekingRoom ? "Tiện ích mong muốn" : "Tiện ích có sẵn"}
           </legend>
           {Object.entries(amenities).map(([key, label]) => (
-            <label key={key}>
-              <input
-                type="checkbox"
-                checked={form.amenities.includes(key as Amenity)}
-                onChange={(event) =>
-                  change(
-                    "amenities",
-                    event.target.checked
-                      ? [...form.amenities, key as Amenity]
-                      : form.amenities.filter((item) => item !== key),
-                  )
-                }
-              />
-              {label}
-            </label>
+            <Checkbox
+              key={key}
+              label={label}
+              checked={form.amenities.includes(key as Amenity)}
+              onChange={(event) =>
+                change(
+                  "amenities",
+                  event.target.checked
+                    ? [...form.amenities, key as Amenity]
+                    : form.amenities.filter((item) => item !== key),
+                )
+              }
+            />
           ))}
         </fieldset>
         <div className="form-grid">

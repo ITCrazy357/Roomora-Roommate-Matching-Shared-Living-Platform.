@@ -6,9 +6,12 @@ import { AuthProvider } from "@/components/auth-provider";
 import { UpdatesProvider } from "@/components/communications/updates-provider";
 import { SystemBanner } from "@/components/admin/system-banner";
 import { AdminRouteGate } from "@/components/admin/admin-route-gate";
+import { ChatWidget } from "@/components/chat-widget";
+import { themeScript } from "@/lib/theme";
 import "./admin.css";
 import "./globals.css";
 import "./support.css";
+import "./chat-widget.css";
 import "leaflet/dist/leaflet.css";
 import "./profile-editor.css";
 import "./listings.css";
@@ -42,7 +45,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi" className={beVietnam.variable}>
+    <html lang="vi" className={beVietnam.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         <a className="skip-link" href="#main-content">
           Đi đến nội dung chính
@@ -55,6 +61,7 @@ export default function RootLayout({
               <AdminRouteGate>{children}</AdminRouteGate>
             </main>
             <SiteFooter />
+            <ChatWidget />
           </UpdatesProvider>
         </AuthProvider>
       </body>

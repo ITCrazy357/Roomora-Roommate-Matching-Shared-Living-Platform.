@@ -181,10 +181,16 @@ function TicketDetail({
   );
 }
 
-function Workspace({ admin }: { admin: boolean }) {
+function Workspace({
+  admin,
+  initialTicketId = "",
+}: {
+  admin: boolean;
+  initialTicketId?: string;
+}) {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(initialTicketId);
   const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState("");
@@ -355,13 +361,23 @@ function Workspace({ admin }: { admin: boolean }) {
     </section>
   );
 }
-export function SupportWorkspace({ admin = false }: { admin?: boolean }) {
+export function SupportWorkspace({
+  admin = false,
+  initialTicketId = "",
+}: {
+  admin?: boolean;
+  initialTicketId?: string;
+}) {
   return admin ? (
     <Workspace admin />
   ) : (
     <ListingAccess>
       <div className="container page-section">
-        <Workspace admin={false} />
+        <Workspace
+          key={initialTicketId || "list"}
+          admin={false}
+          initialTicketId={initialTicketId}
+        />
       </div>
     </ListingAccess>
   );

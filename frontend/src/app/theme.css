@@ -13,11 +13,13 @@
   --foreground: #211f1d;
   --surface: #ffffff;
   --surface-muted: #f1eee9;
+  --surface-inverse: #211f1d;
+  --on-inverse: #ffffff;
   --muted: #625750;
   --placeholder: #75685f;
   --border: #e2d8d0;
   --border-strong: #9d8c81;
-  --on-primary: var(--surface);
+  --on-primary: #ffffff;
   --primary-hover: color-mix(in srgb, var(--primary-action), black 10%);
   --primary-soft: color-mix(in srgb, var(--primary) 10%, var(--neutral));
   --primary-subtle: color-mix(in srgb, var(--primary) 5%, var(--neutral));
@@ -53,7 +55,7 @@
 
   --surface-overlay: color-mix(in srgb, var(--surface) 93%, transparent);
   --surface-overlay-border: color-mix(in srgb, var(--surface) 60%, transparent);
-  --image-overlay: color-mix(in srgb, var(--foreground) 78%, transparent);
+  --image-overlay: color-mix(in srgb, #211f1d 78%, transparent);
   --shadow-card: color-mix(in srgb, var(--primary) 6%, transparent);
   --shadow-elevated: color-mix(in srgb, var(--primary) 12%, transparent);
 
@@ -62,4 +64,31 @@
   --radius-media: 12px;
   --shadow-popup: 0 12px 32px
     color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --neutral: #1c1917;
+  --background: var(--neutral);
+  --foreground: #faf3eb;
+  --surface: #26211e;
+  --surface-muted: #322b26;
+  --surface-inverse: #322b26;
+  --muted: #c0afa3;
+  --placeholder: #ad9b8d;
+  --border: #504239;
+  --border-strong: #8f7b6c;
+  --primary-foreground: #f6a38c;
+  --secondary-foreground: #ffbf9f;
+  --danger: #fb7185;
+  --danger-foreground: #fda4af;
+  --danger-soft: #3a2027;
+  --success: #4ade80;
+  --success-foreground: #86efac;
+  --success-soft: #1c3024;
+  --warning: #facc15;
+  --warning-foreground: #fde68a;
+  --warning-soft: #342b19;
+  --info-foreground: #93c5fd;
+  --info-soft: #202d40;
 }

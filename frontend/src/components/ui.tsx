@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PasswordInput } from "./password-input";
 import { RoomoraFigure } from "./roomora-figure";
+import { ProfileIcon } from "./profile-icon";
 import type {
   ButtonHTMLAttributes,
   ComponentProps,
@@ -31,10 +32,22 @@ export function Button({
 export function ButtonLink({
   variant = "primary",
   className = "",
+  arrow = false,
+  children,
   ...props
-}: ComponentProps<typeof Link> & { variant?: Variant }) {
+}: ComponentProps<typeof Link> & { variant?: Variant; arrow?: boolean }) {
   return (
-    <Link className={`button button-${variant} ${className}`} {...props} />
+    <Link
+      className={`button button-${variant} ${arrow ? "button-arrow" : ""} ${className}`}
+      {...props}
+    >
+      {children}
+      {arrow && (
+        <span className="button-arrow-icon" aria-hidden="true">
+          <ProfileIcon name="arrow" />
+        </span>
+      )}
+    </Link>
   );
 }
 
@@ -79,6 +92,18 @@ export function Input({
           aria-invalid={error ? true : props["aria-invalid"]}
           aria-describedby={description || undefined}
         />
+      ) : props.type === "search" ? (
+        <div className="search-input">
+          <input
+            {...props}
+            id={id}
+            aria-invalid={error ? true : props["aria-invalid"]}
+            aria-describedby={description || undefined}
+          />
+          <span className="search-input-icon" aria-hidden="true">
+            <ProfileIcon name="search" />
+          </span>
+        </div>
       ) : (
         <input
           {...props}
@@ -148,10 +173,48 @@ export function Select({
   );
 }
 
+export function Checkbox({
+  label,
+  className = "",
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: string }) {
+  return (
+    <label className={`ui-checkbox ${className}`}>
+      <span className="ui-checkbox-control">
+        <input {...props} type="checkbox" />
+        <span className="ui-checkbox-box" aria-hidden="true">
+          <svg viewBox="0 0 20 20">
+            <path d="m4 10 4 4 8-8" />
+          </svg>
+        </span>
+      </span>
+      <span>{label}</span>
+    </label>
+  );
+}
+
+export function Switch({
+  label,
+  className = "",
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "role"> & { label: string }) {
+  return (
+    <label className={`ui-switch ${className}`}>
+      <span className="ui-switch-control">
+        <input {...props} type="checkbox" role="switch" />
+        <span className="ui-switch-track" aria-hidden="true" />
+      </span>
+      <span>{label}</span>
+    </label>
+  );
+}
+
 export function LoadingState({ message = "Đang tải…" }: { message?: string }) {
   return (
     <div className="status" role="status">
-      <span className="spinner" aria-hidden="true" />
+      <svg className="ui-loader" viewBox="25 25 50 50" aria-hidden="true">
+        <circle r="20" cy="50" cx="50" />
+      </svg>
       {message}
     </div>
   );

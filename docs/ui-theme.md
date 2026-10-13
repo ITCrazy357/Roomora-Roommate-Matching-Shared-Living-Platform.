@@ -44,6 +44,19 @@ Nền nhấn dùng kem hồng/cam nhạt.
   `--info-*` xanh dương dành cho thông tin hỗ trợ; nút thao tác vẫn giữ màu thương hiệu.
 - Giữ màu nhận diện của logo bên thứ ba, ví dụ logo Google.
 
+## Giao diện sáng và tối
+
+Nút trên header chuyển `data-theme` của thẻ `html` giữa `light` và `dark`.
+Mặc định sáng; lựa chọn lưu tại `roomora-theme` trong localStorage. Token tối
+được khai báo chung tại `theme.css`; mọi màn hình tiếp tục dùng semantic token.
+`--on-primary` luôn trắng, độc lập với `--surface`. Không dùng `--primary-hover`
+làm màu chữ; dùng `--primary-foreground` để chữ rõ trong cả hai chế độ.
+Thẻ dashboard nổi bật dùng cặp `--surface-inverse` / `--on-inverse`;
+không dùng `--foreground` làm nền của thẻ có chữ trắng.
+
+Các checkbox, switch, search input và loader thích nghi với theme và giảm
+chuyển động. Nguồn Uiverse, vị trí tích hợp và kiểm chứng tại `ui-uiverse.md`.
+
 `button-secondary` là nút viền trung tính cho hành động phụ. Tên variant chỉ
 thứ bậc hành động; điểm nhấn cam được dùng qua token `--secondary`.
 

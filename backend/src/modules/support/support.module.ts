@@ -7,10 +7,12 @@ import {
   SupportController,
 } from './support.controller.js';
 import { SupportService } from './support.service.js';
+import { ChatController, ChatRateGuard } from './chat.controller.js';
+import { ChatService } from './chat.service.js';
 
 @Module({
   imports: [PrismaModule, AuthModule],
-  controllers: [SupportController, AdminSupportController],
-  providers: [SupportService, AdminGuard],
+  controllers: [SupportController, AdminSupportController, ChatController],
+  providers: [SupportService, AdminGuard, ChatService, ChatRateGuard],
 })
 export class SupportModule {}

@@ -231,5 +231,12 @@ export function validateEnvironment(
     GEOAPIFY_API_KEY: optionalText('GEOAPIFY_API_KEY'),
     OPENAI_API_KEY: optionalText('OPENAI_API_KEY'),
     CHATBOT_MODEL: optionalText('CHATBOT_MODEL') ?? 'gpt-4o-mini',
+    AI_MODEL: optionalText('AI_MODEL') ?? 'gpt-4o-mini',
+    AI_MONTHLY_LIMIT: (() => {
+      const value = Number(config.AI_MONTHLY_LIMIT ?? 50);
+      if (!Number.isInteger(value) || value < 1 || value > 1000)
+        throw new Error('AI_MONTHLY_LIMIT phải là số nguyên từ 1 đến 1000');
+      return value;
+    })(),
   };
 }

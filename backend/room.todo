@@ -479,6 +479,18 @@ Nguyên tắc: người dùng kiểm tra trước khi lưu; AI không tự sửa
 
 Hoàn thành khi: AI giảm thao tác nhập liệu, kết quả có thể chỉnh sửa và các chức năng chính vẫn dùng được khi AI không khả dụng.
 
+Trạng thái 14/10/2026: Đã triển khai năm luồng trong module ai và các màn hình hiện có,
+giữ theme cam đỏ/kem. Gợi ý mô tả và bản nháp biên nhận có thể sửa/xác nhận trước khi
+điền form; không tự lưu, chia nợ hay xác nhận đã thanh toán. Tìm kiếm có preview bộ lọc,
+nêu điều kiện chưa hỗ trợ. Độ phù hợp và tóm tắt giữ điểm/số tiền do nghiệp vụ hiện có tính;
+AI chỉ chọn điểm cần chú ý từ dữ liệu được phép đọc. Hạn mức mặc định 50 lượt/user/tháng
+UTC+7 lưu trong PostgreSQL, chống vượt khi đồng thời và sau khởi động lại; có timeout/lỗi/hết lượt.
+Migration ai_assistance đã áp dụng local. 33 unit test, 80 HTTP/PostgreSQL qua (14 Phase 11);
+build/lint qua. Chromium kiểm tra session/DB thật, xem/sửa/áp dụng/lưu và fallback,
+28 bố cục 320/390/768/1366px không tràn ngang, không lỗi JavaScript.
+Provider trong kiểm thử được mô phỏng; OPENAI_API_KEY còn trống, chưa nghiệm thu AI thật.
+Chi tiết và giới hạn: ../PHASE_11_STATUS.md; src/modules/ai/README.md.
+
 13. Phase 12 — Hoàn thiện để triển khai và kiểm chứng tải
 
 Công việc:

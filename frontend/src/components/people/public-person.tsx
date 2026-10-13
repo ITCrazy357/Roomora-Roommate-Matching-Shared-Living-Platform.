@@ -5,6 +5,7 @@ import { Button, ButtonLink, ErrorState, LoadingState } from "../ui";
 import { apiFetch } from "@/lib/api";
 import { peopleError, type Person } from "@/lib/people";
 import { PersonDetails } from "./person-details";
+import { AiInsightPanel } from "../ai/ai-insight";
 
 export function PublicPerson({ userId }: { userId: string }) {
   const { user } = useAuth();
@@ -59,6 +60,12 @@ export function PublicPerson({ userId }: { userId: string }) {
           }
         />
       )}
+      {isCurrentResult &&
+        result.person &&
+        user?.role === "USER" &&
+        user.id !== userId && (
+          <AiInsightPanel key={requestKey} kind="matching" id={userId} />
+        )}
     </section>
   );
 }

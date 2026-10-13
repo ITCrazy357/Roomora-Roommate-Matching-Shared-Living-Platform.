@@ -16,6 +16,7 @@ import {
   type ListingType,
 } from "@/lib/listings";
 import { ListingEditorFields } from "./listing-editor-fields";
+import { ListingDescriptionAssistant } from "../ai/listing-description";
 import { DeleteListingDraft } from "./delete-listing-draft";
 import {
   emptyForm,
@@ -408,6 +409,13 @@ export function ListingEditor({
                 upload={upload}
                 removePhoto={removePhoto}
               />
+              {(step === 1 || step === 4) && (
+                <ListingDescriptionAssistant
+                  key={JSON.stringify(formInput(form))}
+                  form={form}
+                  onApply={(text) => change("description", text)}
+                />
+              )}
             </fieldset>
             {step === 4 && <div ref={feedback}>{messages}</div>}
             <div className="listing-editor-actions">

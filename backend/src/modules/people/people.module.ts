@@ -26,5 +26,6 @@ import { PeopleService } from './people.service.js';
     PeopleViewsService,
     PeopleAccessService,
   ],
+  exports: [PeopleDiscoveryService],
 })
 export class PeopleModule {}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../auth-provider";
 import {
   Button,
@@ -22,6 +22,8 @@ import {
   type ListingType,
 } from "@/lib/listings";
 import { ListingCard } from "./listing-card";
+import { SearchFiltersAssistant } from "../ai/search-filters";
+import type { SearchDraft } from "@/lib/ai";
 
 type Unit = { code: string; name: string };
 
@@ -33,6 +35,7 @@ export function ListingBrowser({
   initialType?: ListingType | "";
 }) {
   const { user } = useAuth();
+  const searchForm = useRef<HTMLFormElement>(null);
   const [query, setQuery] = useState(initialType ? `type=${initialType}` : "");
   const [type, setType] = useState<ListingType | "">(initialType);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -127,6 +130,45 @@ export function ListingBrowser({
     mine: "Tin đăng của tôi",
     saved: "Tin đã lưu",
   };
+  function applyAiFilters(filters: SearchDraft["filters"]) {
+    const params = new URLSearchParams();
+    for (const key of ["type", "provinceCode", "minRent", "maxRent"] as const) {
+      const value = filters[key];
+      if (value !== null) params.set(key, String(value));
+    }
+    if (filters.amenities.length)
+      params.set("amenities", filters.amenities.join(","));
+    searchForm.current?.reset();
+    for (const key of [
+      "search",
+      "minRent",
+      "maxRent",
+      "wardCode",
+      "sort",
+    ] as const) {
+      const control = searchForm.current?.elements.namedItem(key);
+      if (
+        control instanceof HTMLInputElement ||
+        control instanceof HTMLSelectElement
+      )
+        control.value = params.get(key) ?? (key === "sort" ? "newest" : "");
+    }
+    searchForm.current
+      ?.querySelectorAll<HTMLInputElement>('input[name="amenities"]')
+      .forEach((control) => {
+        control.checked = filters.amenities.includes(control.value);
+      });
+    setProvince(filters.provinceCode ?? "");
+    setWards([]);
+    setType((filters.type ?? "") as ListingType | "");
+    setPage(1);
+    setQuery(params.toString());
+    setFiltersOpen(true);
+    setRetry((value) => value + 1);
+    setNotice(
+      "Đã áp dụng bộ lọc đã kiểm tra. Những điều kiện chưa hỗ trợ chưa được áp dụng.",
+    );
+  }
   return (
     <section className="container page-section listings-page">
       <div className="listing-page-heading">
@@ -147,7 +189,13 @@ export function ListingBrowser({
           {notice}
         </p>
       )}
-      <form onSubmit={search} className="listing-search-form">
+      {mode === "explore" && user?.role === "USER" && (
+        <SearchFiltersAssistant
+          provinces={provinces}
+          onApply={applyAiFilters}
+        />
+      )}
+      <form ref={searchForm} onSubmit={search} className="listing-search-form">
         <div className="listing-search-bar">
           <Input
             id="search"
@@ -284,7 +332,12 @@ export function ListingBrowser({
               <fieldset className="listing-checkboxes">
                 <legend>Tiện ích</legend>
                 {Object.entries(amenities).map(([key, label]) => (
-                  <Checkbox key={key} name="amenities" value={key} label={label} />
+                  <Checkbox
+                    key={key}
+                    name="amenities"
+                    value={key}
+                    label={label}
+                  />
                 ))}
               </fieldset>
               <Button type="submit">Áp dụng bộ lọc</Button>

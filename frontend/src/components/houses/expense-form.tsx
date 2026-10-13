@@ -16,6 +16,7 @@ import {
 } from "@/lib/cost-sharing";
 import { useHouseholdData } from "./use-household-data";
 import { HouseholdPerson } from "./household-ui";
+import { ReceiptDraftAssistant } from "../ai/receipt-draft";
 
 export function ExpenseForm({
   houseId,
@@ -263,6 +264,19 @@ export function ExpenseForm({
       )}
       {error && <ErrorState message={error} />}
       <fieldset disabled={pending || !!saved}>
+        {!expense && !recurringDraft && (
+          <ReceiptDraftAssistant
+            houseId={houseId}
+            onApply={(draft) => {
+              setTitle(draft.title ?? "");
+              setAmount(draft.amount === null ? "" : String(draft.amount));
+              setSpentOn(draft.spentOn ?? vietnamDate());
+              setCategory((draft.category ?? "OTHER") as ExpenseCategory);
+              setPartialPayment(true);
+              setPaidAmount("0");
+            }}
+          />
+        )}
         <Input
           id="expense-title"
           label="Tên khoản chi"

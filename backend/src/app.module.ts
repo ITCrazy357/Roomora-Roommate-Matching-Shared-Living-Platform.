@@ -18,6 +18,7 @@ import { HouseholdModule } from './modules/household/household.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { SupportModule } from './modules/support/support.module.js';
+import { AiModule } from './modules/ai/ai.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -38,6 +39,7 @@ import { SupportModule } from './modules/support/support.module.js';
     AdminModule,
     BillingModule,
     SupportModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [

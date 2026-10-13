@@ -33,5 +33,6 @@ import { RecurringSchedulerService } from './recurring-scheduler.service.js';
     RecurringDraftsService,
     RecurringSchedulerService,
   ],
+  exports: [HouseReportsService],
 })
 export class HouseholdModule {}

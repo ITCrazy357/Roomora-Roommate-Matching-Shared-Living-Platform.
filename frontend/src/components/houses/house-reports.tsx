@@ -7,6 +7,7 @@ import { houseDate } from "@/lib/houses";
 import { Button, Card, ErrorState, Input, LoadingState } from "../ui";
 import { useHouseholdData } from "./use-household-data";
 import { vietnamDate } from "./repayment-promise-form";
+import { AiInsightPanel } from "../ai/ai-insight";
 import {
   HouseholdHero,
   HouseholdMetric,
@@ -220,6 +221,12 @@ export function HouseReports({ houseId }: { houseId: string }) {
       {!data && !loadError && <LoadingState />}
       {data && (
         <>
+          <AiInsightPanel
+            key={`${houseId}:${month}:${data.generatedAt}`}
+            kind="summary"
+            id={houseId}
+            month={month}
+          />
           <div className="household-metrics">
             <HouseholdMetric
               label="Tổng chi phí tháng"

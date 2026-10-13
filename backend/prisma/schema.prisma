@@ -216,9 +216,20 @@ model User {
   serviceOrders       ServiceOrder[]
   supportTickets      SupportTicket[]
   supportMessages     SupportMessage[]
+  aiUsage             AiUsage[]
 
   @@index([role, lockedAt, createdAt])
   @@map("users")
+}
+
+model AiUsage {
+  userId String @map("user_id") @db.Uuid
+  month  String @db.VarChar(7)
+  count  Int    @default(0)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, month])
+  @@map("ai_usage")
 }
 
 model Listing {

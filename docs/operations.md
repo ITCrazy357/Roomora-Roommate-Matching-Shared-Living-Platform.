@@ -1,13 +1,17 @@
 # Vận hành Roomora — Phase 12
 
 Chưa chọn nhà cung cấp hoặc domain. Bộ đóng gói này phục vụ một máy Docker,
-một API instance. Chưa có staging/production công khai hoặc phản hồi người dùng.
+một API instance theo mặc định. Redis chia sẻ rate limit và cache bản đồ giữa các
+API instance; việc tăng replica vẫn cần kiểm tra tổng pool và tải thực tế.
+Chưa có staging/production công khai hoặc phản hồi người dùng.
 Không suy ra sức tải production từ số liệu local trong `phase-12-status.md`.
 
 ## Kiểm tra trước khi đưa lên server
 
 `Roomora CI` chạy validate/generate/build Prisma, migrations trên PostgreSQL mới,
 lint/unit/HTTP tests, lint/API tests/build frontend và build cả ba Docker image.
+Redis test chạy trong service riêng; kiểm tra bộ đếm nguyên tử, TTL, cache và
+hai API dùng chung giới hạn qua HTTP. Xem [Redis](redis.md).
 CI chặn advisory mức high/critical ở dependencies production frontend và API runtime.
 Suite HTTP chạy lần lượt vì một số kiểm tra dashboard/queue dùng số liệu toàn database.
 `NODE_ENV=test` bỏ qua backend `.env`; truyền `DATABASE_URL`, `FRONTEND_ORIGIN`,
@@ -34,6 +38,8 @@ Image migrate riêng có Prisma CLI/schema/migrations; không chạy migration t
    đặt `DEPLOY_ENV=staging` hoặc `production`, domain, mật khẩu DB và OTP secret riêng.
    Giới hạn quyền đọc file cho tài khoản vận hành. `DATABASE_URL` dùng `postgres:5432`;
    percent-encode mật khẩu. Không đưa file cấu hình thật vào Git.
+   Đặt `REDIS_URL=redis://redis:6379/0`; Redis chỉ ở mạng riêng của Compose,
+   không publish cổng trên server. Dùng Redis riêng cho từng môi trường.
 3. Đặt `IMAGE_PREFIX=ghcr.io/<owner>/<repo>` (chữ thường) và `RELEASE=<commit SHA>`
    của CI đã qua. Đăng nhập GHCR trên server nếu package riêng tư.
 4. Cấu hình SMTP thật trước khi mời người dùng: đăng ký/quên mật khẩu cần OTP email.
@@ -60,13 +66,15 @@ staging/production dùng host và secrets riêng. Không chạy `down -v` trên 
 
 Để build local thay cho GHCR: giữ `IMAGE_PREFIX=roomora`, `RELEASE=local`, chạy
 `docker compose --env-file deploy/roomora.env -f compose.deploy.yml build` trước khi up.
-Migrate cần PostgreSQL healthy; API cần migrate thành công; proxy cần API/frontend healthy.
+Migrate cần PostgreSQL healthy; API cần migrate thành công và Redis healthy;
+proxy cần API/frontend healthy.
 Healthcheck báo lỗi nhưng Docker không tự restart container chỉ vì trạng thái unhealthy.
 
 ## Log, health và cảnh báo
 
-`/api/v1/health` là liveness, không phụ thuộc DB. `/api/v1/health/ready` chạy SELECT 1,
-trả 503 nếu DB lỗi. Dùng timeout 6 giây cho monitor ngoài để bao phủ query timeout 5 giây.
+`/api/v1/health` là liveness, không phụ thuộc DB/Redis. `/api/v1/health/ready` chạy
+SELECT 1 và PING Redis song song, trả 503 nếu DB hoặc Redis đã cấu hình bị lỗi.
+Dùng timeout 6 giây cho monitor ngoài để bao phủ query timeout 5 giây.
 Docker health dùng timeout 4 giây để phát hiện DB suy giảm sớm.
 
 API production ghi JSON stdout. HTTP log gồm requestId, method, route template,
@@ -90,10 +98,13 @@ backup quá 24 giờ; notification email tồn >15 phút hoặc `email_attempts 
 Chưa có dịch vụ nhận cảnh báo hoặc kiểm thử gửi cảnh báo thật.
 
 Email thông báo đã có queue PostgreSQL, lease/retry và `FOR UPDATE SKIP LOCKED`.
-Không thêm Redis để lặp lại hàng đợi hiện có. SMTP có thể gửi trùng nếu worker chết sau gửi
+Redis hiện chỉ phục vụ rate limit và cache tile. SMTP có thể gửi trùng nếu worker chết sau gửi
 nhưng trước ghi `emailSentAt`; queue không bảo đảm exactly-once ở nhà cung cấp mail.
 OCR/PDF/ảnh vẫn xử lý trong request; cần đo với ảnh/PDF thực tế trước khi quyết định queue.
-Một số rate limit đang in-memory, vì vậy bộ triển khai này chỉ chạy một API instance.
+Các rate limit từng nằm trong RAM (auth/OTP/Google, chatbot, avatar, hoàn tiền)
+đã dùng Redis. Giới hạn nghiệp vụ dựa trên lịch sử gửi/khoản chi/AI vẫn kiểm tra
+trong PostgreSQL. Redis mất kết nối: thao tác có rate limit trả 503; cache bỏ qua,
+readiness trả 503. Chi tiết dung lượng, TTL và phục hồi: [Redis](redis.md).
 
 ## Đo tải và truy vấn
 

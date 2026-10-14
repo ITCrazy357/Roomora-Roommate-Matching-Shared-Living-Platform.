@@ -5,10 +5,10 @@ NestJS 12, Prisma ORM 7.10, PostgreSQL 17, Node.js 22.23+ (Node 22 LTS).
 ## Cài đặt local (PowerShell)
 
 Tại thư mục gốc Roomora, tạo `.env` từ `.env.example` nếu chưa có và đặt
-`POSTGRES_PASSWORD`. Không ghi đè `.env` đang dùng. Khởi động PostgreSQL:
+`POSTGRES_PASSWORD`. Không ghi đè `.env` đang dùng. Khởi động PostgreSQL và Redis:
 
 ```powershell
-docker compose up -d postgres
+docker compose up -d postgres redis
 docker compose ps
 cd backend
 ```
@@ -17,6 +17,10 @@ Tạo `backend/.env` từ `backend/.env.example` nếu chưa có. `DATABASE_URL`
 cùng mật khẩu với `POSTGRES_PASSWORD`; percent-encode ký tự đặc biệt trong mật khẩu
 khi đưa vào URL. Backend chạy trên máy host nên dùng `127.0.0.1:5433`.
 Nếu sau này chạy backend trong cùng mạng Compose, dùng `postgres:5432`.
+Đặt `REDIS_URL=redis://127.0.0.1:6379/0` cho backend chạy trên host;
+Compose deploy dùng `redis://redis:6379/0`. Redis dùng cho rate limit và cache
+tile bản đồ. Production bắt buộc có Redis; development không cấu hình sẽ dùng
+rate limit trong RAM của từng tiến trình. Chi tiết: [Redis](../docs/redis.md).
 
 ```powershell
 npm ci
@@ -34,7 +38,8 @@ cookie phiên với `credentials: include`; CORS chỉ cho phép origin đã c�
 credentials. Không dùng wildcard origin cho API này.
 
 `GET /api/v1/health` kiểm tra ứng dụng. `GET /api/v1/health/ready` chạy `SELECT 1`
-qua PrismaService, trả 200 khi database hoạt động và 503 khi truy vấn lỗi.
+qua PrismaService và PING Redis nếu đã cấu hình; trả 503 nếu một dependency lỗi.
+Response có `redis: up | down | disabled`; liveness không truy vấn các dependency.
 Xem kết quả kiểm tra trong `../FOUNDATION_STATUS.md`.
 
 ## Cấu trúc Prisma

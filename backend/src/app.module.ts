@@ -20,6 +20,7 @@ import { AdminModule } from './modules/admin/admin.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { SupportModule } from './modules/support/support.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
+import { RedisModule } from './redis/redis.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,6 +30,7 @@ import { AiModule } from './modules/ai/ai.module.js';
       ignoreEnvFile: process.env.NODE_ENV === 'test',
       validate: validateEnvironment,
     }),
+    RedisModule,
     PrismaModule,
     HealthModule,
     AuthModule,

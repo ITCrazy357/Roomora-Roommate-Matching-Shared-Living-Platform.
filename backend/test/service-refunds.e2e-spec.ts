@@ -105,7 +105,7 @@ describe('Service refunds (HTTP and PostgreSQL)', () => {
   }
   beforeEach(async () => {
     await clear();
-    vi.spyOn(app.get(RefundRateGuard), 'canActivate').mockReturnValue(true);
+    vi.spyOn(app.get(RefundRateGuard), 'canActivate').mockResolvedValue(true);
     for (const key of [
       'MOMO_PARTNER_CODE',
       'MOMO_ACCESS_KEY',

@@ -8,6 +8,19 @@ x-api-environment: &api-environment
   TRUST_PROXY_HOPS: 1
 
 services:
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    # Private Compose network only. Never publish this port on the server.
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   postgres:
     image: postgres:17
     restart: unless-stopped
@@ -44,6 +57,8 @@ services:
     env_file: ${ROOMORA_ENV_FILE:-./deploy/roomora.env}
     environment: *api-environment
     depends_on:
+      redis:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     healthcheck:
@@ -94,6 +109,7 @@ services:
         condition: service_healthy
 
 volumes:
+  redis_data:
   postgres_data:
   caddy_data:
   caddy_config:

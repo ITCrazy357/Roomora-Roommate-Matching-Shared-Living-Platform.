@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { LocationMapsService } from './location-maps.service.js';
+import { RedisService } from '../../redis/redis.service.js';
 
 describe('Location map provider proxy', () => {
   const config = new ConfigService({
@@ -7,7 +8,10 @@ describe('Location map provider proxy', () => {
   });
   let service: LocationMapsService;
   beforeEach(() => {
-    service = new LocationMapsService(config);
+    service = new LocationMapsService(
+      config,
+      new RedisService(new ConfigService()),
+    );
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -65,8 +69,11 @@ describe('Location map provider proxy', () => {
     await expect(service.search('Hà Nội')).rejects.toMatchObject({
       response: { code: 'MAP_UNAVAILABLE' },
     });
-    expect(new LocationMapsService(new ConfigService()).available()).toBe(
-      false,
-    );
+    expect(
+      new LocationMapsService(
+        new ConfigService(),
+        new RedisService(new ConfigService()),
+      ).available(),
+    ).toBe(false);
   });
 });

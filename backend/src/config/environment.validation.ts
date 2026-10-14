@@ -219,9 +219,39 @@ export function validateEnvironment(
     throw new Error('AUTH_DEV_EXPOSE_LINKS không được bật ở production');
   }
 
+  const redisUrl = optionalText('REDIS_URL');
+  if (nodeEnv === 'production' && !redisUrl) {
+    throw new Error('REDIS_URL là bắt buộc ở production để chia sẻ rate limit');
+  }
+  if (redisUrl) {
+    let url: URL;
+    try {
+      url = new URL(redisUrl);
+    } catch {
+      throw new Error('REDIS_URL phải là URL redis:// hoặc rediss:// hợp lệ');
+    }
+    if (
+      !['redis:', 'rediss:'].includes(url.protocol) ||
+      !url.hostname ||
+      !/^\/(\d+)?$/.test(url.pathname || '/') ||
+      url.search ||
+      url.hash
+    ) {
+      throw new Error('REDIS_URL phải là URL redis:// hoặc rediss:// hợp lệ');
+    }
+  }
+  const redisPrefix = optionalText('REDIS_KEY_PREFIX') ?? 'roomora';
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(redisPrefix)) {
+    throw new Error(
+      'REDIS_KEY_PREFIX chỉ gồm chữ, số, _ hoặc -, tối đa 64 ký tự',
+    );
+  }
+
   return {
     ...config,
     NODE_ENV: nodeEnv,
+    REDIS_URL: redisUrl,
+    REDIS_KEY_PREFIX: redisPrefix,
     PORT: port,
     DATABASE_POOL_SIZE: integerInRange('DATABASE_POOL_SIZE', 10, 1, 100),
     DATABASE_SLOW_QUERY_MS: integerInRange(

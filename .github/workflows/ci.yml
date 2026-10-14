@@ -10,6 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
       postgres:
         image: postgres:17
         env:
@@ -22,6 +28,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       NODE_ENV: test
+      REDIS_TEST_URL: redis://localhost:6379/15
       DATABASE_URL: postgresql://roomora:ci-test-only@localhost:5432/roomora_ci?schema=public
       FRONTEND_ORIGIN: http://localhost:3000
       AUTH_DEV_EXPOSE_LINKS: "true"

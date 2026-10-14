@@ -44,7 +44,7 @@ export class GoogleAuthService {
   }
 
   async start(request: Request, response: Response, linkSessionId?: string) {
-    this.auth.checkRateLimit(`google:${request.ip}`, 30, STATE_TTL_MS);
+    await this.auth.checkRateLimit(`google:${request.ip}`, 30, STATE_TTL_MS);
     const state = randomToken();
     const browserToken = randomToken();
     const nonce = randomToken();
@@ -87,7 +87,7 @@ export class GoogleAuthService {
     response: Response,
     password: string,
   ) {
-    this.auth.checkRateLimit(
+    await this.auth.checkRateLimit(
       `google-link:${request.auth.userId}`,
       5,
       STATE_TTL_MS,

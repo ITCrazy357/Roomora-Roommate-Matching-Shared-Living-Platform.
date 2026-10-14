@@ -2,6 +2,9 @@ import { ProfileService } from './profile.service.js';
 import { LocationsService } from '../locations/locations.service.js';
 import type { CloudinaryService } from '../cloudinary/cloudinary.service.js';
 import type { PrismaService } from '../../database/prisma.service.js';
+import { ConfigService } from '@nestjs/config';
+import { RedisService } from '../../redis/redis.service.js';
+import { RateLimitService } from '../../redis/rate-limit.service.js';
 
 describe('Profile avatar consistency and location privacy', () => {
   const existing = {
@@ -45,6 +48,7 @@ describe('Profile avatar consistency and location privacy', () => {
       prisma as unknown as PrismaService,
       cloudinary as unknown as CloudinaryService,
       new LocationsService(),
+      new RateLimitService(new RedisService(new ConfigService())),
     );
     return { service, prisma, cloudinary };
   }

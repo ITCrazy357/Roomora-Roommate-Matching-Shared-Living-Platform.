@@ -9,6 +9,7 @@ import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
 import { AuthOtpService } from '../src/modules/auth/auth-otp.service.js';
 import { AuthSupportService } from '../src/modules/auth/auth-support.service.js';
+import { RateLimitService } from '../src/redis/rate-limit.service.js';
 import { MailService } from '../src/modules/auth/mail.service.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { hashToken, randomToken } from '../src/modules/auth/token.utils.js';
@@ -124,7 +125,7 @@ describe('OTP authentication (PostgreSQL e2e)', () => {
     const other = new AuthOtpService(
       prisma,
       app.get(ConfigService),
-      new AuthSupportService(app.get(ConfigService)),
+      new AuthSupportService(app.get(ConfigService), app.get(RateLimitService)),
       mail,
     );
     const wrong = { ...dto, code: dto.code === '000000' ? '000001' : '000000' };
@@ -201,7 +202,7 @@ describe('OTP authentication (PostgreSQL e2e)', () => {
     const second = new AuthOtpService(
       prisma,
       app.get(ConfigService),
-      new AuthSupportService(app.get(ConfigService)),
+      new AuthSupportService(app.get(ConfigService), app.get(RateLimitService)),
       mail,
     );
     const issued = await Promise.allSettled([

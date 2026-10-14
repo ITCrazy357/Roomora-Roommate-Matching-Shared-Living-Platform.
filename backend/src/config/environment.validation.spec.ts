@@ -1,5 +1,44 @@
 import { validateEnvironment } from './environment.validation.js';
 
+describe('Redis environment validation', () => {
+  const base = { FRONTEND_ORIGIN: 'http://localhost:3000' };
+  it('allows local memory only outside production', () => {
+    expect(validateEnvironment(base).REDIS_URL).toBeUndefined();
+    expect(() =>
+      validateEnvironment({
+        ...base,
+        NODE_ENV: 'production',
+        AUTH_OTP_SECRET: 'a'.repeat(64),
+      }),
+    ).toThrow('REDIS_URL');
+    expect(
+      validateEnvironment({
+        ...base,
+        REDIS_URL: 'rediss://user:password@redis.example.com:6379/0',
+      }).REDIS_KEY_PREFIX,
+    ).toBe('roomora');
+  });
+  it.each([
+    'http://localhost',
+    'redis://localhost/abc',
+    'redis://localhost/0?x=1',
+    'redis://localhost/0#secret',
+    'invalid',
+  ])('rejects invalid Redis URL %s', (REDIS_URL) => {
+    expect(() => validateEnvironment({ ...base, REDIS_URL })).toThrow(
+      'REDIS_URL',
+    );
+  });
+  it.each(['roomora:other', '{unsafe}', 'space here', 'a'.repeat(65)])(
+    'rejects invalid key prefix %s',
+    (REDIS_KEY_PREFIX) => {
+      expect(() => validateEnvironment({ ...base, REDIS_KEY_PREFIX })).toThrow(
+        'REDIS_KEY_PREFIX',
+      );
+    },
+  );
+});
+
 describe('Database operational limits', () => {
   const base = { FRONTEND_ORIGIN: 'http://localhost:3000' };
   it.each(['0', '-1', '1.5', 'abc', '101'])(
@@ -96,6 +135,7 @@ describe('Google environment validation', () => {
         ...base,
         NODE_ENV: 'production',
         AUTH_OTP_SECRET: 'a'.repeat(64),
+        REDIS_URL: 'redis://localhost:6379/0',
       }).AUTH_OTP_SECRET,
     ).toBe('a'.repeat(64));
   });

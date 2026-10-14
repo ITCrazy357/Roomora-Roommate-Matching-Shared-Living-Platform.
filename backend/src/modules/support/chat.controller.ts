@@ -3,7 +3,6 @@ import {
   CanActivate,
   Controller,
   ExecutionContext,
-  HttpException,
   HttpCode,
   Injectable,
   Post,
@@ -14,6 +13,7 @@ import { Transform } from 'class-transformer';
 import { IsString, MaxLength, MinLength } from 'class-validator';
 import { clientIp } from '../../common/request-context.js';
 import { ChatService } from './chat.service.js';
+import { RateLimitService } from '../../redis/rate-limit.service.js';
 
 export class ChatQuestionDto {
   @Transform(({ value }: { value: unknown }) =>
@@ -27,34 +27,14 @@ export class ChatQuestionDto {
 
 @Injectable()
 export class ChatRateGuard implements CanActivate {
-  private readonly buckets = new Map<
-    string,
-    { count: number; expiresAt: number }
-  >();
+  constructor(private readonly rates: RateLimitService) {}
 
-  canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext) {
     const key = clientIp(context.switchToHttp().getRequest<Request>());
-    const now = Date.now();
-    for (const [id, bucket] of this.buckets)
-      if (bucket.expiresAt <= now) this.buckets.delete(id);
-    const bucket = this.buckets.get(key) ?? {
-      count: 0,
-      expiresAt: now + 60000,
-    };
-    if (
-      bucket.count >= 20 ||
-      (!this.buckets.has(key) && this.buckets.size >= 10000)
-    ) {
-      throw new HttpException(
-        {
-          code: 'CHAT_RATE_LIMITED',
-          message: 'Bạn gửi câu hỏi quá nhanh. Vui lòng thử lại sau một phút.',
-        },
-        429,
-      );
-    }
-    bucket.count += 1;
-    this.buckets.set(key, bucket);
+    await this.rates.check(`chat:${key}`, 20, 60000, {
+      code: 'CHAT_RATE_LIMITED',
+      message: 'Bạn gửi câu hỏi quá nhanh. Vui lòng thử lại sau một phút.',
+    });
     return true;
   }
 }

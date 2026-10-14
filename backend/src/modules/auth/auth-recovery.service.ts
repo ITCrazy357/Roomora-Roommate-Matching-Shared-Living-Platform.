@@ -64,7 +64,7 @@ export class AuthRecoveryService {
     dto: ResetPasswordDto,
     request: Request,
   ): Promise<{ message: string }> {
-    this.support.checkRateLimit(
+    await this.support.checkRateLimit(
       `password-reset:${request.ip}`,
       20,
       15 * 60 * 1000,

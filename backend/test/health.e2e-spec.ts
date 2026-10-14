@@ -3,16 +3,21 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { HealthModule } from '../src/modules/health/health.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { RedisService } from '../src/redis/redis.service.js';
 
 describe('Health HTTP contract', () => {
   let app: INestApplication;
   const query = vi.fn();
+  const redisStatus = vi.fn();
 
   beforeEach(async () => {
     query.mockReset().mockResolvedValue([{ '?column?': 1 }]);
+    redisStatus.mockReset().mockResolvedValue('disabled');
     const module = await Test.createTestingModule({ imports: [HealthModule] })
       .overrideProvider(PrismaService)
       .useValue({ $queryRaw: query })
+      .overrideProvider(RedisService)
+      .useValue({ status: redisStatus })
       .compile();
     app = module.createNestApplication();
     app.setGlobalPrefix('api/v1');
@@ -30,6 +35,7 @@ describe('Health HTTP contract', () => {
       .expect(200)
       .expect('Cache-Control', 'no-store');
     expect(query).not.toHaveBeenCalled();
+    expect(redisStatus).not.toHaveBeenCalled();
   });
 
   it('executes SELECT 1 before reporting ready', async () => {
@@ -54,8 +60,26 @@ describe('Health HTTP contract', () => {
       status: 'error',
       service: 'roomora-api',
       database: 'down',
+      redis: 'disabled',
       timestamp: expect.any(String),
     });
     expect(response.text).not.toMatch(/private|secret|internal|postgresql/);
+  });
+
+  it('checks Redis before ready and returns 503 if configured Redis is down', async () => {
+    redisStatus.mockResolvedValue('up');
+    const healthy = await request(app.getHttpServer())
+      .get('/api/v1/health/ready')
+      .expect(200);
+    expect(healthy.body.redis).toBe('up');
+    redisStatus.mockResolvedValue('down');
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/health/ready')
+      .expect(503);
+    expect(response.body).toMatchObject({
+      status: 'error',
+      database: 'up',
+      redis: 'down',
+    });
   });
 });

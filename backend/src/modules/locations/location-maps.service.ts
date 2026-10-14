@@ -4,6 +4,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { RedisService } from '../../redis/redis.service.js';
 
 interface Place {
   formatted?: string;
@@ -19,7 +20,10 @@ export class LocationMapsService {
     { data: Buffer; expiresAt: number }
   >();
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly redis: RedisService,
+  ) {}
 
   available() {
     return Boolean(this.config.get<string>('GEOAPIFY_API_KEY')?.trim());
@@ -77,6 +81,11 @@ export class LocationMapsService {
     const path = `${z}/${x}/${y}${retina ? '@2x' : ''}.png`;
     const cached = this.tiles.get(path);
     if (cached && cached.expiresAt > Date.now()) return cached.data;
+    const shared = await this.redis.getTile(path);
+    if (shared) {
+      // Do not extend the shared TTL in a local cache on another instance.
+      return shared;
+    }
     try {
       const response = await this.request(
         new URL(`https://maps.geoapify.com/v1/tile/osm-carto/${path}`),
@@ -88,6 +97,7 @@ export class LocationMapsService {
       if (this.tiles.size >= 128)
         this.tiles.delete(this.tiles.keys().next().value!);
       this.tiles.set(path, { data, expiresAt: Date.now() + 300000 });
+      await this.redis.setTile(path, data);
       return data;
     } catch {
       throw new ServiceUnavailableException({ code: 'MAP_UNAVAILABLE' });

@@ -1,18 +1,15 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
-interface RateBucket {
-  attempts: number;
-  resetAt: number;
-}
+import { RateLimitService } from '../../redis/rate-limit.service.js';
 
 @Injectable()
 export class AuthSupportService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly rates: RateLimitService,
+  ) {}
 
   private readonly logger = new Logger('AuthService');
-
-  private readonly rateBuckets = new Map<string, RateBucket>();
 
   serializeUser(user: {
     id: string;
@@ -38,29 +35,8 @@ export class AuthSupportService {
     };
   }
 
-  checkRateLimit(key: string, limit: number, windowMs: number): void {
-    const now = Date.now();
-    // Dọn trước khi thêm key mới; nhánh return bên dưới không được bỏ qua bước này.
-    if (this.rateBuckets.size > 10_000) {
-      for (const [bucketKey, bucket] of this.rateBuckets) {
-        if (bucket.resetAt <= now) this.rateBuckets.delete(bucketKey);
-      }
-    }
-    const existing = this.rateBuckets.get(key);
-    if (!existing || existing.resetAt <= now) {
-      this.rateBuckets.set(key, { attempts: 1, resetAt: now + windowMs });
-      return;
-    }
-    if (existing.attempts >= limit) {
-      throw new HttpException(
-        {
-          code: 'RATE_LIMITED',
-          message: 'Bạn đã thử quá nhiều lần. Vui lòng chờ rồi thử lại.',
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-    existing.attempts += 1;
+  checkRateLimit(key: string, limit: number, windowMs: number): Promise<void> {
+    return this.rates.check(`auth:${key}`, limit, windowMs);
   }
 
   isUniqueConstraint(error: unknown): boolean {

@@ -1,8 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  HttpException,
-  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,39 +11,22 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service.js';
 import { LocationsService } from '../locations/locations.service.js';
 import type { DesiredLocation } from '../locations/locations.service.js';
 import { publicProfile } from './public-profile.js';
+import { RateLimitService } from '../../redis/rate-limit.service.js';
 
 @Injectable()
 export class ProfileService {
-  private readonly avatarAttempts = new Map<
-    string,
-    { count: number; resetAt: number }
-  >();
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinary: CloudinaryService,
     private readonly locations: LocationsService,
+    private readonly rates: RateLimitService,
   ) {}
 
   async uploadAvatar(userId: string, file: Express.Multer.File) {
-    const now = Date.now();
-    for (const [key, entry] of this.avatarAttempts)
-      if (entry.resetAt <= now) this.avatarAttempts.delete(key);
-    const attempts = this.avatarAttempts.get(userId) ?? {
-      count: 0,
-      resetAt: now + 10 * 60_000,
-    };
-    if (attempts.count >= 10 || this.avatarAttempts.size >= 10_000) {
-      throw new HttpException(
-        {
-          code: 'RATE_LIMITED',
-          message: 'Vui lòng chờ trước khi tải ảnh tiếp',
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-    attempts.count++;
-    this.avatarAttempts.set(userId, attempts);
+    await this.rates.check(`avatar:${userId}`, 10, 10 * 60_000, {
+      code: 'RATE_LIMITED',
+      message: 'Vui lòng chờ trước khi tải ảnh tiếp',
+    });
     const existing = await this.prisma.profile.findUnique({
       where: { userId },
     });

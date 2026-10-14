@@ -25,7 +25,11 @@ export class AuthAccountsService {
   ) {}
 
   async register(dto: RegisterDto, request: Request) {
-    this.support.checkRateLimit(`register:${request.ip}`, 5, 60 * 60 * 1000);
+    await this.support.checkRateLimit(
+      `register:${request.ip}`,
+      5,
+      60 * 60 * 1000,
+    );
     const passwordHash = await this.passwords.hash(dto.password);
 
     let user;
@@ -62,8 +66,12 @@ export class AuthAccountsService {
   }
 
   async login(dto: LoginDto, request: Request, response: Response) {
-    this.support.checkRateLimit(`login:${request.ip}`, 50, 15 * 60 * 1000);
-    this.support.checkRateLimit(
+    await this.support.checkRateLimit(
+      `login:${request.ip}`,
+      50,
+      15 * 60 * 1000,
+    );
+    await this.support.checkRateLimit(
       `login:${request.ip}:${dto.email}`,
       10,
       15 * 60 * 1000,

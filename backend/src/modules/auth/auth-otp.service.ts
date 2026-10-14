@@ -70,7 +70,7 @@ export class AuthOtpService {
     registration = false,
   ) {
     if (!registration)
-      this.support.checkRateLimit(
+      await this.support.checkRateLimit(
         `otp-send:${type}:${request.ip}`,
         20,
         SEND_WINDOW_MS,
@@ -167,7 +167,7 @@ export class AuthOtpService {
     request: Request,
     action: (transaction: Prisma.TransactionClient, user: User) => Promise<T>,
   ): Promise<T> {
-    this.support.checkRateLimit(
+    await this.support.checkRateLimit(
       `otp-confirm:${request.ip}`,
       60,
       15 * 60 * 1000,

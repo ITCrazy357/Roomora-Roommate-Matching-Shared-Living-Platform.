@@ -1,5 +1,8 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { RefundRateGuard } from './refund-rate.guard.js';
+import { ConfigService } from '@nestjs/config';
+import { RedisService } from '../../redis/redis.service.js';
+import { RateLimitService } from '../../redis/rate-limit.service.js';
 
 describe('Refund mutation rate limit', () => {
   const context = (role: string) =>
@@ -8,17 +11,19 @@ describe('Refund mutation rate limit', () => {
         getRequest: () => ({ auth: { userId: role, role } }),
       }),
     }) as unknown as ExecutionContext;
-  it('limits user mutations, keeps admin capacity independent, and resets after one minute', () => {
-    const guard = new RefundRateGuard();
+  it('limits user mutations, keeps admin capacity independent, and resets after one minute', async () => {
+    const guard = new RefundRateGuard(
+      new RateLimitService(new RedisService(new ConfigService())),
+    );
     const clock = vi.spyOn(Date, 'now').mockReturnValue(1000);
     for (let i = 0; i < 20; i++)
-      expect(guard.canActivate(context('USER'))).toBe(true);
-    expect(() => guard.canActivate(context('USER'))).toThrow();
+      expect(await guard.canActivate(context('USER'))).toBe(true);
+    await expect(guard.canActivate(context('USER'))).rejects.toThrow();
     for (let i = 0; i < 60; i++)
-      expect(guard.canActivate(context('ADMIN'))).toBe(true);
-    expect(() => guard.canActivate(context('ADMIN'))).toThrow();
+      expect(await guard.canActivate(context('ADMIN'))).toBe(true);
+    await expect(guard.canActivate(context('ADMIN'))).rejects.toThrow();
     clock.mockReturnValue(61000);
-    expect(guard.canActivate(context('USER'))).toBe(true);
+    expect(await guard.canActivate(context('USER'))).toBe(true);
     clock.mockRestore();
   });
 });

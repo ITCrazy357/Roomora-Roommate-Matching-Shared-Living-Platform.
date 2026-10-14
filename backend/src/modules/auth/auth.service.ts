@@ -74,7 +74,7 @@ export class AuthService {
     return this.support.serializeUser(user);
   }
 
-  checkRateLimit(key: string, limit: number, windowMs: number): void {
+  checkRateLimit(key: string, limit: number, windowMs: number): Promise<void> {
     return this.support.checkRateLimit(key, limit, windowMs);
   }
 

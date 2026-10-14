@@ -81,3 +81,11 @@ jobs:
       - run: docker run --rm --entrypoint npm roomora-api:ci audit --omit=dev --omit=peer --audit-level=high
       - run: docker build --target migrate -t roomora-migrate:ci backend
       - run: docker build -t roomora-frontend:ci frontend
+      - name: Validate release image tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          image_prefix="$(bash scripts/image-prefix.sh)"
+          for service in api migrate frontend; do
+            docker tag "roomora-$service:ci" "$image_prefix-$service:$GITHUB_SHA"
+          done

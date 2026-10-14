@@ -36,9 +36,16 @@ export class RateLimitService {
       }
     } else {
       const now = Date.now();
-      for (const [id, bucket] of this.buckets)
-        if (bucket.resetAt <= now) this.buckets.delete(id);
-      const bucket = this.buckets.get(key);
+      let bucket = this.buckets.get(key);
+      if (bucket && bucket.resetAt <= now) {
+        this.buckets.delete(key);
+        bucket = undefined;
+      }
+      // Reclaim expired slots only when a new key reaches capacity.
+      if (!bucket && this.buckets.size >= 10000) {
+        for (const [id, entry] of this.buckets)
+          if (entry.resetAt <= now) this.buckets.delete(id);
+      }
       allowed = bucket ? bucket.count < limit : this.buckets.size < 10000;
       if (allowed) {
         this.buckets.set(key, {

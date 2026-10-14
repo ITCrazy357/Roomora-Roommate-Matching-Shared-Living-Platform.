@@ -39,7 +39,8 @@ describe.skipIf(!process.env.REDIS_TEST_URL)(
         app.useGlobalPipes(
           new ValidationPipe({ whitelist: true, transform: true }),
         );
-        await app.init();
+        // Keep each server open throughout concurrent Supertest requests.
+        await app.listen(0, '127.0.0.1');
       }
     });
     afterAll(async () => {

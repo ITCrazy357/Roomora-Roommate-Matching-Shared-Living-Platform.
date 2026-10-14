@@ -20,7 +20,9 @@ Không dùng database chứa dữ liệu ứng dụng để chạy bộ kiểm t
 
 Sau CI thành công cho push lên `main`, `Roomora images` checkout đúng commit đã
 kiểm thử và xuất API/migrate/frontend lên GHCR với tag SHA. Không đẩy tag `latest`.
-Workflow mới chỉ được kiểm chứng trong checkout local; cần push để nghiệm thu trên GitHub.
+Bản sửa CI/CD cần push để kiểm chứng lại trên GitHub: CI trước đó lỗi lockfile
+do optional peer TypeScript của `vite-tsconfig-paths`; CD lỗi tag vì tên repo có dấu chấm cuối.
+Vitest dùng hỗ trợ tsconfig có sẵn của Vite; CI kiểm tra tag Docker trước khi phát hành.
 Triển khai lên server chưa tự động hóa vì chưa có đích triển khai.
 
 Font frontend được đóng gói local, giữ Be Vietnam Pro 400/500/600/700, giấy phép OFL.
@@ -40,8 +42,10 @@ Image migrate riêng có Prisma CLI/schema/migrations; không chạy migration t
    percent-encode mật khẩu. Không đưa file cấu hình thật vào Git.
    Đặt `REDIS_URL=redis://redis:6379/0`; Redis chỉ ở mạng riêng của Compose,
    không publish cổng trên server. Dùng Redis riêng cho từng môi trường.
-3. Đặt `IMAGE_PREFIX=ghcr.io/<owner>/<repo>` (chữ thường) và `RELEASE=<commit SHA>`
+3. Đặt `IMAGE_PREFIX` theo dòng `Image prefix:` trong log workflow phát hành và `RELEASE=<commit SHA>`
    của CI đã qua. Đăng nhập GHCR trên server nếu package riêng tư.
+   Workflow chuẩn hóa tên repo thành slug Docker (chữ thường, ngăn cách bằng dấu gạch ngang).
+   Với repo hiện tại: `ghcr.io/itcrazy357/roomora-roommate-matching-shared-living-platform`.
 4. Cấu hình SMTP thật trước khi mời người dùng: đăng ký/quên mật khẩu cần OTP email.
    Cấu hình Cloudinary, Geoapify, Google và AI nếu sử dụng. Staging dùng credentials
    riêng. PayOS là giao dịch thật, không phải sandbox; không đưa keys production vào test.

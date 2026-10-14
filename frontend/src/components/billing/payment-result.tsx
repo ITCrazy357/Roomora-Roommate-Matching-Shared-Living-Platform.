@@ -74,9 +74,13 @@ function ResultContent({ orderId }: { orderId: string }) {
             </p>
             <p>
               {order.status === "PAID"
-                ? order.boost
-                  ? "Quyền lợi đã được cấp. Xem thời hạn và tải biên nhận trong lịch sử."
-                  : "Đã nhận thanh toán nhưng tin không còn đủ điều kiện. Yêu cầu hoàn tiền đã được tạo để kiểm tra."
+                ? order.aiPack
+                  ? order.aiPack.revokedAt
+                    ? "Gói AI đã được thu hồi sau khi hoàn tiền."
+                    : `Đã cộng ${order.aiPack.credits} lượt AI vào tài khoản. Lượt không hết hạn; xem số lượt còn lại trong Dịch vụ của tôi.`
+                  : order.boost
+                    ? "Quyền lợi đã được cấp. Xem thời hạn và tải biên nhận trong lịch sử."
+                    : "Đã nhận thanh toán nhưng chưa cấp được quyền lợi. Yêu cầu hoàn tiền đã được tạo để kiểm tra."
                 : order.status === "PENDING"
                   ? "Đang chờ xác nhận từ cổng thanh toán. Bạn có thể quay về lịch sử; hệ thống tiếp tục tiếp nhận kết quả khi bạn đóng trang."
                   : "Chưa ghi nhận thanh toán thành công. Kiểm tra lịch sử trước khi tạo đơn mới."}
@@ -88,8 +92,16 @@ function ResultContent({ orderId }: { orderId: string }) {
               Kiểm tra lại
             </Button>
             {order.status === "CANCELLED" && (
-              <ButtonLink href={`/dich-vu?listing=${order.listingId}`}>
-                Chọn tin & tạo thanh toán mới
+              <ButtonLink
+                href={
+                  order.listingId
+                    ? `/dich-vu?listing=${order.listingId}`
+                    : "/dich-vu#goi-ai"
+                }
+              >
+                {order.listingId
+                  ? "Chọn tin & tạo thanh toán mới"
+                  : "Chọn gói AI & tạo thanh toán mới"}
               </ButtonLink>
             )}
           </>

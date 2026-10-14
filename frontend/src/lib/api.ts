@@ -19,6 +19,17 @@ export class ApiError extends Error {
 
 type ApiOptions = RequestInit & { timeoutMs?: number };
 
+export function isTemporaryApiError(error: unknown) {
+  return (
+    error instanceof ApiError &&
+    (error.kind === "network" ||
+      error.kind === "timeout" ||
+      error.kind === "response" ||
+      (error.kind === "http" &&
+        (error.status === 429 || (error.status ?? 0) >= 500)))
+  );
+}
+
 export function apiUrl(path: string): string {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (!baseUrl) throw new ApiError("Chưa cấu hình địa chỉ API.", "config");

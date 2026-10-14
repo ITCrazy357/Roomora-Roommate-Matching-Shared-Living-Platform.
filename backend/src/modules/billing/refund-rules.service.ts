@@ -14,6 +14,7 @@ import type {
   ServiceRefundSource,
 } from '../../generated/prisma/client.js';
 import { NotificationsService } from '../communications/notifications.service.js';
+import { aiCreditPlan } from '../ai-credits/ai-credits.service.js';
 
 export const REFUND_WINDOW_MS = 24 * 60 * 60 * 1000;
 const refundLabels: Record<ServiceRefundStatus, string> = {
@@ -63,7 +64,8 @@ export class RefundRulesService {
     });
     if (!initial) throw new NotFoundException();
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${initial.order.userId}::uuid FOR UPDATE`;
-    await tx.$queryRaw`SELECT id FROM listings WHERE id = ${initial.order.listingId}::uuid FOR UPDATE`;
+    if (initial.order.listingId)
+      await tx.$queryRaw`SELECT id FROM listings WHERE id = ${initial.order.listingId}::uuid FOR UPDATE`;
     await tx.$queryRaw`SELECT id FROM service_orders WHERE id = ${initial.orderId}::uuid FOR UPDATE`;
     await tx.$queryRaw`SELECT id FROM service_refund_requests WHERE id = ${id}::uuid FOR UPDATE`;
     return tx.serviceRefundRequest.findUniqueOrThrow({
@@ -109,6 +111,22 @@ export class RefundRulesService {
     actorId: string | null,
   ) {
     this.requirePaid(order);
+    const pack =
+      order.planCode === aiCreditPlan.code
+        ? await tx.aiCreditPack.findUnique({
+            where: { orderId: order.id },
+          })
+        : null;
+    if (pack?.used)
+      throw new ConflictException({
+        code: 'AI_PACK_USED',
+        message: 'Gói AI đã sử dụng, không thể yêu cầu hoàn toàn bộ gói.',
+      });
+    if (pack)
+      await tx.aiCreditPack.update({
+        where: { orderId: order.id },
+        data: { held: true },
+      });
     const hasOriginalRecipient =
       order.provider === 'PAYOS' &&
       order.payerBankId &&
@@ -186,6 +204,14 @@ export class RefundRulesService {
       where: { id: refund.id },
       data: { ...data, version: { increment: 1 } },
     });
+    if (
+      updated.status === 'REJECTED' &&
+      refund.order.planCode === aiCreditPlan.code
+    )
+      await tx.aiCreditPack.updateMany({
+        where: { orderId: refund.orderId, revokedAt: null },
+        data: { held: false },
+      });
     await this.audit(
       tx,
       updated,
@@ -266,13 +292,18 @@ export class RefundRulesService {
       where: { orderId: refund.orderId },
       select: { id: true },
     });
-    if (boost)
+    if (boost && refund.order.listingId)
       await tx.listing.updateMany({
         where: {
           id: refund.order.listingId,
           postingRound: refund.order.postingRound,
         },
         data: { boostUntil: null },
+      });
+    if (refund.order.planCode === aiCreditPlan.code)
+      await tx.aiCreditPack.updateMany({
+        where: { orderId: refund.orderId },
+        data: { revokedAt: now, held: false },
       });
     return updated;
   }

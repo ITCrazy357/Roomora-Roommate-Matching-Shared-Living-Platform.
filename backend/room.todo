@@ -483,12 +483,34 @@ Trạng thái 14/10/2026: Đã triển khai năm luồng trong module ai và cá
 giữ theme cam đỏ/kem. Gợi ý mô tả và bản nháp biên nhận có thể sửa/xác nhận trước khi
 điền form; không tự lưu, chia nợ hay xác nhận đã thanh toán. Tìm kiếm có preview bộ lọc,
 nêu điều kiện chưa hỗ trợ. Độ phù hợp và tóm tắt giữ điểm/số tiền do nghiệp vụ hiện có tính;
-AI chỉ chọn điểm cần chú ý từ dữ liệu được phép đọc. Hạn mức mặc định 50 lượt/user/tháng
-UTC+7 lưu trong PostgreSQL, chống vượt khi đồng thời và sau khởi động lại; có timeout/lỗi/hết lượt.
+AI chỉ chọn điểm cần chú ý từ dữ liệu được phép đọc. Chính sách hiện hành: 5 lượt đầu
+miễn phí một lần/tài khoản; mua 59.000đ cộng 50 lượt không hết hạn, có thể mua tiếp.
+Lỗi AI/kết quả không hợp lệ không trừ lượt; số lượt lưu PostgreSQL, chống vượt khi
+đồng thời và sau khởi động lại. FAQ hỗ trợ vẫn miễn phí, giữ giới hạn riêng.
 Migration ai_assistance đã áp dụng local. 33 unit test, 80 HTTP/PostgreSQL qua (14 Phase 11);
 build/lint qua. Chromium kiểm tra session/DB thật, xem/sửa/áp dụng/lưu và fallback,
 28 bố cục 320/390/768/1366px không tràn ngang, không lỗi JavaScript.
-Provider trong kiểm thử được mô phỏng; OPENAI_API_KEY còn trống, chưa nghiệm thu AI thật.
+Kiểm thử giao diện ban đầu dùng provider mô phỏng. Bổ sung 14/10/2026 sau khi cấu hình khóa:
+năm chức năng Phase 11 và FAQ đã gọi OpenAI thật thành công với dữ liệu thử riêng;
+backend cổng 5000 nhận cấu hình khóa. OCR đọc đúng ảnh tổng hợp 300.000đ/ngày 14/10/2026;
+siết schema ngày và prompt mô tả sau khi phát hiện đầu ra sai. 59 unit test AI/FAQ và
+21 HTTP/PostgreSQL AI/support bổ sung qua; dữ liệu thử đã dọn. Chưa đánh giá chất lượng
+trên tập ảnh/câu hỏi thực tế đa dạng hoặc tải/chi phí vận hành.
+Giao diện AI dùng gradient cam đỏ/tím mận, biểu tượng và số lượt rõ ràng.
+Migration ai_credit_packages đã áp dụng local. Cộng lượt qua xác nhận PayOS/MoMo
+trong billing hiện có; chống webhook trùng. Gói chưa dùng có thể yêu cầu hoàn trong
+24 giờ, giữ lượt trong lúc xét và thu hồi gói khi hoàn xong. 150 unit test backend,
+159 HTTP/PostgreSQL AI/billing/refund qua. Giao dịch kiểm thử được mô phỏng, không thu tiền thật.
+Bổ sung lưu tóm tắt theo tài khoản/nhà/tháng, xem lại miễn phí, tháng chưa tạo hoặc
+tạo lại tốn 1 lượt. Ghi chú cá nhân lưu riêng, không trừ lượt. Bản đã lưu là snapshot,
+không tự cập nhật khi khoản chi thay đổi. Sửa key component dùng generatedAt khiến
+cập nhật nền xóa tóm tắt/ghi chú và gây giật. Migration saved_ai_house_summaries đã áp
+dụng local; 44 HTTP/PostgreSQL AI/credits, 34 unit AI qua. Chromium xác nhận cập nhật nền,
+reload, chuyển tháng, ghi chú, lỗi và hết lượt; 12 bố cục sáng/tối không tràn ngang.
+Bổ sung sửa nhấp nháy khi đang xem: lỗi tải nền tạm thời không tháo báo cáo/nhà chung,
+giữ khung AI, ghi chú và vị trí cuộn; 4xx mất quyền vẫn gỡ nội dung. Giảm vẽ lại khung
+tóm tắt khi dữ liệu của nó không đổi. Chromium kiểm chứng idle/SSE, lỗi mạng/timeout/503,
+phục hồi và UI gỡ quyền 403/404; build và 8 kiểm thử API frontend qua.
 Chi tiết và giới hạn: ../PHASE_11_STATUS.md; src/modules/ai/README.md.
 
 13. Phase 12 — Hoàn thiện để triển khai và kiểm chứng tải

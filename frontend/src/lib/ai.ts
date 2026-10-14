@@ -1,8 +1,10 @@
 import { ApiError, apiFetch } from "./api";
 export interface AiUsage {
-  month: string;
-  used: number;
-  limit: number;
+  freeTotal: number;
+  freeRemaining: number;
+  paidRemaining: number;
+  remaining: number;
+  plan: { code: string; amount: number; credits: number };
   available: boolean;
 }
 export interface ReceiptDraft {
@@ -32,6 +34,15 @@ export interface AiInsight {
   month?: string;
   generatedAt?: string;
 }
+export interface AiSavedSummary {
+  month: string;
+  total: number | null;
+  highlights: string[];
+  notice: string;
+  generatedAt: string;
+  notes: string;
+  version: number;
+}
 export function aiError(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 401)
@@ -39,7 +50,7 @@ export function aiError(error: unknown) {
     if (error.status === 403 || error.status === 404)
       return "Bạn không có quyền đọc dữ liệu này hoặc dữ liệu không còn khả dụng.";
     if (error.code === "AI_LIMIT_REACHED")
-      return "Đã hết lượt AI tháng này. Bạn vẫn có thể nhập và kiểm tra thủ công.";
+      return "Đã hết lượt AI. Mua gói 59.000đ để có thêm 50 lượt, hoặc tiếp tục nhập thủ công.";
     if (error.code === "AI_BUSY")
       return "AI đang xử lý yêu cầu khác. Hãy thử lại sau.";
     if (error.code === "AI_FACTS_REQUIRED")

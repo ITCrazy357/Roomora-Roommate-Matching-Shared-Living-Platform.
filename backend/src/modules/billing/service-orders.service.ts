@@ -17,6 +17,8 @@ import type {
   ServiceOrderQueryDto,
 } from './dto/billing.dto.js';
 import { refundDeadline, withinRefundWindow } from './refund-rules.service.js';
+import { ConfigService } from '@nestjs/config';
+import { aiCreditPlan } from '../ai-credits/ai-credits.service.js';
 
 @Injectable()
 export class ServiceOrdersService {
@@ -24,11 +26,13 @@ export class ServiceOrdersService {
     private readonly prisma: PrismaService,
     private readonly gateway: PaymentGatewayService,
     private readonly payments: ServicePaymentsService,
+    private readonly config: ConfigService,
   ) {}
 
   catalog() {
     return {
       plan: boostPlan,
+      aiPlan: aiCreditPlan,
       provider: this.gateway.provider(),
       sandbox: this.gateway.provider() === 'MOMO_SANDBOX',
       paymentAvailable: this.gateway.available(),
@@ -37,6 +41,86 @@ export class ServiceOrdersService {
         PAYOS: this.gateway.available('PAYOS'),
       },
     };
+  }
+
+  async createAi(userId: string, input: { clientId: string }) {
+    if (!this.config.get<string>('OPENAI_API_KEY')?.trim())
+      throw new ServiceUnavailableException({ code: 'AI_UNAVAILABLE' });
+    if (!this.gateway.available())
+      throw new ServiceUnavailableException({ code: 'PAYMENT_NOT_CONFIGURED' });
+    const pending = await this.prisma.serviceOrder.findFirst({
+      where: {
+        userId,
+        planCode: aiCreditPlan.code,
+        provider: 'PAYOS',
+        status: { in: ['PENDING', 'EXPIRED'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (pending) {
+      const remote = await this.refreshPayos(pending);
+      if (remote === 'PAID')
+        throw new ConflictException({ code: 'ORDER_ALREADY_PAID' });
+      this.requireNoPayment(remote);
+      if (remote === 'PENDING' && pending.expiresAt <= new Date())
+        throw new ConflictException({ code: 'PAYMENT_CONFIRMATION_PENDING' });
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+      const user = await tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        include: { profile: true },
+      });
+      if (user.role !== 'USER' || user.lockedAt || user.closedAt)
+        throw new BadRequestException({ code: 'AI_ACCOUNT_UNAVAILABLE' });
+      const previous = await tx.serviceOrder.findUnique({
+        where: { userId_clientId: { userId, clientId: input.clientId } },
+        include: orderDetails,
+      });
+      if (previous) {
+        if (previous.planCode !== aiCreditPlan.code)
+          throw new ConflictException({ code: 'ORDER_REQUEST_CHANGED' });
+        if (previous.status === 'PENDING')
+          await this.requirePayable(tx, previous);
+        return previous;
+      }
+      await tx.serviceOrder.updateMany({
+        where: {
+          userId,
+          planCode: aiCreditPlan.code,
+          status: 'PENDING',
+          expiresAt: { lte: new Date() },
+        },
+        data: { status: 'EXPIRED', payUrl: null },
+      });
+      const existing = await tx.serviceOrder.findFirst({
+        where: { userId, planCode: aiCreditPlan.code, status: 'PENDING' },
+        include: orderDetails,
+      });
+      if (existing) return existing;
+      return tx.serviceOrder.create({
+        data: {
+          userId,
+          clientId: input.clientId,
+          listingId: null,
+          planCode: aiCreditPlan.code,
+          planName: aiCreditPlan.name,
+          amount: aiCreditPlan.amount,
+          durationDays: 0,
+          creditAmount: aiCreditPlan.credits,
+          provider: this.gateway.provider(),
+          providerOrderCode:
+            this.gateway.provider() === 'PAYOS'
+              ? String(randomInt(1_000_000_000_000, 9_999_999_999_999))
+              : null,
+          buyerName: user.profile?.displayName ?? 'Thành viên Roomora',
+          buyerEmail: user.email,
+          listingTitle: aiCreditPlan.name,
+          expiresAt: new Date(Date.now() + 15 * 60000),
+        },
+        include: orderDetails,
+      });
+    });
   }
 
   async eligibleListings(userId: string) {
@@ -182,6 +266,7 @@ export class ServiceOrdersService {
     const where = {
       userId,
       ...(query.kind === 'boosts' ? { boost: { isNot: null } } : {}),
+      ...(query.kind === 'benefits' ? { status: 'PAID' as const } : {}),
     };
     const [items, total] = await this.prisma.$transaction(
       [
@@ -220,6 +305,7 @@ export class ServiceOrdersService {
       paidAt: Date | null;
       refundedAt: Date | null;
       refund: unknown;
+      aiPack?: { used: number } | null;
     },
   >(order: T) {
     const now = new Date();
@@ -231,6 +317,7 @@ export class ServiceOrdersService {
         order.status === 'PAID' &&
         !order.refund &&
         !order.refundedAt &&
+        (!order.aiPack || order.aiPack.used === 0) &&
         withinRefundWindow(order.paidAt, now),
     };
   }
@@ -389,7 +476,8 @@ export class ServiceOrdersService {
 
   private async lockOrder(tx: Prisma.TransactionClient, order: ServiceOrder) {
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${order.userId}::uuid FOR UPDATE`;
-    await tx.$queryRaw`SELECT id FROM listings WHERE id = ${order.listingId}::uuid FOR UPDATE`;
+    if (order.listingId)
+      await tx.$queryRaw`SELECT id FROM listings WHERE id = ${order.listingId}::uuid FOR UPDATE`;
     await tx.$queryRaw`SELECT id FROM service_orders WHERE id = ${order.id}::uuid FOR UPDATE`;
   }
 
@@ -423,6 +511,16 @@ export class ServiceOrdersService {
               : 'ORDER_NOT_PENDING',
         message: 'Đơn không còn chờ thanh toán',
       });
+    if (order.planCode === aiCreditPlan.code) {
+      const user = await tx.user.findUniqueOrThrow({
+        where: { id: order.userId },
+      });
+      if (user.role !== 'USER' || user.lockedAt || user.closedAt)
+        throw new BadRequestException({ code: 'AI_ACCOUNT_UNAVAILABLE' });
+      return;
+    }
+    if (!order.listingId)
+      throw new BadRequestException({ code: 'LISTING_NOT_BOOSTABLE' });
     const listing = await tx.listing.findUniqueOrThrow({
       where: { id: order.listingId },
       include: { owner: { select: { lockedAt: true } } },

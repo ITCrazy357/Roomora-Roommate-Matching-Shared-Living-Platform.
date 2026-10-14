@@ -50,8 +50,12 @@ export class ServiceReceiptsService {
       `Khách hàng: ${order.buyerName}`,
       `Email: ${order.buyerEmail}`,
       `Dịch vụ: ${order.planName}`,
-      `Tin đăng: ${order.listingTitle}`,
-      `Mã tin: ${order.listingId}`,
+      ...(order.listingId
+        ? [`Tin đăng: ${order.listingTitle}`, `Mã tin: ${order.listingId}`]
+        : [
+            `Số lượt AI: ${order.creditAmount}`,
+            'Lượt AI không hết hạn; không tự gia hạn.',
+          ]),
       `Số tiền: ${new Intl.NumberFormat('vi-VN').format(order.amount)} đ`,
       `Cổng thanh toán: ${order.provider === 'PAYOS' ? 'PayOS' : 'MoMo sandbox'}`,
       `Mã giao dịch: ${order.providerTransId}`,
@@ -59,12 +63,16 @@ export class ServiceReceiptsService {
         ? [
             `Thời hạn: ${date(order.boost.startsAt)} → ${date(order.boost.endsAt)} (UTC+7)`,
           ]
-        : ['Chưa cấp quyền lợi; yêu cầu hoàn tiền đang chờ kiểm tra.']),
+        : order.aiPack
+          ? [
+              `Đã cấp ${order.aiPack.credits} lượt AI; đã dùng ${order.aiPack.used} lượt.`,
+            ]
+          : ['Chưa cấp quyền lợi; yêu cầu hoàn tiền đang chờ kiểm tra.']),
       ...(order.refund
         ? order.refundedAt && order.refund.status === 'COMPLETED'
           ? [
               `Đã hoàn đủ ${new Intl.NumberFormat('vi-VN').format(order.refund.amount)} đ ngày ${date(order.refundedAt)} (UTC+7). Mã hoàn: ${order.refund.refundReference}.`,
-              'Quyền lợi đẩy tin đã dừng sau khi hoàn tiền.',
+              'Quyền lợi của đơn đã dừng sau khi hoàn tiền.',
             ]
           : [
               'Đã tiếp nhận yêu cầu hoàn tiền. Biên nhận này không xác nhận đã hoàn tiền.',

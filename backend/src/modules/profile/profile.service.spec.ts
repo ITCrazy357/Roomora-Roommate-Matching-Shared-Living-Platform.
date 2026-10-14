@@ -123,7 +123,12 @@ describe('Profile avatar consistency and location privacy', () => {
   });
 
   it('does not leak location codes or storage identifiers in a public response', async () => {
-    const { service } = setup();
+    const { service, prisma } = setup();
+    const publicProfile = {
+      ...existing,
+      user: { lockedAt: null, role: 'USER' },
+    };
+    prisma.profile.findUnique.mockResolvedValue(publicProfile);
     const profile = await service.getPublic('owner');
     expect(profile.desiredLocations).toBeUndefined();
     expect(profile.desiredAreas).toBeUndefined();

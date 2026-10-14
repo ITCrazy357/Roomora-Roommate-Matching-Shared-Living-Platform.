@@ -223,7 +223,7 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
     await agents[0].get(`/api/v1/listings/mine/${listing.id}`).expect(404);
   });
 
-  it('catalog exposes one sandbox plan without secrets', async () => {
+  it('catalog exposes boost and AI plans without secrets', async () => {
     const response = await request(app.getHttpServer())
       .get(base + '/catalog')
       .expect(200);
@@ -233,6 +233,14 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
         name: 'Đẩy tin 7 ngày',
         amount: 49000,
         durationDays: 7,
+        currency: 'VND',
+      },
+      aiPlan: {
+        code: 'AI_50_CREDITS',
+        name: 'Gói AI 50 lượt',
+        amount: 59000,
+        credits: 50,
+        durationDays: 0,
         currency: 'VND',
       },
       sandbox: true,

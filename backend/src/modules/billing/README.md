@@ -1,9 +1,37 @@
 # Phase 9 · Dịch vụ Roomora
 
-Một gói thử nghiệm: **Đẩy tin 7 ngày, 49.000đ**. Giá lấy từ mẫu giao diện,
-chưa phải bảng giá kinh doanh được phê duyệt. Hỗ trợ MoMo sandbox và PayOS;
+Gói đẩy tin thử nghiệm: **Đẩy tin 7 ngày, 49.000đ**. Giá đẩy tin lấy từ mẫu giao diện,
+chưa phải bảng giá kinh doanh được phê duyệt. Gói AI được người dùng xác nhận:
+**59.000đ / 50 lượt, không hết hạn**. Hỗ trợ MoMo sandbox và PayOS;
 PayOS không có sandbox riêng, giao dịch thử qua PayOS dùng tiền thật.
-không có ví, giữ tiền thuê hoặc liên quan đến công nợ nhà chung.
+Không giữ tiền thuê hoặc xử lý công nợ nhà chung.
+
+## Gói AI — 14/10/2026
+
+`POST /services/ai-orders` nhận duy nhất `clientId` UUID, yêu cầu session USER
+và OriginGuard; không yêu cầu tin đăng. Giá, số lượt và tên gói do server quyết
+định. `GET /services/catalog` bổ sung `aiPlan`; gói đẩy tin giữ trường `plan`.
+Đơn AI lưu `planCode=AI_50_CREDITS`, `listingId=null`, `creditAmount=50`,
+`amount=59000`, `durationDays=0`, được ràng buộc bởi CHECK trong PostgreSQL.
+Một user có tối đa một đơn AI PENDING. Khóa tài khoản/đóng tài khoản chặn mua.
+Chỉ cho tạo đơn khi khóa AI và cổng thanh toán đã cấu hình.
+
+Checkout, đối soát, chữ ký PayOS/MoMo, chống trùng giao dịch, lịch sử, thông báo
+và PDF dùng chung luồng hiện có. PAID được xác nhận mới tạo `ai_credit_packs`
+trong cùng transaction; mỗi order chỉ cấp một pack. Callback lặp không cộng
+thêm. Redirect từ client không cấp lượt. Đơn hết hạn vẫn nhận callback hợp lệ
+đến chậm; tài khoản khóa/đóng lúc nhận tiền được tạo yêu cầu hoàn, không cấp lượt.
+PayOS đang xử lý/nhận tiền một phần/lỗi xác thực phải đối soát trước khi thu tiếp.
+
+Gói cộng vào số dư user, không hết hạn, có thể mua tiếp. `GET /ai/usage` cung cấp
+số lượt; service history `kind=benefits` trả cả gói AI và đẩy tin đã PAID.
+5 lượt miễn phí cấp một lần, không phát sinh order. FAQ không trừ số lượt này.
+
+Chỉ cho yêu cầu hoàn toàn bộ gói AI chưa dùng trong 24 giờ từ paidAt theo
+quy trình hoàn hiện có. Gói bị giữ khi xét hoàn để không vừa dùng vừa hoàn;
+từ chối hoàn mở lại gói. Hoàn thành chỉ thu hồi pack của order đó, không xóa
+lượt miễn phí hoặc các gói khác. Dùng lượt và yêu cầu hoàn cùng khóa user.
+Không tự chuyển khoản ngân hàng chỉ vì user gửi yêu cầu.
 
 ## Các service
 
@@ -99,7 +127,8 @@ lịch sử vẫn giữ nguyên thời hạn đã mua; không tự hoàn tiền 
 | GET         | `/services/catalog`                         | Công khai; không trả credentials           |
 | GET         | `/services/listings`                        | USER; tối đa 100 tin đủ điều kiện của mình |
 | POST        | `/services/orders`                          | USER; `{ clientId, listingId }`            |
-| GET         | `/services/orders?page=1&limit=10&kind=all` | USER; `kind=boosts` cho quyền lợi đã mua   |
+| POST        | `/services/ai-orders`                       | USER; `{ clientId }`                       |
+| GET         | `/services/orders?page=1&limit=10&kind=all` | USER; `kind=benefits` cho quyền lợi đã mua |
 | GET         | `/services/orders/:id`                      | Chủ đơn                                    |
 | POST        | `/services/orders/:id/checkout`             | Chủ đơn đang chờ                           |
 | POST        | `/services/momo/ipn`                        | Chữ ký MoMo; body theo spec                |

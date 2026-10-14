@@ -9,6 +9,7 @@ export const boostPlan = {
 export const orderDetails = {
   boost: true,
   refund: true,
+  aiPack: true,
   listing: { select: { postingRound: true } },
 } as const;
 

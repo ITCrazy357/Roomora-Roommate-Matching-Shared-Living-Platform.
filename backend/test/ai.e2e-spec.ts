@@ -7,10 +7,8 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
-import {
-  AiProviderService,
-  aiMonth,
-} from '../src/modules/ai/ai-provider.service.js';
+import { AiCreditsService } from '../src/modules/ai-credits/ai-credits.service.js';
+import { AiProviderService } from '../src/modules/ai/ai-provider.service.js';
 
 describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
   let app: INestApplication, prisma: PrismaService;
@@ -31,12 +29,11 @@ describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(AiProviderService)
       .useFactory({
-        inject: [PrismaService],
-        factory: (db: PrismaService) =>
+        inject: [AiCreditsService],
+        factory: (db: AiCreditsService) =>
           new AiProviderService(
             new ConfigService({
               OPENAI_API_KEY: 'mock-only',
-              AI_MONTHLY_LIMIT: 50,
             }),
             db,
           ),
@@ -121,6 +118,19 @@ describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
     }
     await app?.close();
   });
+  beforeEach(async () => {
+    if (prisma) {
+      await prisma.aiHouseSummary.deleteMany({
+        where: { userId: { in: ids } },
+      });
+      for (const userId of ids)
+        await prisma.aiWallet.upsert({
+          where: { userId },
+          create: { userId },
+          update: { freeUsed: 0 },
+        });
+    }
+  });
   it('requires authentication and excludes ADMIN from all assistance', async () => {
     await request(app.getHttpServer()).get(`${base}/usage`).expect(401);
     await admin.get(`${base}/usage`).expect(403);
@@ -197,7 +207,9 @@ describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
       .field('houseId', houseId)
       .attach('receipt', Buffer.from('bad'), 'receipt.png')
       .expect(404);
-    expect((await other.get(`${base}/usage`)).body.used).toBe(before.body.used);
+    expect((await other.get(`${base}/usage`)).body.remaining).toBe(
+      before.body.remaining,
+    );
   });
   it('validates report month and receipt bytes before calling AI', async () => {
     await member
@@ -293,11 +305,304 @@ describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
       .get('/api/v1/houses/' + houseId + '/household/reports?month=2026-10')
       .expect(200);
   });
-  it('enforces atomic monthly quota under simultaneous requests', async () => {
-    await prisma.aiUsage.upsert({
-      where: { userId_month: { userId: ids[1], month: aiMonth() } },
-      create: { userId: ids[1], month: aiMonth(), count: 49 },
-      update: { count: 49 },
+  it('saves a private monthly summary and reads it without calling AI or spending credits', async () => {
+    modelResult = { ids: ['total', 'scope'] };
+    const path = `${base}/houses/${houseId}/summary`;
+    expect(
+      (await member.get(`${path}?month=2026-10`).expect(200)).body.summary,
+    ).toBeNull();
+    const saved = (
+      await member
+        .post(path)
+        .set('Origin', origin)
+        .send({ month: '2026-10' })
+        .expect(200)
+    ).body;
+    expect(saved.month).toBe('2026-10');
+    expect(saved.generatedAt).toBeTruthy();
+    expect(saved.notes).toContain('Tháng 2026-10');
+    expect((await member.get(`${base}/usage`)).body.remaining).toBe(4);
+    await prisma.aiWallet.update({
+      where: { userId: ids[0] },
+      data: { freeUsed: 5 },
+    });
+    providerFailure = true;
+    try {
+      expect(
+        (await member.get(`${path}?month=2026-10`).expect(200)).body.summary,
+      ).toEqual(saved);
+      expect(
+        (
+          await member
+            .post(path)
+            .set('Origin', origin)
+            .send({ month: '2026-10' })
+            .expect(200)
+        ).body,
+      ).toEqual(saved);
+      expect((await member.get(`${base}/usage`)).body.remaining).toBe(0);
+      expect(
+        (await member.get(`${path}?month=2026-09`).expect(200)).body.summary,
+      ).toBeNull();
+      await member
+        .post(path)
+        .set('Origin', origin)
+        .send({ month: '2026-09' })
+        .expect(429);
+    } finally {
+      providerFailure = false;
+    }
+  });
+  it('spends one use for a new month or explicit regeneration and preserves saved notes', async () => {
+    modelResult = { ids: ['total', 'scope'] };
+    const path = `${base}/houses/${houseId}/summary`;
+    const first = (
+      await member
+        .post(path)
+        .set('Origin', origin)
+        .send({ month: '2026-10' })
+        .expect(200)
+    ).body;
+    const notes = (
+      await member
+        .patch(`${path}/notes`)
+        .set('Origin', origin)
+        .send({
+          month: '2026-10',
+          notes: 'Ghi chú riêng đã đối chiếu.',
+          version: first.version,
+        })
+        .expect(200)
+    ).body;
+    expect(notes.notes).toBe('Ghi chú riêng đã đối chiếu.');
+    expect((await member.get(`${base}/usage`)).body.remaining).toBe(4);
+    await member
+      .patch(`${path}/notes`)
+      .set('Origin', origin)
+      .send({ month: '2026-10', notes: 'Bản cũ', version: first.version })
+      .expect(409);
+    await member
+      .post(path)
+      .set('Origin', origin)
+      .send({ month: '2026-09' })
+      .expect(200);
+    const rebuilt = (
+      await member
+        .post(path)
+        .set('Origin', origin)
+        .send({ month: '2026-10', regenerate: true })
+        .expect(200)
+    ).body;
+    expect(rebuilt.notes).toBe(notes.notes);
+    expect(rebuilt.version).toBe(notes.version + 1);
+    expect((await member.get(`${base}/usage`)).body.remaining).toBe(2);
+  });
+  it('keeps the saved summary and returns the use if regeneration fails', async () => {
+    modelResult = { ids: ['total'] };
+    const path = `${base}/houses/${houseId}/summary`;
+    const first = (
+      await member
+        .post(path)
+        .set('Origin', origin)
+        .send({ month: '2026-10' })
+        .expect(200)
+    ).body;
+    providerFailure = true;
+    try {
+      await member
+        .post(path)
+        .set('Origin', origin)
+        .send({ month: '2026-10', regenerate: true })
+        .expect(503);
+    } finally {
+      providerFailure = false;
+    }
+    expect((await member.get(`${path}?month=2026-10`)).body.summary).toEqual(
+      first,
+    );
+    expect((await member.get(`${base}/usage`)).body.remaining).toBe(4);
+    expect(
+      (await prisma.aiHouseSummary.findFirst({ where: { userId: ids[0] } }))
+        ?.generationId,
+    ).toBeNull();
+  });
+  it('rolls back completed usage when saving the generated summary fails', async () => {
+    modelResult = { ids: ['total'] };
+    const credits = app.get(AiCreditsService);
+    const complete = credits.complete.bind(credits);
+    const write = vi
+      .spyOn(credits, 'complete')
+      .mockImplementationOnce((use, save) =>
+        complete(use, async (tx) => {
+          if (save) await save(tx);
+          throw new Error('test failure before transaction commit');
+        }),
+      );
+    try {
+      await member
+        .post(`${base}/houses/${houseId}/summary`)
+        .set('Origin', origin)
+        .send({ month: '2026-10' })
+        .expect(503);
+    } finally {
+      write.mockRestore();
+    }
+    expect(
+      (
+        await member
+          .get(`${base}/houses/${houseId}/summary?month=2026-10`)
+          .expect(200)
+      ).body.summary,
+    ).toBeNull();
+    expect((await member.get(`${base}/usage`)).body.remaining).toBe(5);
+  });
+  it('does not expose another member private summary and checks active membership when reading or saving', async () => {
+    modelResult = { ids: ['total'] };
+    const path = `${base}/houses/${houseId}/summary`;
+    const first = (
+      await member
+        .post(path)
+        .set('Origin', origin)
+        .send({ month: '2026-10' })
+        .expect(200)
+    ).body;
+    await other.get(`${path}?month=2026-10`).expect(404);
+    await prisma.houseMember.create({ data: { houseId, userId: ids[1] } });
+    try {
+      expect(
+        (await other.get(`${path}?month=2026-10`).expect(200)).body.summary,
+      ).toBeNull();
+      await other
+        .patch(`${path}/notes`)
+        .set('Origin', origin)
+        .send({
+          month: '2026-10',
+          notes: 'Không phải bản của tôi',
+          version: first.version,
+        })
+        .expect(404);
+    } finally {
+      await prisma.houseMember.delete({
+        where: { houseId_userId: { houseId, userId: ids[1] } },
+      });
+    }
+    await prisma.houseMember.update({
+      where: { houseId_userId: { houseId, userId: ids[0] } },
+      data: { leftAt: new Date() },
+    });
+    try {
+      await member.get(`${path}?month=2026-10`).expect(404);
+      await member
+        .patch(`${path}/notes`)
+        .set('Origin', origin)
+        .send({
+          month: '2026-10',
+          notes: 'Không còn thành viên',
+          version: first.version,
+        })
+        .expect(404);
+    } finally {
+      await prisma.houseMember.update({
+        where: { houseId_userId: { houseId, userId: ids[0] } },
+        data: { leftAt: null },
+      });
+    }
+  });
+  it('uses one credit when requests for the same month arrive at multiple service instances', async () => {
+    modelResult = { ids: ['total'] };
+    const { AiSummariesService } =
+      await import('../src/modules/ai/ai-summaries.service.js');
+    const { HouseAccessService } =
+      await import('../src/modules/houses/house-access.service.js');
+    const { AiInsightsService } =
+      await import('../src/modules/ai/ai-insights.service.js');
+    const services = Array.from(
+      { length: 6 },
+      () =>
+        new AiSummariesService(
+          prisma,
+          app.get(HouseAccessService),
+          app.get(AiInsightsService),
+        ),
+    );
+    const replies = await Promise.allSettled(
+      services.map((service) => service.generate(ids[0], houseId, '2026-10')),
+    );
+    expect(replies.some((reply) => reply.status === 'fulfilled')).toBe(true);
+    expect((await member.get(`${base}/usage`)).body.remaining).toBe(4);
+    expect(
+      await prisma.aiHouseSummary.count({
+        where: { userId: ids[0], generatedAt: { not: null } },
+      }),
+    ).toBe(1);
+  });
+  it('validates saved-summary queries and note edits without spending credits', async () => {
+    const path = `${base}/houses/${houseId}/summary`;
+    for (const month of ['2026-13', '1999-12', '2101-01'])
+      await member.get(`${path}?month=${month}`).expect(400);
+    await request(app.getHttpServer()).get(`${path}?month=2026-10`).expect(401);
+    await admin.get(`${path}?month=2026-10`).expect(403);
+    await member
+      .patch(`${path}/notes`)
+      .set('Origin', 'https://untrusted.test')
+      .send({ month: '2026-10', notes: '', version: 0 })
+      .expect(403);
+    await member
+      .patch(`${path}/notes`)
+      .set('Origin', origin)
+      .send({ month: '2026-10', notes: 'x'.repeat(5001), version: 0 })
+      .expect(400);
+    await member
+      .post(path)
+      .set('Origin', origin)
+      .send({ month: '2026-10', regenerate: 'true' })
+      .expect(400);
+    expect((await member.get(`${base}/usage`)).body.remaining).toBe(5);
+  });
+  it('stores monthly totals above a single INTEGER expense without losing the snapshot', async () => {
+    modelResult = { ids: ['total'] };
+    const participant = await prisma.houseParticipant.findUniqueOrThrow({
+      where: { houseId_userId: { houseId, userId: ids[0] } },
+    });
+    try {
+      for (let index = 0; index < 3; index++)
+        await prisma.expense.create({
+          data: {
+            houseId,
+            payerId: participant.id,
+            createdById: ids[0],
+            title: `Chi phí lớn ${index}`,
+            amount: 1000000000,
+            spentOn: new Date('2026-10-14'),
+            splits: {
+              create: {
+                houseId,
+                participantId: participant.id,
+                amount: 1000000000,
+              },
+            },
+          },
+        });
+      const reply = await member
+        .post(`${base}/houses/${houseId}/summary`)
+        .set('Origin', origin)
+        .send({ month: '2026-10' })
+        .expect(200);
+      expect(reply.body.total).toBe(3000000000);
+      expect(reply.body.highlights[0]).toContain('3.000.000.000');
+      const read = await member
+        .get(`${base}/houses/${houseId}/summary?month=2026-10`)
+        .expect(200);
+      expect(read.body.summary.total).toBe(3000000000);
+      expect((await member.get(`${base}/usage`)).body.remaining).toBe(4);
+    } finally {
+      await prisma.expense.deleteMany({ where: { houseId } });
+    }
+  });
+  it('enforces five lifetime free credits under simultaneous requests', async () => {
+    await prisma.aiWallet.update({
+      where: { userId: ids[1] },
+      data: { freeUsed: 4 },
     });
     modelResult = { description: 'Nhu cầu phòng có thể kiểm tra.' };
     const replies = await Promise.all(
@@ -310,29 +615,28 @@ describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
     );
     expect(replies.filter((r) => r.status === 200)).toHaveLength(1);
     expect(replies.filter((r) => r.status === 429)).toHaveLength(4);
-    expect((await other.get(`${base}/usage`)).body.used).toBe(50);
+    expect((await other.get(`${base}/usage`)).body.remaining).toBe(0);
     // Cấp service mới vẫn dùng hạn mức trong PostgreSQL.
     const restarted = new AiProviderService(
-      new ConfigService({ OPENAI_API_KEY: 'mock-only', AI_MONTHLY_LIMIT: 50 }),
-      prisma,
+      new ConfigService({ OPENAI_API_KEY: 'mock-only' }),
+      app.get(AiCreditsService),
     );
     await expect(
       restarted.generate(ids[1], 'x', '', {}, {}),
     ).rejects.toMatchObject({ response: { code: 'AI_LIMIT_REACHED' } });
   });
   it('enforces the same quota across concurrent service instances', async () => {
-    await prisma.aiUsage.update({
-      where: { userId_month: { userId: ids[1], month: aiMonth() } },
-      data: { count: 49 },
+    await prisma.aiWallet.update({
+      where: { userId: ids[1] },
+      data: { freeUsed: 4 },
     });
     const results = await Promise.allSettled(
       Array.from({ length: 6 }, () => {
         const instance = new AiProviderService(
           new ConfigService({
             OPENAI_API_KEY: 'mock-only',
-            AI_MONTHLY_LIMIT: 50,
           }),
-          prisma,
+          app.get(AiCreditsService),
         );
         return instance.generate(ids[1], 'test', '', {}, {});
       }),
@@ -343,6 +647,6 @@ describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
         expect(result.reason).toMatchObject({
           response: { code: 'AI_LIMIT_REACHED' },
         });
-    expect((await other.get(`${base}/usage`)).body.used).toBe(50);
+    expect((await other.get(`${base}/usage`)).body.remaining).toBe(0);
   });
 });

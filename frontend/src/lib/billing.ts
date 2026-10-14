@@ -9,6 +9,7 @@ export interface ServicePlan {
 }
 export interface ServiceCatalog {
   plan: ServicePlan;
+  aiPlan: ServicePlan & { credits: number };
   provider: PaymentProvider;
   sandbox: boolean;
   paymentAvailable: boolean;
@@ -25,9 +26,17 @@ export interface BoostListing {
 export interface ServiceOrder {
   id: string;
   provider: PaymentProvider;
-  listingId: string;
+  listingId: string | null;
   postingRound: number;
-  listing: { postingRound: number };
+  listing: { postingRound: number } | null;
+  planCode: string;
+  creditAmount: number | null;
+  aiPack: {
+    credits: number;
+    used: number;
+    held: boolean;
+    revokedAt: string | null;
+  } | null;
   listingTitle: string;
   planName: string;
   amount: number;
@@ -71,7 +80,7 @@ export const serviceDate = (value: string) =>
   }).format(new Date(value));
 export function boostLabel(order: ServiceOrder) {
   if (order.refundedAt) return "Đã dừng sau khi hoàn tiền";
-  if (order.boost && order.listing.postingRound !== order.postingRound)
+  if (order.boost && order.listing?.postingRound !== order.postingRound)
     return "Đợt đăng đã kết thúc";
   if (!order.boost)
     return order.status === "PAID"
@@ -94,6 +103,9 @@ export function billingPost<T>(path: string, body?: object, timeoutMs = 40000) {
 export function billingError(error: unknown) {
   if (error instanceof ApiError) {
     const messages: Record<string, string> = {
+      AI_PACK_USED: "Gói AI đã sử dụng nên không thể yêu cầu hoàn toàn bộ gói.",
+      AI_UNAVAILABLE:
+        "AI chưa khả dụng. Vui lòng thử mua gói khi dịch vụ hoạt động lại.",
       PAYMENT_NOT_CONFIGURED:
         "Thanh toán thử nghiệm chưa sẵn sàng. Bạn vẫn có thể xem dịch vụ và lịch sử.",
       PAYMENT_GATEWAY_UNAVAILABLE:

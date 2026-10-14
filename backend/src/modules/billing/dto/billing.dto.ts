@@ -14,9 +14,13 @@ export class CreateServiceOrderDto {
   @IsUUID() clientId!: string;
   @IsUUID() listingId!: string;
 }
+export class CreateAiOrderDto {
+  @IsUUID() clientId!: string;
+}
 
 export class ServiceOrderQueryDto {
-  @IsIn(['all', 'boosts']) kind: 'all' | 'boosts' = 'all';
+  @IsIn(['all', 'boosts', 'benefits']) kind: 'all' | 'boosts' | 'benefits' =
+    'all';
   @Type(() => Number) @IsInt() @Min(1) page = 1;
   @Type(() => Number) @IsInt() @Min(1) @Max(50) limit = 10;
 }

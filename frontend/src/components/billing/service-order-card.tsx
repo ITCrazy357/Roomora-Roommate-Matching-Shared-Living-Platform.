@@ -43,10 +43,15 @@ export function ServiceOrderCard({
         let checkoutId = order.id;
         if (kind === "retry") {
           retryClientId.current ??= crypto.randomUUID();
-          const next = await billingPost<ServiceOrder>("/services/orders", {
-            listingId: order.listingId,
-            clientId: retryClientId.current,
-          });
+          const next = await billingPost<ServiceOrder>(
+            order.planCode === "AI_50_CREDITS"
+              ? "/services/ai-orders"
+              : "/services/orders",
+            {
+              ...(order.listingId ? { listingId: order.listingId } : {}),
+              clientId: retryClientId.current,
+            },
+          );
           if (next.status !== "PENDING") {
             retryClientId.current = null;
             throw new ApiError(
@@ -85,7 +90,15 @@ export function ServiceOrderCard({
         <div>
           <span className="content-label">{order.planName}</span>
           <h2>
-            <Link href={`/phong/${order.listingId}`}>{order.listingTitle}</Link>
+            <Link
+              href={
+                order.listingId
+                  ? `/phong/${order.listingId}`
+                  : "/dich-vu#goi-ai"
+              }
+            >
+              {order.listingTitle}
+            </Link>
           </h2>
         </div>
         <span
@@ -112,6 +125,18 @@ export function ServiceOrderCard({
           {serviceDate(order.boost.endsAt)} (UTC+7)
         </p>
       )}
+      {order.aiPack && (
+        <p>
+          <strong>
+            {order.aiPack.revokedAt
+              ? "Đã thu hồi sau hoàn tiền"
+              : order.aiPack.held
+                ? "Tạm giữ trong khi kiểm tra hoàn tiền"
+                : `Còn ${order.aiPack.credits - order.aiPack.used}/${order.aiPack.credits} lượt AI`}
+          </strong>{" "}
+          · Không hết hạn
+        </p>
+      )}
       {order.boost && (
         <p className="text-muted">
           Ưu tiên hiển thị khi tin đang công khai và còn nhận người. Đóng hoặc
@@ -135,8 +160,7 @@ export function ServiceOrderCard({
         )}
       {order.status === "CANCELLED" && (
         <p className="text-muted">
-          Link cũ đã hủy. Tin chưa thanh toán vẫn có thể đăng ký dịch vụ bằng
-          một đơn mới.
+          Link cũ đã hủy. Bạn có thể tạo đơn mới nếu dịch vụ còn đủ điều kiện.
         </p>
       )}
       <div className="service-actions">

@@ -217,6 +217,10 @@ model User {
   supportTickets      SupportTicket[]
   supportMessages     SupportMessage[]
   aiUsage             AiUsage[]
+  aiWallet            AiWallet?
+  aiCreditPacks       AiCreditPack[]
+  aiCreditUses        AiCreditUse[]
+  aiHouseSummaries    AiHouseSummary[]
 
   @@index([role, lockedAt, createdAt])
   @@map("users")
@@ -230,6 +234,68 @@ model AiUsage {
 
   @@id([userId, month])
   @@map("ai_usage")
+}
+
+model AiWallet {
+  userId   String @id @map("user_id") @db.Uuid
+  freeUsed Int    @default(0) @map("free_used")
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_wallets")
+}
+
+model AiCreditPack {
+  orderId   String        @id @map("order_id") @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  credits   Int
+  used      Int           @default(0)
+  held      Boolean       @default(false)
+  revokedAt DateTime?     @map("revoked_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+  order     ServiceOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uses      AiCreditUse[]
+
+  @@index([userId, revokedAt, createdAt])
+  @@map("ai_credit_packs")
+}
+
+enum AiCreditUseStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model AiCreditUse {
+  id        String            @id @default(uuid()) @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  packId    String?           @map("pack_id") @db.Uuid
+  status    AiCreditUseStatus @default(PENDING)
+  createdAt DateTime          @default(now()) @map("created_at")
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pack      AiCreditPack?     @relation(fields: [packId], references: [orderId], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+  @@map("ai_credit_uses")
+}
+
+model AiHouseSummary {
+  userId          String    @map("user_id") @db.Uuid
+  houseId         String    @map("house_id") @db.Uuid
+  month           String    @db.VarChar(7)
+  total           BigInt?
+  highlights      String[]  @default([])
+  generatedAt     DateTime? @map("generated_at")
+  notes           String    @default("") @db.VarChar(5000)
+  version         Int       @default(0)
+  generationId    String?   @map("generation_id") @db.Uuid
+  generatingUntil DateTime? @map("generating_until")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  house           House     @relation(fields: [houseId], references: [id], onDelete: Cascade)
+
+  @@id([userId, houseId, month])
+  @@index([houseId])
+  @@map("ai_house_summaries")
 }
 
 model Listing {
@@ -309,6 +375,7 @@ model House {
   invites       HouseInvite[]
   events        HouseEvent[]
   announcements HouseAnnouncement[]
+  aiSummaries   AiHouseSummary[]
 
   expenses            Expense[]
   expenseCorrections  ExpenseCorrection[]
@@ -1323,13 +1390,14 @@ model ServiceOrder {
   supportTickets    SupportTicket[]
   id                String                @id @default(uuid()) @db.Uuid
   userId            String                @map("user_id") @db.Uuid
-  listingId         String                @map("listing_id") @db.Uuid
+  listingId         String?               @map("listing_id") @db.Uuid
   postingRound      Int                   @default(1) @map("posting_round")
   clientId          String                @map("client_id") @db.Uuid
   planCode          String                @map("plan_code") @db.VarChar(50)
   planName          String                @map("plan_name") @db.VarChar(150)
   amount            Int
   durationDays      Int                   @map("duration_days")
+  creditAmount      Int?                  @map("credit_amount")
   buyerName         String                @map("buyer_name") @db.VarChar(100)
   buyerEmail        String                @map("buyer_email") @db.VarChar(320)
   listingTitle      String                @map("listing_title") @db.VarChar(150)
@@ -1351,7 +1419,8 @@ model ServiceOrder {
   createdAt         DateTime              @default(now()) @map("created_at")
   updatedAt         DateTime              @updatedAt @map("updated_at")
   user              User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
-  listing           Listing               @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  listing           Listing?              @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  aiPack            AiCreditPack?
   boost             ListingBoost?
   refund            ServiceRefundRequest?
   events            ServicePaymentEvent[]

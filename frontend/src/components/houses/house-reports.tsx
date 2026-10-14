@@ -139,7 +139,9 @@ export function HouseReports({ houseId }: { houseId: string }) {
     data,
     error: loadError,
     reload,
-  } = useHouseholdData<HouseReport>(`${path}?month=${month}`);
+  } = useHouseholdData<HouseReport>(`${path}?month=${month}`, {
+    keepOnError: true,
+  });
   const [pending, setPending] = useState<"pdf" | "csv" | null>(null),
     [error, setError] = useState("");
   async function download(format: "pdf" | "csv") {
@@ -212,7 +214,7 @@ export function HouseReports({ houseId }: { houseId: string }) {
         </div>
       </HouseholdHero>
       {error && <ErrorState message={error} />}
-      {loadError && (
+      {loadError && !data && (
         <ErrorState
           message={loadError}
           action={<Button onClick={reload}>Thử lại</Button>}
@@ -222,7 +224,7 @@ export function HouseReports({ houseId }: { houseId: string }) {
       {data && (
         <>
           <AiInsightPanel
-            key={`${houseId}:${month}:${data.generatedAt}`}
+            key={`${houseId}:${month}`}
             kind="summary"
             id={houseId}
             month={month}
@@ -488,6 +490,12 @@ export function HouseReports({ houseId }: { houseId: string }) {
               (UTC+7)
             </p>
           </Card>
+          {loadError && (
+            <ErrorState
+              message={`Chưa tải được báo cáo mới. Đang hiển thị dữ liệu ở lần tải thành công gần nhất. ${loadError}`}
+              action={<Button onClick={reload}>Tải lại báo cáo</Button>}
+            />
+          )}
         </>
       )}
     </div>

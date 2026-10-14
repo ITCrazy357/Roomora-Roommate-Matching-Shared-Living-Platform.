@@ -67,19 +67,22 @@ export class AiListingsService {
             desiredArea: dto.type === 'ROOM_WANTED' ? dto.area : null,
           }),
     };
-    const raw = await this.provider.generate(
+    return this.provider.generate(
       userId,
       'listing_description',
-      `Write a ${dto.tone === 'CONCISE' ? 'concise' : 'friendly'} listing description, at most 3000 characters. Never invent amenities, distances, availability, price, bill units, free services, safety claims or owner approval. Missing and zero costs do not mean free. For ROOM_WANTED or hasRoom=false, describe desired housing, never an existing room. Do not add exact addresses or contact details.`,
+      `Write a ${dto.tone === 'CONCISE' ? 'concise' : 'friendly'} listing description, at most 3000 characters, in plain Vietnamese without Markdown or emojis. Every sentence must be supported by a supplied nonempty field. Never invent amenities, distances, availability, price, bill units, free services, safety claims or owner approval. Do not add unprovided claims such as clean, airy, bright, fully equipped, ready to move in, suitable for students or workers, or nearby attractions. Missing and zero costs do not mean free. For ROOM_WANTED or hasRoom=false, describe desired housing, never an existing room. Do not add exact addresses or contact details.`,
       facts,
-      objectSchema({ description: textSchema }),
+      objectSchema({ description: { ...textSchema, maxLength: 3000 } }),
+      undefined,
+      (raw) => ({
+        description: outputText(outputObject(raw).description, 3000),
+      }),
     );
-    return { description: outputText(outputObject(raw).description, 3000) };
   }
 
   async search(userId: string, dto: AiSearchDto) {
     const provinces = this.locations.listProvinces();
-    const raw = await this.provider.generate(
+    return this.provider.generate(
       userId,
       'listing_filters',
       'Extract ONLY supported explicit listing filters: type, province, monthly rent in VNĐ and amenities. Do not guess ambiguous price units or locations. ROOM_RENTAL rent is per room; other types per person. Leave ambiguous fields null and explain them in unsupported. Districts, wards, distance, smoking, pets, sleep, occupant counts and hasRoom are NOT supported filters; list each unmet condition in unsupported. Never silently convert them to keyword search. If unrelated, return null fields and unsupported explanation. Use province codes only from supplied directory.',
@@ -101,32 +104,37 @@ export class AiListingsService {
         },
         unsupported: { type: 'array', items: textSchema },
       }),
+      undefined,
+      (raw) => {
+        const result = outputObject(raw);
+        const type = result.type === null ? null : outputText(result.type, 20);
+        if (
+          type !== null &&
+          !Object.values(ListingType).includes(type as ListingType)
+        )
+          aiUnavailable();
+        const provinceCode =
+          result.provinceCode === null
+            ? null
+            : outputText(result.provinceCode, 2);
+        const province = provinces.find((p) => p.code === provinceCode);
+        if (provinceCode !== null && !province) aiUnavailable();
+        const minRent = outputAmount(result.minRent, 100_000_000),
+          maxRent = outputAmount(result.maxRent, 100_000_000);
+        if (minRent !== null && maxRent !== null && minRent > maxRent)
+          aiUnavailable();
+        const amenities = outputList(result.amenities);
+        if (
+          new Set(amenities).size !== amenities.length ||
+          amenities.some((a) => !Object.values(Amenity).includes(a as Amenity))
+        )
+          aiUnavailable();
+        return {
+          filters: { type, provinceCode, minRent, maxRent, amenities },
+          provinceName: province?.name ?? null,
+          unsupported: outputList(result.unsupported, 12),
+        };
+      },
     );
-    const result = outputObject(raw);
-    const type = result.type === null ? null : outputText(result.type, 20);
-    if (
-      type !== null &&
-      !Object.values(ListingType).includes(type as ListingType)
-    )
-      aiUnavailable();
-    const provinceCode =
-      result.provinceCode === null ? null : outputText(result.provinceCode, 2);
-    const province = provinces.find((p) => p.code === provinceCode);
-    if (provinceCode !== null && !province) aiUnavailable();
-    const minRent = outputAmount(result.minRent, 100_000_000),
-      maxRent = outputAmount(result.maxRent, 100_000_000);
-    if (minRent !== null && maxRent !== null && minRent > maxRent)
-      aiUnavailable();
-    const amenities = outputList(result.amenities);
-    if (
-      new Set(amenities).size !== amenities.length ||
-      amenities.some((a) => !Object.values(Amenity).includes(a as Amenity))
-    )
-      aiUnavailable();
-    return {
-      filters: { type, provinceCode, minRent, maxRent, amenities },
-      provinceName: province?.name ?? null,
-      unsupported: outputList(result.unsupported, 12),
-    };
   }
 }

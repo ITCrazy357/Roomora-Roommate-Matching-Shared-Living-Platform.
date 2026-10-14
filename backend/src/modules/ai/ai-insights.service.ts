@@ -3,6 +3,15 @@ import { PeopleDiscoveryService } from '../people/people-discovery.service.js';
 import { HouseReportsService } from '../household/house-reports.service.js';
 import { AiProviderService, aiUnavailable } from './ai-provider.service.js';
 import { objectSchema, outputList, outputObject } from './ai-output.js';
+import type { Prisma } from '../../generated/prisma/client.js';
+
+export interface HouseSummaryDraft {
+  month: string;
+  generatedAt: Date;
+  total: number;
+  highlights: string[];
+  notice: string;
+}
 
 @Injectable()
 export class AiInsightsService {
@@ -16,8 +25,12 @@ export class AiInsightsService {
     userId: string,
     task: string,
     facts: { id: string; text: string }[],
+    save?: (
+      tx: Prisma.TransactionClient,
+      highlights: string[],
+    ) => Promise<void>,
   ) {
-    const raw = await this.provider.generate(
+    return this.provider.generate(
       userId,
       task,
       'Choose the most useful supplied facts to review, ordered by importance, including uncertainties and differences. Return IDs only, never generate facts or change numbers. Select between 1 and 6 unique IDs.',
@@ -28,15 +41,19 @@ export class AiInsightsService {
           items: { type: 'string', enum: facts.map((f) => f.id) },
         },
       }),
+      undefined,
+      (raw) => {
+        const ids = outputList(outputObject(raw).ids, 6);
+        if (
+          !ids.length ||
+          new Set(ids).size !== ids.length ||
+          ids.some((id) => !facts.some((f) => f.id === id))
+        )
+          aiUnavailable();
+        return ids.map((id) => facts.find((f) => f.id === id)!.text);
+      },
+      save,
     );
-    const ids = outputList(outputObject(raw).ids, 6);
-    if (
-      !ids.length ||
-      new Set(ids).size !== ids.length ||
-      ids.some((id) => !facts.some((f) => f.id === id))
-    )
-      aiUnavailable();
-    return ids.map((id) => facts.find((f) => f.id === id)!.text);
   }
 
   async matching(userId: string, targetId: string) {
@@ -59,7 +76,15 @@ export class AiInsightsService {
     };
   }
 
-  async summary(userId: string, houseId: string, month: string) {
+  async summary(
+    userId: string,
+    houseId: string,
+    month: string,
+    save?: (
+      tx: Prisma.TransactionClient,
+      draft: HouseSummaryDraft,
+    ) => Promise<void>,
+  ) {
     const report = await this.reports.get(userId, houseId, { month });
     const format = (n: number) =>
       `${new Intl.NumberFormat('vi-VN').format(n)} đ`;
@@ -80,12 +105,18 @@ export class AiInsightsService {
         text: 'Chi phí theo ngày phát sinh; chênh lệch điều chỉnh sau chốt tính vào ngày ghi nhận. Báo cáo tháng không phải số dư công nợ.',
       },
     ];
-    return {
+    const draft = {
       month,
       generatedAt: report.generatedAt,
       total: report.total,
-      highlights: await this.select(userId, 'house_expense_summary', facts),
       notice: 'Tóm tắt để đối chiếu. AI không sửa sổ hoặc xác nhận thanh toán.',
     };
+    const highlights = await this.select(
+      userId,
+      'house_expense_summary',
+      facts,
+      save ? (tx, highlights) => save(tx, { ...draft, highlights }) : undefined,
+    );
+    return { ...draft, highlights };
   }
 }

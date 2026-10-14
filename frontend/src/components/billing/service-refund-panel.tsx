@@ -128,7 +128,9 @@ export function ServiceRefundPanel({
           <p className="text-muted">
             {eligible
               ? `Có thể gửi yêu cầu hoàn tiền đến ${serviceDate(order.refundDeadline!)} (UTC+7).`
-              : "Đã hết hạn gửi yêu cầu hoàn tiền (24 giờ từ thanh toán thành công)."}
+              : order.aiPack && order.aiPack.used > 0
+                ? "Gói AI đã sử dụng, không thể yêu cầu hoàn toàn bộ gói."
+                : "Đã hết hạn gửi yêu cầu hoàn tiền (24 giờ từ thanh toán thành công)."}
           </p>
           <Button
             variant="secondary"

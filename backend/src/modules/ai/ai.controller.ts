@@ -6,6 +6,8 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Patch,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -19,7 +21,14 @@ import { AiProviderService } from './ai-provider.service.js';
 import { AiListingsService } from './ai-listings.service.js';
 import { AiReceiptsService } from './ai-receipts.service.js';
 import { AiInsightsService } from './ai-insights.service.js';
-import { AiDescriptionDto, AiReceiptDto, AiSearchDto } from './dto/ai.dto.js';
+import {
+  AiDescriptionDto,
+  AiReceiptDto,
+  AiSearchDto,
+  AiSummaryDto,
+  AiSummaryNotesDto,
+} from './dto/ai.dto.js';
+import { AiSummariesService } from './ai-summaries.service.js';
 
 @Controller('ai')
 @UseGuards(AuthGuard)
@@ -29,6 +38,7 @@ export class AiController {
     private readonly listings: AiListingsService,
     private readonly receipts: AiReceiptsService,
     private readonly insights: AiInsightsService,
+    private readonly summaries: AiSummariesService,
   ) {}
   @Get('usage') usage(@Req() req: AuthenticatedRequest) {
     return this.provider.usage(req.auth.userId);
@@ -70,8 +80,31 @@ export class AiController {
   summary(
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ReportQueryDto,
+    @Body() dto: AiSummaryDto,
   ) {
-    return this.insights.summary(req.auth.userId, id, dto.month);
+    return this.summaries.generate(
+      req.auth.userId,
+      id,
+      dto.month,
+      dto.regenerate,
+    );
+  }
+  @Get('houses/:id/summary')
+  async savedSummary(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() dto: ReportQueryDto,
+  ) {
+    return {
+      summary: await this.summaries.get(req.auth.userId, id, dto.month),
+    };
+  }
+  @Patch('houses/:id/summary/notes')
+  summaryNotes(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AiSummaryNotesDto,
+  ) {
+    return this.summaries.saveNotes(req.auth.userId, id, dto);
   }
 }

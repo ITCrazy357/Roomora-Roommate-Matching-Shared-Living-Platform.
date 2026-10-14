@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import sharp from 'sharp';
-import { AiProviderService, aiMonth } from './ai-provider.service.js';
+import { AiProviderService } from './ai-provider.service.js';
+import type { AiCreditsService } from '../ai-credits/ai-credits.service.js';
 import { AiListingsService } from './ai-listings.service.js';
 import { AiReceiptsService } from './ai-receipts.service.js';
 import { AiInsightsService } from './ai-insights.service.js';
@@ -22,36 +23,37 @@ const complete = (value: unknown) => ({
 });
 describe('AI provider boundaries', () => {
   const reserve = vi.fn();
-  const db = { $queryRaw: reserve } as unknown as PrismaService;
+  const completed = vi.fn(),
+    release = vi.fn();
+  const db = {
+    reserve,
+    complete: completed,
+    release,
+  } as unknown as AiCreditsService;
   const configured = () =>
     new AiProviderService(
-      new ConfigService({ OPENAI_API_KEY: 'test-only', AI_MONTHLY_LIMIT: 2 }),
+      new ConfigService({ OPENAI_API_KEY: 'test-only' }),
       db,
     );
   beforeEach(() => {
-    reserve.mockReset().mockResolvedValue([{ count: 1 }]);
+    reserve.mockReset().mockResolvedValue({ id: 'reservation' });
+    completed.mockReset().mockResolvedValue(undefined);
+    release.mockReset().mockResolvedValue(undefined);
   });
   afterEach(() => vi.unstubAllGlobals());
-  it('uses the UTC+7 month boundary', () => {
-    expect(aiMonth(new Date('2026-10-31T16:59:59Z'))).toBe('2026-10');
-    expect(aiMonth(new Date('2026-10-31T17:00:00Z'))).toBe('2026-11');
-  });
   it('keeps missing configuration usable without spending quota', async () => {
     await expect(
-      new AiProviderService(new ConfigService({}), db).generate(
-        'u',
-        't',
-        '',
-        {},
-        {},
-      ),
+      new AiProviderService(
+        new ConfigService({ OPENAI_API_KEY: '' }),
+        db,
+      ).generate('u', 't', '', {}, {}),
     ).rejects.toMatchObject({ response: { code: 'AI_UNAVAILABLE' } });
     expect(reserve).not.toHaveBeenCalled();
   });
   it('does not call the provider when quota is exhausted', async () => {
     const fetcher = vi.fn();
     vi.stubGlobal('fetch', fetcher);
-    reserve.mockResolvedValue([]);
+    reserve.mockRejectedValue({ response: { code: 'AI_LIMIT_REACHED' } });
     await expect(
       configured().generate('u', 't', '', {}, {}),
     ).rejects.toMatchObject({ response: { code: 'AI_LIMIT_REACHED' } });
@@ -107,6 +109,21 @@ describe('AI provider boundaries', () => {
         provider.generate('u', 't', '', {}, {}),
       ).rejects.toMatchObject({ response: { code: 'AI_UNAVAILABLE' } });
     expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(release).toHaveBeenCalledTimes(5);
+    expect(completed).not.toHaveBeenCalled();
+  });
+  it('returns a reserved credit when business output validation fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(complete({ spentOn: 'invalid' })),
+    );
+    await expect(
+      configured().generate('u', 't', '', {}, {}, undefined, () => {
+        throw new Error('invalid date');
+      }),
+    ).rejects.toMatchObject({ response: { code: 'AI_UNAVAILABLE' } });
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(completed).not.toHaveBeenCalled();
   });
   it('rejects a simultaneous request by the same user', async () => {
     let finish!: (value: unknown) => void;
@@ -132,13 +149,19 @@ describe('AI provider boundaries', () => {
 
 describe('AI business proposals', () => {
   const generate = vi.fn();
+  function respond(value: unknown) {
+    generate.mockImplementation(async (...args: unknown[]) => {
+      const decode = args[6] as ((raw: unknown) => unknown) | undefined;
+      return decode ? decode(value) : value;
+    });
+  }
   const provider = { generate } as unknown as AiProviderService;
   const listings = new AiListingsService(provider, new LocationsService());
   beforeEach(() => generate.mockReset());
   it.each(['ROOMMATE', 'ROOM_WANTED', 'ROOM_RENTAL'] as const)(
     'describes %s using only appropriate public facts',
     async (type) => {
-      generate.mockResolvedValue({
+      respond({
         description: 'Mô tả từ dữ liệu công khai.',
       });
       const dto = Object.assign(new AiDescriptionDto(), {
@@ -180,7 +203,7 @@ describe('AI business proposals', () => {
     unsupported: ['Không hỗ trợ khoảng cách.'],
   };
   it('returns supported filters and explains unsupported requirements', async () => {
-    generate.mockResolvedValue(filters);
+    respond(filters);
     expect(
       await listings.search('u', {
         query: 'Phòng dưới 3 triệu có wifi gần biển',
@@ -200,7 +223,7 @@ describe('AI business proposals', () => {
     { amenities: ['WIFI', 'WIFI'] },
     { unsupported: [false] },
   ])('rejects invalid search output: %j', async (bad) => {
-    generate.mockResolvedValue({ ...filters, ...bad });
+    respond({ ...filters, ...bad });
     await expect(
       listings.search('u', { query: 'Nhu cầu tìm phòng' }),
     ).rejects.toMatchObject({ response: { code: 'AI_UNAVAILABLE' } });
@@ -229,7 +252,7 @@ describe('AI business proposals', () => {
     ).rejects.toMatchObject({ response: { code: 'RECEIPT_INVALID' } });
     expect(generate).not.toHaveBeenCalled();
   });
-  it.each(['2026-02-30', '2026-13-01'])(
+  it.each(['2026-02-30', '2026-13-01', 'Rau va trai cay, Thit va ca'])(
     'rejects impossible receipt dates: %s',
     async (spentOn) => {
       const access = { active: vi.fn() } as unknown as HouseAccessService;
@@ -240,7 +263,7 @@ describe('AI business proposals', () => {
           .png()
           .toBuffer(),
       } as Express.Multer.File;
-      generate.mockResolvedValue({
+      respond({
         title: 'Điện',
         amount: 300000,
         category: 'ELECTRICITY',
@@ -265,7 +288,7 @@ describe('AI business proposals', () => {
         .png()
         .toBuffer(),
     } as Express.Multer.File;
-    generate.mockResolvedValue({
+    respond({
       title: null,
       amount: null,
       category: null,
@@ -297,7 +320,7 @@ describe('AI business proposals', () => {
     const people = {
       getPerson: vi.fn().mockResolvedValue({ match, bio: 'PRIVATE' }),
     } as unknown as PeopleDiscoveryService;
-    generate.mockResolvedValue({ ids: ['budget'], score: 100, text: 'FAKE' });
+    respond({ ids: ['budget'], score: 100, text: 'FAKE' });
     const result = await new AiInsightsService(
       people,
       {} as HouseReportsService,
@@ -311,19 +334,17 @@ describe('AI business proposals', () => {
   });
   it('summarizes original totals including negative corrections without names', async () => {
     const reports = {
-      get: vi
-        .fn()
-        .mockResolvedValue({
-          total: -20,
-          count: 1,
-          generatedAt: new Date(),
-          categories: [
-            { category: 'WATER', label: 'Nước', amount: -20, count: 1 },
-          ],
-          members: [{ displayName: 'PRIVATE' }],
-        }),
+      get: vi.fn().mockResolvedValue({
+        total: -20,
+        count: 1,
+        generatedAt: new Date(),
+        categories: [
+          { category: 'WATER', label: 'Nước', amount: -20, count: 1 },
+        ],
+        members: [{ displayName: 'PRIVATE' }],
+      }),
     } as unknown as HouseReportsService;
-    generate.mockResolvedValue({ ids: ['WATER', 'total'] });
+    respond({ ids: ['WATER', 'total'] });
     const result = await new AiInsightsService(
       {} as PeopleDiscoveryService,
       reports,
@@ -333,21 +354,17 @@ describe('AI business proposals', () => {
     expect(result.highlights[0]).toContain('-20');
     expect(JSON.stringify(generate.mock.calls[0][3])).not.toContain('PRIVATE');
   });
-  it.each([['fake'], ['budget', 'budget'], []])(
+  it.each([{ ids: ['fake'] }, { ids: ['budget', 'budget'] }, { ids: [] }])(
     'rejects unsupported insight IDs %j',
-    async (ids) => {
+    async ({ ids }) => {
       const people = {
-        getPerson: vi
-          .fn()
-          .mockResolvedValue({
-            match: {
-              reasons: [
-                { key: 'budget', label: 'Ngân sách', explanation: 'A' },
-              ],
-            },
-          }),
+        getPerson: vi.fn().mockResolvedValue({
+          match: {
+            reasons: [{ key: 'budget', label: 'Ngân sách', explanation: 'A' }],
+          },
+        }),
       } as unknown as PeopleDiscoveryService;
-      generate.mockResolvedValue({ ids });
+      respond({ ids });
       await expect(
         new AiInsightsService(
           people,

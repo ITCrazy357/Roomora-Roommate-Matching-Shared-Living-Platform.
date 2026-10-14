@@ -1,6 +1,25 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { ListingInputDto } from '../../listings/dto/listing.dto.js';
+import { ReportQueryDto } from '../../household/dto/household.dto.js';
+
+export class AiSummaryDto extends ReportQueryDto {
+  @IsOptional() @IsBoolean() regenerate?: boolean;
+}
+export class AiSummaryNotesDto extends ReportQueryDto {
+  @IsString() @MaxLength(5000) notes!: string;
+  @IsInt() @Min(0) version!: number;
+}
 
 export class AiDescriptionDto extends ListingInputDto {
   @IsIn(['FRIENDLY', 'CONCISE']) tone: 'FRIENDLY' | 'CONCISE' = 'CONCISE';

@@ -26,6 +26,7 @@ import { Pagination } from "../communications/pagination";
 import { useUpdates } from "../communications/updates-provider";
 import { ServiceAccess } from "./service-access";
 import { ServiceOrderCard } from "./service-order-card";
+import { AiPlan } from "./ai-plan";
 
 type Tab = "plans" | "services" | "history";
 export function Services({
@@ -74,7 +75,7 @@ function ServicesContent({
         signal: controller.signal,
       }),
       apiFetch<ServiceOrderPage>(
-        `/services/orders?page=${page}&kind=${tab === "services" ? "boosts" : "all"}`,
+        `/services/orders?page=${page}&kind=${tab === "services" ? "benefits" : "all"}`,
         { signal: controller.signal, timeoutMs: 60000 },
       ),
     ])
@@ -153,13 +154,13 @@ function ServicesContent({
             {catalog ? ` · ${paymentLabels[catalog.provider]}` : ""}
           </span>
           <h1>
-            Để tin của bạn
+            Thêm lượt AI,
             <br />
-            <span>được nhìn thấy nhiều hơn.</span>
+            <span>nâng hiển thị tin.</span>
           </h1>
           <p>
-            Ưu tiên hiển thị có thời hạn, rõ giá và rõ quyền lợi. Bạn quyết định
-            khi nào cần nâng cấp.
+            Chọn gói AI hoặc đẩy tin theo nhu cầu. Giá và quyền lợi hiển thị rõ
+            trước khi thanh toán.
           </p>
         </div>
         <div className="service-hero-mark" aria-hidden="true">
@@ -175,9 +176,9 @@ function ServicesContent({
               : "PayOS · Thanh toán bằng tiền thật"}
         </strong>
         <p>
-          Gói chỉ tăng hiển thị, không bảo đảm tìm được người thuê hoặc ở ghép.
-          Tin trả phí luôn có nhãn “Được tài trợ”. Công nợ nhà chung và tiền
-          thuê phòng được quản lý riêng.
+          Gói đẩy tin chỉ tăng hiển thị, không bảo đảm tìm được người thuê hoặc
+          ở ghép. Tin trả phí luôn có nhãn “Được tài trợ”. Công nợ nhà chung và
+          tiền thuê phòng được quản lý riêng.
         </p>
       </div>
       <nav className="service-tabs" aria-label="Dịch vụ Roomora">
@@ -226,6 +227,11 @@ function ServicesContent({
           )}
           {tab === "plans" && (
             <>
+              <AiPlan
+                catalog={catalog}
+                reload={reload}
+                revision={`${retry}:${revision}`}
+              />
               <div className="service-plans">
                 <Card className="service-plan">
                   <span className="content-label">Dùng hằng ngày</span>
@@ -382,11 +388,12 @@ function ServicesContent({
                     paymentAvailable={catalog.providers[order.provider]}
                     retryAvailable={
                       catalog.paymentAvailable &&
-                      listings.some(
-                        (listing) =>
-                          listing.id === order.listingId &&
-                          !listing.paymentCompleted,
-                      )
+                      (order.planCode === "AI_50_CREDITS" ||
+                        listings.some(
+                          (listing) =>
+                            listing.id === order.listingId &&
+                            !listing.paymentCompleted,
+                        ))
                     }
                   />
                 ))}
@@ -398,7 +405,9 @@ function ServicesContent({
                         : "Chưa có giao dịch"
                     }
                   >
-                    <p>Chọn tin và gói dịch vụ khi bạn cần tăng hiển thị.</p>
+                    <p>
+                      Chọn gói AI hoặc tin cần tăng hiển thị trong Gói dịch vụ.
+                    </p>
                   </EmptyState>
                 )}
                 <Pagination

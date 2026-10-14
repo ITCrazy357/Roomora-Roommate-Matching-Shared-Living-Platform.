@@ -48,7 +48,7 @@ function OrderDetail({ id }: { id: string }) {
         <dd>
           {data.buyerName} · {data.buyerEmail}
         </dd>
-        <dt>Tin đăng</dt>
+        <dt>Nội dung dịch vụ / tin đăng</dt>
         <dd>{data.listingTitle}</dd>
         <dt>Gói dịch vụ</dt>
         <dd>

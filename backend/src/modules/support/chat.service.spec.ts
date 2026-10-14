@@ -4,7 +4,8 @@ import { helpArticles } from './chat-knowledge.js';
 
 describe('Bounded Roomora support chat', () => {
   afterEach(() => vi.unstubAllGlobals());
-  const local = () => new ChatService(new ConfigService({}));
+  const local = () =>
+    new ChatService(new ConfigService({ OPENAI_API_KEY: '' }));
   const ai = () =>
     new ChatService(new ConfigService({ OPENAI_API_KEY: 'test-only' }));
   function output(selection: unknown, status = 'completed') {

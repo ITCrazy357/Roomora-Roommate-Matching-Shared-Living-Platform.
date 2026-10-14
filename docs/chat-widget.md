@@ -77,7 +77,9 @@ Hội thoại và bản nháp được giữ khi thu gọn/mở lại và chuy�
 - Backend source typecheck và build đã qua. Frontend build, TypeScript và ESLint cho phần chatbot đã qua.
 - Browser ở 320/390/768/1440px đã qua, không tràn ngang và không lỗi JavaScript. FAQ/ngoài phạm vi gọi API Roomora thật; thao tác xác nhận gửi ticket và vai trò trong browser dùng fixture. Luồng ticket/session/ADMIN thật được kiểm chứng riêng bằng HTTP/PostgreSQL.
 - Không có request đến cổng chatbot riêng trong browser; dịch vụ frontend PDF và LangGraph cũ đã dừng.
-- Chưa kiểm chứng OpenAI thật vì `OPENAI_API_KEY` còn trống. Unit test phần phân loại dùng Responses API mock; phiên local trả FAQ bằng so khớp bảo thủ.
+- Kiểm chứng ban đầu chưa gọi OpenAI thật vì `OPENAI_API_KEY` còn trống ở thời điểm đó. Unit test phần phân loại dùng Responses API mock; phiên local khi đó trả FAQ bằng so khớp bảo thủ.
+
+Bổ sung 14/10/2026: sau khi cấu hình khóa, câu hỏi hướng dẫn đăng tin đã được phân loại bằng OpenAI thật (HTTP 200, completed), trả bài FAQ và đường dẫn đã duyệt. Cùng lượt kiểm tra có 59 unit test AI/FAQ và 21 HTTP/PostgreSQL AI/support qua. Test chế độ local đặt khóa rỗng tường minh, không dùng khóa thật từ môi trường. Đây là bằng chứng kết nối và một câu FAQ thật, chưa đánh giá độ chính xác phân loại trên toàn bộ cách hỏi.
 - Typecheck toàn backend bao gồm test vẫn báo lỗi ở các test auth-otp, billing và phase-10 hiện có. Những file đó không được sửa trong tác vụ chatbot này.
 
 Ảnh và báo cáo nằm tại `.verification/bounded-chat/`.

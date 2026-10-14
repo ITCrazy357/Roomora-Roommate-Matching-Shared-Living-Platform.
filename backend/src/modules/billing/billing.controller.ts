@@ -24,6 +24,7 @@ import { RefundRateGuard } from './refund-rate.guard.js';
 import { refundBanks } from './refund-banks.js';
 import {
   CreateServiceOrderDto,
+  CreateAiOrderDto,
   RefundRequestDto,
   ServiceOrderQueryDto,
 } from './dto/billing.dto.js';
@@ -58,6 +59,11 @@ export class BillingController {
   @UseGuards(AuthGuard)
   list(@Req() req: AuthenticatedRequest, @Query() query: ServiceOrderQueryDto) {
     return this.orders.list(req.auth.userId, query);
+  }
+  @Post('ai-orders')
+  @UseGuards(AuthGuard)
+  createAi(@Req() req: AuthenticatedRequest, @Body() dto: CreateAiOrderDto) {
+    return this.orders.createAi(req.auth.userId, dto);
   }
   @Get('orders/:id')
   @Header('Cache-Control', 'private, no-store')

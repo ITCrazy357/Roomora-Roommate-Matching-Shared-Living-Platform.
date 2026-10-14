@@ -11,6 +11,7 @@ import { PayosGatewayService } from './payos-gateway.service.js';
 import type { PaymentNotification } from './billing-types.js';
 import { RefundRulesService } from './refund-rules.service.js';
 import type { ServiceOrder } from '../../generated/prisma/client.js';
+import { aiCreditPlan } from '../ai-credits/ai-credits.service.js';
 
 @Injectable()
 export class ServicePaymentsService {
@@ -67,7 +68,8 @@ export class ServicePaymentsService {
     await this.prisma.$transaction(async (tx) => {
       // Shared lock order with purchases; two orders cannot overwrite one listing's expiry.
       await tx.$queryRaw`SELECT id FROM users WHERE id = ${initial.userId}::uuid FOR UPDATE`;
-      await tx.$queryRaw`SELECT id FROM listings WHERE id = ${initial.listingId}::uuid FOR UPDATE`;
+      if (initial.listingId)
+        await tx.$queryRaw`SELECT id FROM listings WHERE id = ${initial.listingId}::uuid FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM service_orders WHERE id = ${initial.id}::uuid FOR UPDATE`;
       const order = await tx.serviceOrder.findUniqueOrThrow({
         where: { id: initial.id },
@@ -146,14 +148,16 @@ export class ServicePaymentsService {
         return;
       }
       const now = new Date();
-      const paid = await tx.serviceOrder.findFirst({
-        where: {
-          listingId: order.listingId,
-          postingRound: order.postingRound,
-          status: 'PAID',
-        },
-        select: { id: true },
-      });
+      const paid = order.listingId
+        ? await tx.serviceOrder.findFirst({
+            where: {
+              listingId: order.listingId,
+              postingRound: order.postingRound,
+              status: 'PAID',
+            },
+            select: { id: true },
+          })
+        : null;
       await tx.serviceOrder.update({
         where: { id: order.id },
         data: {
@@ -172,6 +176,40 @@ export class ServicePaymentsService {
           payUrl: null,
         },
       });
+      if (order.planCode === aiCreditPlan.code) {
+        const user = await tx.user.findUniqueOrThrow({
+          where: { id: order.userId },
+        });
+        if (user.role !== 'USER' || user.lockedAt || user.closedAt) {
+          await this.refunds.create(
+            tx,
+            await tx.serviceOrder.findUniqueOrThrow({
+              where: { id: order.id },
+            }),
+            'Tài khoản không còn khả dụng khi nhận thanh toán gói AI. Cần đối soát hoàn tiền.',
+            'SYSTEM',
+            null,
+          );
+        } else {
+          await tx.aiCreditPack.create({
+            data: {
+              orderId: order.id,
+              userId: order.userId,
+              credits: order.creditAmount!,
+            },
+          });
+          await this.notifications.create(
+            tx,
+            order.userId,
+            'SERVICE',
+            'Đã cộng 50 lượt AI vào tài khoản',
+            '/dich-vu?tab=services',
+          );
+        }
+        return;
+      }
+      if (!order.listingId)
+        throw new BadRequestException({ code: 'PAYMENT_ORDER_MISMATCH' });
       const listing = await tx.listing.findUniqueOrThrow({
         where: { id: order.listingId },
         include: { owner: { select: { lockedAt: true } } },

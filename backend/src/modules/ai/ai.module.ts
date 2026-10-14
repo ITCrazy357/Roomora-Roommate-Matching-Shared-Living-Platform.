@@ -10,6 +10,8 @@ import { AiProviderService } from './ai-provider.service.js';
 import { AiListingsService } from './ai-listings.service.js';
 import { AiReceiptsService } from './ai-receipts.service.js';
 import { AiInsightsService } from './ai-insights.service.js';
+import { AiCreditsModule } from '../ai-credits/ai-credits.module.js';
+import { AiSummariesService } from './ai-summaries.service.js';
 @Module({
   imports: [
     PrismaModule,
@@ -18,6 +20,7 @@ import { AiInsightsService } from './ai-insights.service.js';
     HouseholdModule,
     PeopleModule,
     LocationsModule,
+    AiCreditsModule,
   ],
   controllers: [AiController],
   providers: [
@@ -25,6 +28,7 @@ import { AiInsightsService } from './ai-insights.service.js';
     AiListingsService,
     AiReceiptsService,
     AiInsightsService,
+    AiSummariesService,
   ],
 })
 export class AiModule {}

@@ -46,6 +46,13 @@ Nền nhấn dùng kem hồng/cam nhạt.
 
 ## Giao diện sáng và tối
 
+Các vùng AI dùng header gradient cam đỏ sang tím mận và biểu tượng tia sáng
+vàng để dễ nhận biết. Token `--ai-start`, `--ai-end`, `--ai-accent`,
+`--ai-on-color`, `--ai-soft` tập trung tại `theme.css`; component `AiPanel`
+được dùng chung cho cả năm chức năng và gói mua. Nhãn số lượt và CTA có chữ
+rõ ràng, không phụ thuộc màu. Màu thân panel thích nghi sáng/tối, không thêm
+chuyển động. Gói mua cho biết 5 lượt đầu một lần, 59.000đ/50 lượt và không hết hạn.
+
 Nút trên header chuyển `data-theme` của thẻ `html` giữa `light` và `dark`.
 Mặc định sáng; lựa chọn lưu tại `roomora-theme` trong localStorage. Token tối
 được khai báo chung tại `theme.css`; mọi màn hình tiếp tục dùng semantic token.

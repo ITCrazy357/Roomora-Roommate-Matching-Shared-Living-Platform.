@@ -30,6 +30,11 @@
   --focus-ring: color-mix(in srgb, var(--primary) 18%, transparent);
   --page-glow: color-mix(in srgb, var(--primary) 7%, var(--neutral));
   --shadow-action: color-mix(in srgb, var(--primary) 24%, transparent);
+  --ai-start: #b93620;
+  --ai-end: #8d3f66;
+  --ai-accent: #ffe2a3;
+  --ai-on-color: #ffffff;
+  --ai-soft: color-mix(in srgb, var(--secondary) 13%, var(--surface));
 
   /* Alerts keep a separate, recognizable error color. */
   --danger: #b4233b;

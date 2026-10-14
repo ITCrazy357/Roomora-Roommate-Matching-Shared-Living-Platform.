@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, isTemporaryApiError } from "@/lib/api";
 import {
   houseDate,
   houseError,
@@ -49,6 +49,7 @@ export function HouseDetail({
     setTab(next);
   }
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -65,13 +66,14 @@ export function HouseDetail({
     const controller = new AbortController();
     apiFetch<House>(`/houses/${id}`, { signal: controller.signal })
       .then((data) => {
+        if (controller.signal.aborted) return;
         setHouse(data);
-        setError("");
+        setLoadError("");
       })
       .catch((error) => {
         if (!controller.signal.aborted) {
-          setHouse(null);
-          setError(houseError(error));
+          if (!isTemporaryApiError(error)) setHouse(null);
+          setLoadError(houseError(error));
         }
       });
     return () => controller.abort();
@@ -148,9 +150,9 @@ export function HouseDetail({
         <ButtonLink href="/nha-chung" variant="secondary">
           ← Nhà chung
         </ButtonLink>
-        {error ? (
+        {loadError || error ? (
           <ErrorState
-            message={error}
+            message={loadError || error}
             action={
               <Button onClick={() => setRefresh((value) => value + 1)}>
                 Thử lại
@@ -589,6 +591,16 @@ export function HouseDetail({
                 </p>
               </Card>
             </div>
+          )}
+          {loadError && (
+            <ErrorState
+              message={`Chưa cập nhật được nhà chung. Đang hiển thị dữ liệu ở lần tải thành công gần nhất. ${loadError}`}
+              action={
+                <Button onClick={() => setRefresh((value) => value + 1)}>
+                  Tải lại nhà chung
+                </Button>
+              }
+            />
           )}
         </FocusPanel>
       </div>

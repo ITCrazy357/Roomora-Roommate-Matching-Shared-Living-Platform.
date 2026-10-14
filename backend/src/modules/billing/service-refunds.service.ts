@@ -32,7 +32,8 @@ export class ServiceRefundsService {
         select: { listingId: true },
       });
       if (!initial) throw new NotFoundException();
-      await tx.$queryRaw`SELECT id FROM listings WHERE id = ${initial.listingId}::uuid FOR UPDATE`;
+      if (initial.listingId)
+        await tx.$queryRaw`SELECT id FROM listings WHERE id = ${initial.listingId}::uuid FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM service_orders WHERE id = ${orderId}::uuid FOR UPDATE`;
       const order = await tx.serviceOrder.findFirst({
         where: { id: orderId, userId },

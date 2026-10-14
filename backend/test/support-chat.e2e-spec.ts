@@ -26,7 +26,7 @@ describe('Support chatbot and ADMIN handoff (HTTP/PostgreSQL)', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ChatService)
-      .useValue(new ChatService(new ConfigService({})))
+      .useValue(new ChatService(new ConfigService({ OPENAI_API_KEY: '' })))
       .compile();
     app = module.createNestApplication();
     app.setGlobalPrefix('api/v1');

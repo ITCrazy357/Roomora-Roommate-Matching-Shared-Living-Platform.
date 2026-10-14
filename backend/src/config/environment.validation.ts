@@ -70,6 +70,24 @@ export function validateEnvironment(
     return value.trim();
   };
 
+  const integerInRange = (
+    key: string,
+    fallback: number,
+    minimum: number,
+    maximum: number,
+  ) => {
+    const value = config[key] ?? fallback;
+    if (
+      (typeof value !== 'string' && typeof value !== 'number') ||
+      !/^\d+$/.test(String(value)) ||
+      Number(value) < minimum ||
+      Number(value) > maximum
+    ) {
+      throw new Error(`${key} phải là số nguyên từ ${minimum} đến ${maximum}`);
+    }
+    return Number(value);
+  };
+
   const smtpHost = optionalText('SMTP_HOST');
   const smtpUser = optionalText('SMTP_USER');
   const smtpPassword = optionalText('SMTP_PASSWORD');
@@ -205,6 +223,14 @@ export function validateEnvironment(
     ...config,
     NODE_ENV: nodeEnv,
     PORT: port,
+    DATABASE_POOL_SIZE: integerInRange('DATABASE_POOL_SIZE', 10, 1, 100),
+    DATABASE_SLOW_QUERY_MS: integerInRange(
+      'DATABASE_SLOW_QUERY_MS',
+      500,
+      1,
+      60000,
+    ),
+    TRUST_PROXY_HOPS: integerInRange('TRUST_PROXY_HOPS', 0, 0, 1),
     FRONTEND_ORIGIN: origin.origin,
     AUTH_DEV_EXPOSE_LINKS: devExposeLinks,
     AUTH_OTP_SECRET: otpSecret,

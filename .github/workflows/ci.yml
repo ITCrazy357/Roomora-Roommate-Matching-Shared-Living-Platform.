@@ -1,0 +1,76 @@
+name: Roomora CI
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: roomora
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: roomora_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U roomora -d roomora_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://roomora:ci-test-only@localhost:5432/roomora_ci?schema=public
+      FRONTEND_ORIGIN: http://localhost:3000
+      AUTH_DEV_EXPOSE_LINKS: "true"
+      AUTH_OTP_SECRET: ci-only-stable-otp-secret-at-least-32-characters
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run prisma:validate
+      - run: npm run build
+      - run: npm run prisma:migrate:deploy
+      - run: npm run lint
+      - run: npm test
+      - run: npm run test:e2e
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_API_BASE_URL: /api/v1
+      NEXT_TELEMETRY_DISABLED: "1"
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:api
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run build
+  containers:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - run: docker build --target runtime -t roomora-api:ci backend
+      - run: docker run --rm --entrypoint npm roomora-api:ci audit --omit=dev --omit=peer --audit-level=high
+      - run: docker build --target migrate -t roomora-migrate:ci backend
+      - run: docker build -t roomora-frontend:ci frontend

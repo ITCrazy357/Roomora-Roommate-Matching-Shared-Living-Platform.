@@ -247,12 +247,11 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
       clientId: randomUUID(),
       text: 'Xin chào, mình muốn trao đổi về phòng.',
     };
-    const results = await Promise.all([
-      post(a, path() + '/messages', body),
-      post(a, path() + '/messages', body),
-    ]);
-    expect(results.map((result) => result.status)).toEqual([201, 201]);
-    expect(results[0].body.id).toBe(results[1].body.id);
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () => post(a, path() + '/messages', body)),
+    );
+    expect(results.every((result) => result.status === 201)).toBe(true);
+    expect(new Set(results.map((result) => result.body.id)).size).toBe(1);
     expect(await prisma.message.count({ where: { conversationId } })).toBe(1);
     expect(
       await prisma.notification.count({

@@ -1,0 +1,39 @@
+# Copy to deploy/roomora.env on the server. Never commit the populated file.
+# Use a separate host and this file/volume/project for each environment.
+DEPLOY_ENV=staging
+DOMAIN=staging.example.com
+IMAGE_PREFIX=roomora
+RELEASE=local
+POSTGRES_PASSWORD=replace_with_a_random_password
+# URL-encode the password; hostname is the Compose service, not localhost.
+DATABASE_URL=postgresql://roomora:replace_with_a_random_password@postgres:5432/roomora?schema=public
+AUTH_OTP_SECRET=replace_with_a_stable_random_secret_at_least_32_characters
+DATABASE_POOL_SIZE=10
+DATABASE_SLOW_QUERY_MS=500
+# Compose sets TRUST_PROXY_HOPS=1: the API must have no public port.
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASSWORD=
+MAIL_FROM=
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+GEOAPIFY_API_KEY=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=
+BILLING_PAYMENT_PROVIDER=MOMO_SANDBOX
+MOMO_PARTNER_CODE=
+MOMO_ACCESS_KEY=
+MOMO_SECRET_KEY=
+MOMO_IPN_URL=
+PAYOS_CLIENT_ID=
+PAYOS_API_KEY=
+PAYOS_CHECKSUM_KEY=
+BILLING_RECONCILE_ENABLED=false
+OPENAI_API_KEY=
+CHATBOT_MODEL=gpt-4o-mini
+AI_MODEL=gpt-4o-mini
+AI_MONTHLY_LIMIT=50

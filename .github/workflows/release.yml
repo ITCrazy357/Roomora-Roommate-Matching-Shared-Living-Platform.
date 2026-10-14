@@ -1,0 +1,34 @@
+name: Roomora images
+on:
+  workflow_run:
+    workflows: [Roomora CI]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+  packages: write
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RELEASE: ${{ github.event.workflow_run.head_sha }}
+      REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Build and publish the tested commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          image_prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build --target runtime -t "$image_prefix-api:$RELEASE" backend
+          docker build --target migrate -t "$image_prefix-migrate:$RELEASE" backend
+          docker build -t "$image_prefix-frontend:$RELEASE" frontend
+          docker push "$image_prefix-api:$RELEASE"
+          docker push "$image_prefix-migrate:$RELEASE"
+          docker push "$image_prefix-frontend:$RELEASE"

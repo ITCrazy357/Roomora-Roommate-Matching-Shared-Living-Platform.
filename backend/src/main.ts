@@ -1,18 +1,30 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConsoleLogger, Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
+import { observeHttp } from './common/http-observability.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: new ConsoleLogger({ json: process.env.NODE_ENV === 'production' }),
+  });
 
   const config = app.get(ConfigService);
+
+  // One hop is safe only when the API is reachable exclusively through our proxy.
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .set('trust proxy', config.get<number>('TRUST_PROXY_HOPS', 0));
+
+  app.use(observeHttp);
 
   app.setGlobalPrefix('api/v1');
 
   app.enableCors({
     origin: config.getOrThrow<string>('FRONTEND_ORIGIN'),
     credentials: true,
+    exposedHeaders: ['X-Request-ID'],
   });
 
   app.useGlobalPipes(

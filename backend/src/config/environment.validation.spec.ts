@@ -1,5 +1,43 @@
 import { validateEnvironment } from './environment.validation.js';
 
+describe('Database operational limits', () => {
+  const base = { FRONTEND_ORIGIN: 'http://localhost:3000' };
+  it.each(['0', '-1', '1.5', 'abc', '101'])(
+    'rejects invalid pool size %s',
+    (value) => {
+      expect(() =>
+        validateEnvironment({ ...base, DATABASE_POOL_SIZE: value }),
+      ).toThrow('DATABASE_POOL_SIZE');
+    },
+  );
+  it('normalizes valid values and uses conservative defaults', () => {
+    expect(validateEnvironment(base)).toMatchObject({
+      DATABASE_POOL_SIZE: 10,
+      DATABASE_SLOW_QUERY_MS: 500,
+      TRUST_PROXY_HOPS: 0,
+    });
+    expect(
+      validateEnvironment({
+        ...base,
+        DATABASE_POOL_SIZE: '20',
+        DATABASE_SLOW_QUERY_MS: '250',
+      }),
+    ).toMatchObject({ DATABASE_POOL_SIZE: 20, DATABASE_SLOW_QUERY_MS: 250 });
+  });
+});
+
+describe('Proxy trust', () => {
+  const base = { FRONTEND_ORIGIN: 'http://localhost:3000' };
+  it('allows one private proxy hop and rejects broad trust', () => {
+    expect(
+      validateEnvironment({ ...base, TRUST_PROXY_HOPS: '1' }).TRUST_PROXY_HOPS,
+    ).toBe(1);
+    expect(() =>
+      validateEnvironment({ ...base, TRUST_PROXY_HOPS: '2' }),
+    ).toThrow('TRUST_PROXY_HOPS');
+  });
+});
+
 describe('Google environment validation', () => {
   const base = { FRONTEND_ORIGIN: 'http://localhost:3000' };
   const google = {

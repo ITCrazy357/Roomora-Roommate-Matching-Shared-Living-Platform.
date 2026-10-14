@@ -746,9 +746,14 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       action: 'confirm',
     }).expect(201);
     await post(1, base() + '/settle').expect(403);
-    expect((await post(0, base() + '/settle').expect(201)).body.settled).toBe(
-      1,
+    const settlements = await Promise.all(
+      Array.from({ length: 12 }, () => post(0, base() + '/settle').expect(201)),
     );
+    expect(
+      settlements
+        .map((result) => result.body.settled as number)
+        .sort((a, b) => a - b),
+    ).toEqual([...Array<number>(11).fill(0), 1]);
     const settled = (await agents[0].get(base()).expect(200)).body.items[0];
     expect(settled.status).toBe('SETTLED');
     const body = {

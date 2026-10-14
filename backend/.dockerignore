@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.env*
+*.log
+src/generated/prisma
+test
+scripts
+Dockerfile
+.dockerignore
+room.todo
+README.md

@@ -527,3 +527,18 @@ Sao lưu, thử khôi phục database và chuẩn bị rollback.
 Triển khai, thu phản hồi từ nhóm người dùng đầu tiên.
 
 Hoàn thành khi: có bản chạy công khai, quy trình vận hành và kết quả đo tải cụ thể. Mức tải công bố dựa trên kiểm thử thực tế.
+
+Tiến độ Phase 12 (phiên 14–15/10/2026): có Docker API/frontend/migrate, Compose HTTPS,
+CI và workflow image GHCR theo commit đã qua CI, log requestId/slow query, cấu hình pool
+và proxy, script đo tải/backup/restore cùng runbook. Vá Sharp 0.35.5 và Next.js 16.3.8;
+audit production frontend/API runtime ghi nhận 0 advisory tại thời điểm kiểm tra.
+157 unit, 421 HTTP/PostgreSQL, 119 regression sau vá Sharp và 8 API tests frontend qua;
+build/lint qua (5 warning test backend cũ). Stack HTTPS local kiểm chứng session/Origin/SSE,
+DB mất phản hồi → readiness 503 → phục hồi 200; backup dữ liệu mẫu phục hồi thành công.
+Dataset 10000 tin/200 users: 6200 request đọc, concurrency 1/10/25, không lỗi; mẫu 5000
+requests/25 đồng thời đạt 306.2 req/s trong 16.327 giây, listings p95 195 ms.
+20 tin khác nhau gửi đồng thời lưu đúng thứ tự; 10 retries không tạo trùng.
+Số liệu là cửa sổ local ngắn, không phải sức tải production hoặc số người dùng online.
+Chưa chọn host/domain, chưa chạy CI/GHCR thật, staging/public/cảnh báo/backup ngoài host
+và phản hồi người dùng; không đánh dấu Phase 12 hoàn tất. Image migrate còn advisory
+tooling Prisma cần rà trước triển khai. Chi tiết: ../docs/phase-12-status.md; ../docs/operations.md.

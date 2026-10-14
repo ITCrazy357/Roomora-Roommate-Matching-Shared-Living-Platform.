@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   async headers() {
     const baseline = [
       { key: "X-Content-Type-Options", value: "nosniff" },

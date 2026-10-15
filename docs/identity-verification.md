@@ -74,9 +74,12 @@ Khóa local đã tạo trong `backend/.env`, không in giá trị ra log/chat v�
 Giữ khóa cùng bản sao lưu được bảo vệ; đổi/mất khóa làm dữ liệu cũ không giải
 mã được, chưa có chức năng xoay khóa tự động.
 
-`IDENTITY_DECLARATION_REQUIRED=true` là mặc định. Có thể đặt false để rollout
-hoặc chạy các bộ regression có fixture cũ. Bộ `identity-support.e2e-spec.ts`
-luôn bật true và kiểm tra điều kiện bắt buộc bằng HTTP/PostgreSQL thật.
+`IDENTITY_DECLARATION_REQUIRED=true` là mặc định và được đặt rõ trong CI.
+Các fixture chạy luồng tạo/vào nhà hoặc gửi tin cho thuê phải nộp khai báo
+hợp lệ qua `test/helpers/identity.ts`; helper gọi service thật, tạo khóa mã
+hóa ngẫu nhiên cho ứng dụng test khi chưa cấu hình. Không tắt điều kiện nghiệp
+vụ để chạy regression. Bộ `identity-support.e2e-spec.ts` tự giữ các tài khoản
+chưa khai báo để kiểm tra nhánh bị chặn bằng HTTP/PostgreSQL thật.
 Migration mới: `20261015100000_demo_identity_declarations`.
 
 ## Sửa cập nhật trạng thái hỗ trợ và báo cáo
@@ -118,9 +121,17 @@ liệu mới. Không thay đổi các quy tắc xử lý báo cáo/khóa tài kh
 ## Kiểm chứng local
 
 - Cả hai migration đã áp dụng trên PostgreSQL `127.0.0.1:5433/roomora`.
-- 101 kiểm thử HTTP/PostgreSQL qua: identity/support, Phase 10, listings,
-  houses, people, auth-profile, admin và quota. Các regression cũ dùng flag
-  khai báo false; 14 kiểm thử identity/support bật true và tự sinh dữ liệu giả.
+- Đợt kiểm tra ban đầu có 101 HTTP/PostgreSQL tests qua, nhưng nhóm regression
+  cũ dùng flag khai báo false; chỉ 14 kiểm thử identity/support bật true.
+  Cách chạy này bỏ sót fixture thiếu khai báo khi lên CI. Bản sửa CI đã bổ
+  sung fixture hợp lệ và bật điều kiện cho toàn bộ bộ kiểm thử.
+- Kiểm tra lại ngày 15/10/2026 với `IDENTITY_DECLARATION_REQUIRED=true`:
+  Prisma generate/validate, 44 migration trên database rỗng, build và lint
+  backend qua (5 warning test cũ). Toàn bộ 185 unit tests (25 file) và
+  450 E2E tests (29 file) qua, không có test bỏ qua; dùng PostgreSQL/Redis local,
+  giữ timeout mặc định của CI. Database kiểm thử riêng đã được dọn.
+  Báo cáo tại `.verification/ci-identity-results/summary.json`.
+  Chưa commit/push hoặc chạy lại GitHub Actions cho bản sửa này.
 - 33 unit tests mã hóa/cấu hình qua. Kiểm tra chống tráo dữ liệu giữa tài khoản,
   sửa ciphertext, thiếu khóa, nộp lại và quyết định stale, rò dữ liệu qua API/audit,
   nhận lời mời nhà, duyệt tin cho thuê và cạnh tranh cập nhật trạng thái.

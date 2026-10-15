@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { declareIdentity } from './helpers/identity.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { CostSharingSchedulerService } from '../src/modules/cost-sharing/cost-sharing-scheduler.service.js';
 import {
@@ -117,6 +118,7 @@ describe('Monthly cost sharing (real HTTP and PostgreSQL)', () => {
         },
       });
       const agent = request.agent(app.getHttpServer());
+      await declareIdentity(app, id);
       agents.push(agent);
       await agent
         .post('/api/v1/auth/login')

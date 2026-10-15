@@ -5,6 +5,7 @@ import request from 'supertest';
 import sharp from 'sharp';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { declareIdentity } from './helpers/identity.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { NotificationsService } from '../src/modules/communications/notifications.service.js';
 
@@ -53,6 +54,7 @@ describe('House chat (real PostgreSQL and SSE)', () => {
         },
       });
       const agent = request.agent(app.getHttpServer());
+      await declareIdentity(app, id);
       agents.push(agent);
       const login = await agent
         .post('/api/v1/auth/login')

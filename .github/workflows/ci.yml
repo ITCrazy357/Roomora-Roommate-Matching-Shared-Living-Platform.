@@ -33,6 +33,7 @@ jobs:
       FRONTEND_ORIGIN: http://localhost:3000
       AUTH_DEV_EXPOSE_LINKS: "true"
       AUTH_OTP_SECRET: ci-only-stable-otp-secret-at-least-32-characters
+      IDENTITY_DECLARATION_REQUIRED: "true"
     defaults:
       run:
         working-directory: backend

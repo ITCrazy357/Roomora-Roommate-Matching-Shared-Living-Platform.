@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { declareIdentity } from './helpers/identity.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { CloudinaryService } from '../src/modules/cloudinary/cloudinary.service.js';
 
@@ -83,6 +84,7 @@ describe('Phase 3 listings (real PostgreSQL)', () => {
         },
       });
       userIds.push(user.id);
+      if (name === 'owner') await declareIdentity(app, user.id);
     }
     [owner, reader, admin] = await Promise.all(
       ['owner', 'reader', 'admin'].map(async (name) => {

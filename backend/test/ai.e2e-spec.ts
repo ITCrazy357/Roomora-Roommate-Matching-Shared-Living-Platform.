@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { declareIdentity } from './helpers/identity.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { AiCreditsService } from '../src/modules/ai-credits/ai-credits.service.js';
 import { AiProviderService } from '../src/modules/ai/ai-provider.service.js';
@@ -72,6 +73,7 @@ describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
         },
       });
       ids.push(user.id);
+      if (user.role === 'USER') await declareIdentity(app, user.id);
       const agent = request.agent(app.getHttpServer());
       await agent
         .post('/api/v1/auth/login')

@@ -6,6 +6,7 @@ import request from 'supertest';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { declareIdentity } from './helpers/identity.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { HouseAccessService } from '../src/modules/houses/house-access.service.js';
 import { HouseholdAccessService } from '../src/modules/household/household-access.service.js';
@@ -97,6 +98,7 @@ describe('Phase 8 household (real HTTP and PostgreSQL)', () => {
         },
       });
       const agent = request.agent(app.getHttpServer());
+      await declareIdentity(app, id);
       agents.push(agent);
       await agent
         .post('/api/v1/auth/login')

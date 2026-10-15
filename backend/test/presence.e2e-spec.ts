@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { declareIdentity } from './helpers/identity.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { NotificationsService } from '../src/modules/communications/notifications.service.js';
 
@@ -69,6 +70,7 @@ describe('Chat activity (HTTP and PostgreSQL)', () => {
         },
       });
       agents.push(request.agent(app.getHttpServer()));
+      await declareIdentity(app, id);
       await post(index, '/api/v1/auth/login', {
         email: accountEmail,
         password,

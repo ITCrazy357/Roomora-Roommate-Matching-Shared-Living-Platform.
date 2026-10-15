@@ -556,3 +556,11 @@ Số liệu là cửa sổ local ngắn, không phải sức tải production ho
 Chưa chọn host/domain, chưa chạy CI/GHCR thật, staging/public/cảnh báo/backup ngoài host
 và phản hồi người dùng; không đánh dấu Phase 12 hoàn tất. Image migrate còn advisory
 tooling Prisma cần rà trước triển khai. Chi tiết: ../docs/phase-12-status.md; ../docs/operations.md.
+
+Bổ sung sửa CI 15/10/2026: các fixture tạo/vào nhà và gửi tin cho thuê thiếu
+khai báo sau khi bật nghiệp vụ identity, gây HTTP 403 và bỏ qua test phụ thuộc.
+Đã bổ sung helper nộp hồ sơ demo hợp lệ, đặt rõ IDENTITY_DECLARATION_REQUIRED=true
+trong CI; giữ kiểm thử chặn tài khoản chưa khai báo. Kiểm chứng local trên DB
+rỗng qua 44 migration, Prisma generate/validate, build/lint backend (5 warning cũ),
+185 unit và 450 E2E qua, không bỏ qua test. DB kiểm thử riêng đã dọn;
+chưa commit/push hoặc chạy lại GitHub Actions. Chi tiết: ../docs/identity-verification.md.

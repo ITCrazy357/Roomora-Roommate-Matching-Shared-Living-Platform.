@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { declareIdentity } from './helpers/identity.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { listingWeek } from '../src/modules/listings/listing-quota.service.js';
 
@@ -199,6 +200,7 @@ describe('Weekly listing quota (HTTP/PostgreSQL)', () => {
   });
 
   it('exempts rental submissions but checks quota when a rental first becomes a room search', async () => {
+    await declareIdentity(app, userId);
     for (let index = 0; index < 3; index++)
       await submit(await draft()).expect(201);
     const rental = await draft({

@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
+import { declareIdentity } from './helpers/identity.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { NotificationsService } from '../src/modules/communications/notifications.service.js';
 
@@ -67,6 +68,7 @@ describe('Phase 6 houses and listing types (real PostgreSQL)', () => {
         },
       });
       ids.push(user.id);
+      await declareIdentity(app, user.id);
       const agent = request.agent(app.getHttpServer());
       await post(agent, '/auth/login', { email: user.email, password }).expect(
         200,

@@ -247,6 +247,10 @@ export function validateEnvironment(
     );
   }
 
+  const identityKey = optionalText('IDENTITY_ENCRYPTION_KEY');
+  if (identityKey && !/^[a-fA-F0-9]{64}$/.test(identityKey))
+    throw new Error('IDENTITY_ENCRYPTION_KEY phải có 64 ký tự hex');
+
   return {
     ...config,
     NODE_ENV: nodeEnv,
@@ -288,5 +292,10 @@ export function validateEnvironment(
     OPENAI_API_KEY: optionalText('OPENAI_API_KEY'),
     CHATBOT_MODEL: optionalText('CHATBOT_MODEL') ?? 'gpt-4o-mini',
     AI_MODEL: optionalText('AI_MODEL') ?? 'gpt-4o-mini',
+    IDENTITY_ENCRYPTION_KEY: identityKey,
+    IDENTITY_DECLARATION_REQUIRED: booleanValue(
+      'IDENTITY_DECLARATION_REQUIRED',
+      true,
+    ),
   };
 }

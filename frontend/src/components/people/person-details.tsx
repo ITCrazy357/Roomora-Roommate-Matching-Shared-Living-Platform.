@@ -17,6 +17,7 @@ import {
 import { lifestyleLabels } from "@/lib/profile";
 import { AreaMap } from "../listings/area-map";
 import { PersonAvatar } from "../person-avatar";
+import { IdentityBadge } from "../identity/identity-badge";
 
 const actionMessages = {
   send: "Đã gửi lời kết nối. Hãy chờ người nhận phản hồi.",
@@ -318,6 +319,7 @@ export function PersonDetails({
           <p className="text-muted">
             {person.desiredAreas?.join(", ") || "Khu vực chưa công khai"}
           </p>
+          <IdentityBadge status={person.identityStatus} />
         </div>
       </div>
       <p className="person-bio">

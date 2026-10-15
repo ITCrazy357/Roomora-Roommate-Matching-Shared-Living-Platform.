@@ -32,6 +32,7 @@ import {
   UpdateListingDto,
 } from './dto/listing.dto.js';
 import { ListingsService } from './listings.service.js';
+import { ListingQuotaService } from './listing-quota.service.js';
 
 class PhotoVersionDto extends ListingVersionDto {
   @Type(() => Number)
@@ -40,7 +41,10 @@ class PhotoVersionDto extends ListingVersionDto {
 
 @Controller('listings')
 export class ListingsController {
-  constructor(private readonly listings: ListingsService) {}
+  constructor(
+    private readonly listings: ListingsService,
+    private readonly quota: ListingQuotaService,
+  ) {}
 
   @Get()
   @UseGuards(OptionalAuthGuard)
@@ -54,6 +58,11 @@ export class ListingsController {
   @UseGuards(AuthGuard)
   mine(@Query() query: ListingQueryDto, @Req() request: AuthenticatedRequest) {
     return this.listings.listMine(request.auth.userId, query);
+  }
+  @Get('quota')
+  @UseGuards(AuthGuard)
+  quotaStatus(@Req() request: AuthenticatedRequest) {
+    return this.quota.get(request.auth.userId);
   }
   @Get('saved')
   @UseGuards(AuthGuard)

@@ -17,6 +17,11 @@ export const adminLinks = [
     hint: "Tiếp nhận và xử lý",
   },
   {
+    href: "/admin/ho-so",
+    label: "Tra cứu hồ sơ",
+    hint: "Khai báo danh tính và nhật ký truy cập",
+  },
+  {
     href: "/admin/thong-bao",
     label: "Thông báo hệ thống",
     hint: "Lịch bảo trì và thông báo chung",

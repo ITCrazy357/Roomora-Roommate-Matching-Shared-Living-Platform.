@@ -7,6 +7,7 @@ export const details = {
     select: {
       id: true,
       lockedAt: true,
+      identityDeclaration: { select: { status: true } },
       profile: {
         select: { displayName: true, avatarUrl: true, visibility: true },
       },

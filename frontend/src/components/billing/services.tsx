@@ -243,6 +243,10 @@ function ServicesContent({
                   </p>
                   <ul>
                     <li>Khám phá tin đăng và tìm người ở ghép</li>
+                    <li>
+                      Tổng 3 tin tìm phòng/ở ghép mỗi tuần, tính khi gửi duyệt
+                      lần đầu
+                    </li>
                     <li>Kết nối, nhắn tin và hẹn xem phòng</li>
                     <li>Việc nhà, khoản chi và công nợ</li>
                   </ul>
@@ -265,6 +269,10 @@ function ServicesContent({
                     <li>Áp dụng bộ lọc khu vực, loại tin và ngân sách</li>
                     <li>Nhãn “Được tài trợ” trên thẻ và chi tiết</li>
                     <li>Đủ thời hạn từ lúc được cấp quyền lợi</li>
+                    <li>
+                      Tăng tổng hạn mức tin tìm phòng/ở ghép từ 3 lên 8 tin/tuần
+                      khi gói còn hạn; nhiều gói không cộng dồn
+                    </li>
                     <li>Biên nhận PDF cho mỗi thanh toán thành công</li>
                   </ul>
                   <form onSubmit={(event) => void buy(event)}>
@@ -337,7 +345,10 @@ function ServicesContent({
                     <p>
                       Tin chỉ được ưu tiên khi công khai và còn nhận người. Thời
                       hạn vẫn chạy khi đã đủ hoặc chờ duyệt lại. Đóng tin kết
-                      thúc đợt đăng; đăng lại bắt đầu đợt mới.
+                      thúc đợt đăng; đăng lại bắt đầu đợt mới. Ưu đãi thêm 5
+                      lượt đăng tin mỗi tuần của tài khoản vẫn còn đến hết hạn
+                      gói đã kích hoạt, kể cả khi đóng tin. Hoàn tiền thành công
+                      kết thúc ưu đãi của gói đó; lượt đã dùng vẫn được tính.
                     </p>
                   </section>
                   <section>

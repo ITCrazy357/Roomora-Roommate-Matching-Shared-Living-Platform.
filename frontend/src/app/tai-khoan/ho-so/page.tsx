@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ProfileEditor } from "@/components/profile-editor";
+import { IdentityNotice } from "@/components/identity/identity-notice";
 
 export const metadata: Metadata = { title: "Hồ sơ của tôi" };
 
@@ -18,6 +19,7 @@ export default function MyProfilePage() {
           Cài đặt riêng tư
         </Link>
       </div>
+      <IdentityNotice />
       <ProfileEditor />
     </section>
   );

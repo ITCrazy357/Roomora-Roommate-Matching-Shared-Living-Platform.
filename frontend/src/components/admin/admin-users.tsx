@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import {
   adminError,
@@ -290,6 +291,12 @@ export function AdminUsers() {
                                 ? "Xem / mở khóa"
                                 : "Xem / xử lý"}
                           </Button>
+                          <Link
+                            className="text-link"
+                            href={`/admin/ho-so?userId=${item.id}`}
+                          >
+                            Tra cứu hồ sơ →
+                          </Link>
                         </td>
                       </tr>
                     ))}
@@ -317,8 +324,8 @@ export function AdminUsers() {
                   user.closedAt
                     ? "Đã khôi phục tài khoản. Người dùng cần đăng nhập lại."
                     : user.lockedAt
-                    ? "Đã mở khóa. Người dùng có thể đăng nhập lại."
-                    : "Đã khóa và thu hồi các phiên đăng nhập.",
+                      ? "Đã mở khóa. Người dùng có thể đăng nhập lại."
+                      : "Đã khóa và thu hồi các phiên đăng nhập.",
                 );
                 reload();
               }}

@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { Connection, Profile } from '../../generated/prisma/client.js';
+import type {
+  Connection,
+  Profile,
+  IdentityDeclarationStatus,
+} from '../../generated/prisma/client.js';
 import { LocationsService } from '../locations/locations.service.js';
 import { publicProfile } from '../profile/public-profile.js';
 import { matchProfiles } from './matching.js';
@@ -8,9 +12,18 @@ import { matchProfiles } from './matching.js';
 export class PeopleViewsService {
   constructor(private readonly locations: LocationsService) {}
 
-  person(profile: Profile, viewer: Profile | null, connection?: Connection) {
+  person(
+    profile: Profile & {
+      user?: {
+        identityDeclaration?: { status: IdentityDeclarationStatus } | null;
+      };
+    },
+    viewer: Profile | null,
+    connection?: Connection,
+  ) {
     return {
       ...publicProfile(profile, this.locations),
+      identityStatus: profile.user?.identityDeclaration?.status ?? null,
       match:
         viewer?.userId === profile.userId
           ? null

@@ -43,7 +43,21 @@ Cập nhật ảnh đại diện, giới thiệu, ngân sách, khu vực mong mu
 Khai báo thói quen: giờ ngủ, hút thuốc, thú cưng, mức độ yên tĩnh.
 Phân biệt dữ liệu công khai và dữ liệu riêng tư.
 
-Đơn giản hóa: onboarding ngắn, cho phép bổ sung hồ sơ sau; chưa làm xác thực CCCD và 2FA.
+Đơn giản hóa: onboarding ngắn, cho phép bổ sung hồ sơ sau; chưa xác thực CCCD qua dịch vụ chính thức và chưa có 2FA.
+
+Bổ sung 15/10/2026: theo lựa chọn mới, đã triển khai khai báo danh tính demo,
+nộp đủ là được tạo/vào nhà chung và gửi tin cho thuê, không cần chờ ADMIN duyệt.
+Có dữ liệu mẫu, mã hóa thông tin, tra cứu ADMIN /admin/ho-so, CCCD che mặc định,
+mở thông tin theo lý do có nhật ký; duyệt/yêu cầu bổ sung theo phiên bản. Nhãn ghi
+rõ hồ sơ demo, chưa phải xác minh RAR/VNeID. Không thu ảnh giấy tờ/khuôn mặt.
+Hạn mức tìm phòng/tìm ở ghép tiếp tục áp dụng cho cả tài khoản có hồ sơ demo:
+tổng 3 tin/tuần, tăng thành 8 khi gói đẩy tin đã kích hoạt còn hạn, không cộng dồn;
+tuần từ thứ Hai 00:00 UTC+7, tính lúc gửi duyệt lần đầu, không trừ lại khi gửi cùng tin.
+Chi tiết API/cấu hình/kiểm chứng và công nợ: ../docs/identity-verification.md.
+Đã sửa hỗ trợ: nút Lưu trạng thái không cần phản hồi, đồng bộ trạng thái USER/ADMIN
+qua SSE sau commit; báo cáo vi phạm cũng phát tín hiệu cập nhật. 101 HTTP/PostgreSQL,
+33 unit tests qua; Edge hai phiên thật kiểm tra khai báo/tra cứu/audit/đổi trạng thái,
+320–1366px sáng/tối không tràn ngang hoặc lỗi JS. Migration demo đã áp dụng local.
 
 Hoàn thành khi: người dùng tạo tài khoản, đăng nhập và chỉnh sửa được hồ sơ; không thể sửa dữ liệu của người khác.
 

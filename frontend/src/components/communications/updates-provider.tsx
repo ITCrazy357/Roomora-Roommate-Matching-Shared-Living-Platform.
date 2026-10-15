@@ -63,6 +63,9 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
       try {
         do {
           pending = false;
+          // A sync also refreshes support/profile screens if unread counters fail.
+          if (!controller.signal.aborted)
+            setState((old) => ({ ...old, userId, revision: old.revision + 1 }));
           const [messages, notices] = await Promise.all([
             apiFetch<Page<Conversation>>("/conversations?limit=1", {
               signal: controller.signal,
@@ -75,7 +78,6 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
             setState((old) => ({
               ...old,
               userId,
-              revision: old.revision + 1,
               messages: messages.unread ?? 0,
               notifications: notices.unread ?? 0,
             }));

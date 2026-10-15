@@ -40,7 +40,7 @@ export function observeHttp(
       (!streaming && (entry.aborted || durationMs >= 1000))
     )
       logger.warn(entry);
-    else logger.log(entry);
+    else if (process.env.NODE_ENV === 'production') logger.log(entry);
   };
   response.once('finish', record);
   response.once('close', record);

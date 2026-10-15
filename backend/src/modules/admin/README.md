@@ -173,3 +173,17 @@ Danh sách người dùng thêm `status=CLOSED`, phân biệt với khóa do vi 
 
 Migration `20261013025000_account_closure_otp` và `20261013030000_admin_support`
 đã deploy trên PostgreSQL local. Bằng chứng kiểm tra: `../../../../PHASE_10_STATUS.md`.
+
+## Tra cứu hồ sơ demo và cập nhật hỗ trợ — 15/10/2026
+
+ADMIN có `/admin/ho-so` và API `/admin/identities`: danh sách đã che, xem chi
+tiết có audit, mở thông tin đầy đủ bằng POST có `{ version, reason }`, duyệt
+hoặc yêu cầu bổ sung có version/lý do. Payload hồ sơ mã hóa; chỉ người khai
+và ADMIN có lý do được đọc đầy đủ. Không thu ảnh CCCD/khuôn mặt, không giả kết
+quả xác thực RAR. Nhãn ghi rõ demo. Khóa `IDENTITY_ENCRYPTION_KEY` giữ ở backend.
+
+`PATCH /admin/support/tickets/:id/status` lưu trạng thái không cần thêm tin
+nhắn. Màn hỗ trợ có nút Lưu trạng thái riêng, đồng bộ với trạng thái thực đã
+lưu. Tạo/phản hồi/đổi trạng thái hỗ trợ và xử lý báo cáo dùng tín hiệu sau
+commit cho USER liên quan và ADMIN. Chi tiết cấu hình và kiểm chứng:
+`../../../../docs/identity-verification.md`.

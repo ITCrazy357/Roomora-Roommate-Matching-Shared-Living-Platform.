@@ -9,6 +9,8 @@ import { details } from './listing-views.js';
 import { ListingQueriesService } from './listing-queries.service.js';
 import { ListingRulesService } from './listing-rules.service.js';
 import { ListingPhotosService } from './listing-photos.service.js';
+import { ListingQuotaService } from './listing-quota.service.js';
+import { IdentityService } from '../identity/identity.service.js';
 
 @Injectable()
 export class ListingManagementService {
@@ -17,6 +19,8 @@ export class ListingManagementService {
     private readonly queries: ListingQueriesService,
     private readonly rules: ListingRulesService,
     private readonly photos: ListingPhotosService,
+    private readonly quota: ListingQuotaService,
+    private readonly identity: IdentityService,
   ) {}
 
   async create(ownerId: string, input: ListingInputDto) {
@@ -45,24 +49,37 @@ export class ListingManagementService {
   }
 
   async submit(ownerId: string, id: string, version: number) {
-    const listing = await this.rules.requireOwner(ownerId, id);
-    this.rules.requireComplete(listing);
-    const result = await this.prisma.listing.updateMany({
-      where: {
-        id,
-        ownerId,
-        version,
-        status: { in: ['DRAFT', 'REJECTED', 'CLOSED'] },
-      },
-      data: {
-        status: 'PENDING',
-        rejectionReason: null,
-        submittedAt: new Date(),
-        publishedAt: null,
-        version: { increment: 1 },
-      },
+    await this.prisma.$transaction(async (tx) => {
+      // Match billing lock order; serialize quota checks across API instances.
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM listings WHERE id = ${id}::uuid FOR UPDATE`;
+      const listing = await tx.listing.findFirst({
+        where: { id, ownerId, deletedAt: null },
+        include: details,
+      });
+      if (!listing) this.rules.notFound();
+      if (
+        listing.version !== version ||
+        !['DRAFT', 'REJECTED', 'CLOSED'].includes(listing.status)
+      )
+        this.rules.requireChange(0);
+      this.rules.requireComplete(listing);
+      if (listing.type === 'ROOM_RENTAL')
+        await this.identity.requireDeclared(tx, ownerId);
+      // Identity verification is not integrated yet; no account is verified.
+      if (listing.type !== 'ROOM_RENTAL')
+        await this.quota.consume(tx, ownerId, id);
+      await tx.listing.update({
+        where: { id },
+        data: {
+          status: 'PENDING',
+          rejectionReason: null,
+          submittedAt: new Date(),
+          publishedAt: null,
+          version: { increment: 1 },
+        },
+      });
     });
-    this.rules.requireChange(result.count);
     return this.queries.getMine(ownerId, id);
   }
 
@@ -172,6 +189,8 @@ export class ListingManagementService {
           code: 'LISTING_OWNER_LOCKED',
           message: 'Không thể duyệt tin của tài khoản đang bị khóa',
         });
+      if (input.decision === 'PUBLISHED' && listing.type === 'ROOM_RENTAL')
+        await this.identity.requireDeclared(tx, listing.ownerId);
       const result = await tx.listing.updateMany({
         where: { id, version: input.version, status: 'PENDING' },
         data: {

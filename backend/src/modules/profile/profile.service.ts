@@ -155,7 +155,15 @@ export class ProfileService {
   async getPublic(userId: string, requesterId?: string) {
     const profile = await this.prisma.profile.findUnique({
       where: { userId },
-      include: { user: { select: { lockedAt: true, role: true } } },
+      include: {
+        user: {
+          select: {
+            lockedAt: true,
+            role: true,
+            identityDeclaration: { select: { status: true } },
+          },
+        },
+      },
     });
     if (!profile || profile.user.lockedAt || profile.user.role !== 'USER')
       throw this.notFound();
@@ -175,9 +183,10 @@ export class ProfileService {
     )
       throw this.notFound();
     if (!owner && profile.visibility === 'PRIVATE') throw this.notFound();
-    if (owner) return this.fullProfile(profile);
+    const identityStatus = profile.user.identityDeclaration?.status ?? null;
+    if (owner) return { ...this.fullProfile(profile), identityStatus };
 
-    return publicProfile(profile, this.locations);
+    return { ...publicProfile(profile, this.locations), identityStatus };
   }
 
   private profileLocations(profile: Profile) {

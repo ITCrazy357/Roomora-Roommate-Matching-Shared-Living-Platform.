@@ -47,7 +47,44 @@ function TicketDetail({
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState("");
   const [body, setBody] = useState("");
-  const [status, setStatus] = useState("IN_PROGRESS");
+  const [decision, setDecision] = useState<{
+    version: number;
+    value: string;
+  } | null>(null);
+  const [notice, setNotice] = useState("");
+  const status =
+    decision?.version === ticket?.version
+      ? (decision?.value ?? "IN_PROGRESS")
+      : ticket?.status === "OPEN"
+        ? "IN_PROGRESS"
+        : (ticket?.status ?? "IN_PROGRESS");
+  function changed() {
+    setDecision(null);
+    reload();
+    onChanged();
+    window.dispatchEvent(new Event("roomora:admin-change"));
+  }
+  async function saveStatus() {
+    if (!ticket || pending) return;
+    setPending(true);
+    setFailure("");
+    setNotice("");
+    try {
+      await apiFetch(`${base}/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ version: ticket.version, status }),
+      });
+      changed();
+      setNotice("Đã lưu trạng thái xử lý.");
+    } catch (error) {
+      setFailure(supportError(error));
+      reload();
+      onChanged();
+    } finally {
+      setPending(false);
+    }
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!ticket) return;
@@ -56,6 +93,7 @@ function TicketDetail({
         ?.value === "close";
     setPending(true);
     setFailure("");
+    setNotice("");
     try {
       await apiFetch(
         `${base}/${id}${admin ? "" : close ? "/close" : "/replies"}`,
@@ -70,9 +108,8 @@ function TicketDetail({
         },
       );
       setBody("");
-      reload();
-      onChanged();
-      window.dispatchEvent(new Event("roomora:admin-change"));
+      changed();
+      setNotice("Đã gửi phản hồi và cập nhật yêu cầu.");
     } catch (error) {
       setFailure(supportError(error));
     } finally {
@@ -84,8 +121,15 @@ function TicketDetail({
     <Card className="support-detail">
       <h2>{ticket.subject}</h2>
       <p className="text-muted">
-        {supportStatuses[ticket.status]} · Phiên bản {ticket.version}
+        Trạng thái hiện tại: {supportStatuses[ticket.status]} · Phiên bản{" "}
+        {ticket.version}
       </p>
+      {notice && (
+        <p className="success-state" role="status">
+          {notice}
+        </p>
+      )}
+      {failure && <ErrorState message={failure} />}
       {admin && (
         <p>
           Người gửi: {ticket.user.profile?.displayName ?? ticket.user.email} ·{" "}
@@ -122,21 +166,41 @@ function TicketDetail({
       {ticket.status !== "CLOSED" && (
         <form className="form-stack" onSubmit={submit}>
           {admin && (
-            <Select
-              id="support-decision"
-              label="Trạng thái sau phản hồi"
-              value={status}
-              disabled={pending}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              {Object.entries(supportStatuses)
-                .filter(([value]) => value !== "OPEN")
-                .map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-            </Select>
+            <div className="form-stack">
+              <Select
+                id="support-decision"
+                label="Trạng thái xử lý"
+                value={status}
+                disabled={pending}
+                onChange={(event) => {
+                  setDecision({
+                    version: ticket.version,
+                    value: event.target.value,
+                  });
+                  setNotice("");
+                }}
+              >
+                {Object.entries(supportStatuses)
+                  .filter(([value]) => value !== "OPEN")
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+              </Select>
+              <p className="text-muted text-sm">
+                Bấm “Lưu trạng thái” để cập nhật ngay mà không cần gửi thêm phản
+                hồi.
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending || status === ticket.status}
+                onClick={() => void saveStatus()}
+              >
+                Lưu trạng thái
+              </Button>
+            </div>
           )}
           <Textarea
             id="support-reply"
@@ -173,7 +237,6 @@ function TicketDetail({
               Gửi phản hồi để mở lại nếu vấn đề chưa được giải quyết.
             </p>
           )}
-          {failure && <ErrorState message={failure} />}
         </form>
       )}
       {admin && <TicketHistory id={id} />}

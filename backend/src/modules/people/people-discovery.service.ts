@@ -99,6 +99,11 @@ export class PeopleDiscoveryService {
     const [profiles, total, viewer] = await Promise.all([
       this.prisma.profile.findMany({
         where,
+        include: {
+          user: {
+            select: { identityDeclaration: { select: { status: true } } },
+          },
+        },
         orderBy: [{ updatedAt: 'desc' }, { userId: 'asc' }],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
@@ -143,7 +148,14 @@ export class PeopleDiscoveryService {
     const profile = await this.prisma.profile.findUnique({
       where: { userId: targetId },
       include: {
-        user: { select: { emailVerifiedAt: true, lockedAt: true, role: true } },
+        user: {
+          select: {
+            emailVerifiedAt: true,
+            lockedAt: true,
+            role: true,
+            identityDeclaration: { select: { status: true } },
+          },
+        },
       },
     });
     if (
@@ -187,6 +199,7 @@ export class PeopleDiscoveryService {
     ]);
     return {
       ...this.views.person(profile, viewer, connection ?? undefined),
+      identityStatus: profile.user.identityDeclaration?.status ?? null,
       listings: listings.map((listing) => ({
         ...listing,
         latitude:

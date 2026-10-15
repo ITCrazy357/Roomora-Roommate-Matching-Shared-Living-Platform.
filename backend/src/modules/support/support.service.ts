@@ -8,11 +8,13 @@ import {
 import { PrismaService } from '../../database/prisma.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { adminPage, adminUserSelect } from '../admin/admin-views.js';
+import { signalAdminChange } from '../admin/admin-signals.js';
 import type {
   CreateTicketDto,
   HandleTicketDto,
   ReplyTicketDto,
   SupportQuery,
+  TicketStatusDto,
 } from './dto/support.dto.js';
 
 const ticketInclude = {
@@ -79,7 +81,7 @@ export class SupportService {
         },
       });
       if (count >= 5) throw new HttpException({ code: 'RATE_LIMITED' }, 429);
-      return tx.supportTicket.create({
+      const ticket = await tx.supportTicket.create({
         data: {
           userId,
           subject: dto.subject,
@@ -88,13 +90,15 @@ export class SupportService {
         },
         include: ticketInclude,
       });
+      await signalAdminChange(tx, [userId]);
+      return ticket;
     });
   }
 
   async reply(
     actorId: string,
     id: string,
-    dto: ReplyTicketDto | HandleTicketDto,
+    dto: ReplyTicketDto | HandleTicketDto | TicketStatusDto,
     admin: boolean,
     close = false,
   ) {
@@ -118,21 +122,25 @@ export class SupportService {
       });
       if (!changed.count)
         throw new ConflictException({ code: 'ADMIN_VERSION_CONFLICT' });
-      await tx.supportMessage.create({
-        data: {
-          ticketId: id,
-          authorId: actorId,
-          fromAdmin: admin,
-          body: dto.body,
-        },
-      });
+      if ('body' in dto)
+        await tx.supportMessage.create({
+          data: {
+            ticketId: id,
+            authorId: actorId,
+            fromAdmin: admin,
+            body: dto.body,
+          },
+        });
       if (admin)
         await tx.adminAction.create({
           data: {
             actorId,
             entityId: id,
             action: `SUPPORT_${status}`,
-            reason: dto.body.slice(0, 1000),
+            reason:
+              'body' in dto
+                ? dto.body.slice(0, 1000)
+                : 'Cập nhật trạng thái hỗ trợ',
             snapshot: {
               fromStatus: ticket.status,
               status,
@@ -140,7 +148,7 @@ export class SupportService {
             },
           },
         });
-      await tx.$executeRaw`SELECT pg_notify('roomora_updates', ${JSON.stringify([ticket.userId])})`;
+      await signalAdminChange(tx, [ticket.userId, actorId]);
       return { id, status, version: dto.version + 1 };
     });
   }

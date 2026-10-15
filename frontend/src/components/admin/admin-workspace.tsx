@@ -21,6 +21,7 @@ const icons: HouseholdIconName[] = [
   "home",
   "people",
   "chores",
+  "people",
   "calendar",
   "wallet",
   "chores",

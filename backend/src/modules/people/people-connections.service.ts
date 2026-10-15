@@ -293,8 +293,28 @@ export class PeopleConnectionsService {
     const rows = await this.prisma.connection.findMany({
       where,
       include: {
-        sender: { select: { profile: true } },
-        receiver: { select: { profile: true } },
+        sender: {
+          select: {
+            profile: {
+              include: {
+                user: {
+                  select: { identityDeclaration: { select: { status: true } } },
+                },
+              },
+            },
+          },
+        },
+        receiver: {
+          select: {
+            profile: {
+              include: {
+                user: {
+                  select: { identityDeclaration: { select: { status: true } } },
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       skip: (query.page - 1) * query.limit,

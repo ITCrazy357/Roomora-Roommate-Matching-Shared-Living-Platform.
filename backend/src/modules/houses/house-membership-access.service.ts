@@ -5,10 +5,11 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../database/prisma.service.js';
+import { IdentityService } from '../identity/identity.service.js';
 
 @Injectable()
 export class HouseMembershipAccessService {
-  constructor() {}
+  constructor(private readonly identity: IdentityService) {}
 
   async saveParticipant(
     tx: Prisma.TransactionClient,
@@ -56,6 +57,7 @@ export class HouseMembershipAccessService {
     });
     if (membership)
       throw new ConflictException({ code: 'HOUSE_ALREADY_JOINED' });
+    await this.identity.requireDeclared(tx, userId);
   }
 
   async requireOwner(

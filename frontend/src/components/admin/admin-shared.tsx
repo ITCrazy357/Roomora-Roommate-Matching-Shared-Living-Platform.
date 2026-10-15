@@ -21,7 +21,9 @@ export function useAdminPage<T>(path: string) {
   useEffect(() => {
     const controller = new AbortController();
     apiFetch<T>(path, { signal: controller.signal })
-      .then((data) => setResult({ path, data }))
+      .then((data) => {
+        if (!controller.signal.aborted) setResult({ path, data });
+      })
       .catch((error) => {
         if (!controller.signal.aborted)
           setResult({ path, error: adminError(error) });
@@ -111,6 +113,10 @@ const actionNames: Record<string, string> = {
   SUPPORT_WAITING_USER: "Yêu cầu bổ sung thông tin",
   SUPPORT_RESOLVED: "Giải quyết hỗ trợ",
   SUPPORT_CLOSED: "Đóng yêu cầu hỗ trợ",
+  IDENTITY_VIEWED: "Xem hồ sơ đã che thông tin",
+  IDENTITY_REVEALED: "Mở thông tin cá nhân theo lý do",
+  IDENTITY_APPROVED: "Duyệt hồ sơ demo",
+  IDENTITY_REJECTED: "Yêu cầu bổ sung hồ sơ demo",
   USER_LOCKED: "Khóa tài khoản",
   USER_UNLOCKED: "Mở khóa tài khoản",
   REPORT_RESOLVED: "Đã xử lý vi phạm",

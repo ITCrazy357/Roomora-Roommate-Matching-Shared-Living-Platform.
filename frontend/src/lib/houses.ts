@@ -78,6 +78,8 @@ export function houseError(error: unknown) {
         "Chỉ có thể chuyển quyền cho thành viên đang ở trong nhà.",
       HOUSE_TRANSFER_FIRST: "Hãy chuyển quyền trưởng nhà trước khi rời nhà.",
       EMAIL_NOT_VERIFIED: "Hãy xác minh email trước khi nhận lời mời.",
+      IDENTITY_DECLARATION_REQUIRED:
+        "Hãy nộp đủ hồ sơ demo tại Khai báo danh tính trước khi tạo hoặc vào nhà chung.",
     };
     if (error.code && messages[error.code]) return messages[error.code];
     if (error.status === 401) return "Phiên đăng nhập đã hết hạn.";

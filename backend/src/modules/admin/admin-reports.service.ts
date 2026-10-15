@@ -7,6 +7,7 @@ import {
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { adminPage, adminUserSelect } from './admin-views.js';
+import { signalAdminChange } from './admin-signals.js';
 import type { AdminReportsQuery, HandleReportDto } from './dto/admin.dto.js';
 
 @Injectable()
@@ -122,6 +123,7 @@ export class AdminReportsService {
           },
         },
       });
+      await signalAdminChange(tx, [report.reporterId, report.targetId]);
       return tx.userReport.findUniqueOrThrow({ where: { id } });
     });
   }

@@ -18,6 +18,8 @@ import {
 import { ListingEditorFields } from "./listing-editor-fields";
 import { ListingDescriptionAssistant } from "../ai/listing-description";
 import { DeleteListingDraft } from "./delete-listing-draft";
+import { ListingQuota } from "./listing-quota";
+import { IdentityNotice } from "../identity/identity-notice";
 import {
   emptyForm,
   formFromListing,
@@ -369,6 +371,7 @@ export function ListingEditor({
         </ol>
       </Card>
       {step !== 4 && messages}
+      {form.type === "ROOM_RENTAL" && <IdentityNotice />}
       {listing?.rejectionReason && (
         <ErrorState
           message={`Ghi chú kiểm duyệt: ${listing.rejectionReason}`}
@@ -451,6 +454,9 @@ export function ListingEditor({
           </form>
         </div>
         <aside className="listing-editor-summary">
+          {form.type !== "ROOM_RENTAL" && (
+            <ListingQuota revision={listing?.version} />
+          )}
           <Card>
             <h2>{form.title || "Tin đăng của bạn"}</h2>
             <dl className="listing-costs">

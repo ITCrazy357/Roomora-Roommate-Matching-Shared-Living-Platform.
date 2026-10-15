@@ -14,6 +14,7 @@ import { Card } from "../ui";
 import { AreaMap } from "./area-map";
 import { PersonAvatar } from "../person-avatar";
 import Link from "next/link";
+import { IdentityBadge } from "../identity/identity-badge";
 
 const lifestyle: Record<string, string> = {
   NO_SMOKING: "Không hút thuốc",
@@ -247,6 +248,7 @@ export function ListingContent({
               <PersonAvatar person={listing.owner} />
               <strong>{listing.owner.displayName}</strong>
             </div>
+            <IdentityBadge status={listing.owner.identityStatus} />
             {moderation && (
               <Link className="text-link" href="/admin/nguoi-dung">
                 Quản lý người dùng →

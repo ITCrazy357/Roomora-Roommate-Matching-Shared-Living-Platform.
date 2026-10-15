@@ -192,6 +192,7 @@ export class ListingRulesService {
         displayName: listing.owner.profile?.displayName ?? 'Thành viên Roomora',
         avatarUrl: listing.owner.profile?.avatarUrl ?? null,
         profilePublic: listing.owner.profile?.visibility === 'PUBLIC',
+        identityStatus: listing.owner.identityDeclaration?.status ?? null,
       },
     };
   }

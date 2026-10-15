@@ -163,18 +163,20 @@ enum RecurringDraftStatus {
 }
 
 model User {
-  id                String    @id @default(uuid()) @db.Uuid
-  role              UserRole  @default(USER)
-  email             String    @unique @db.VarChar(320)
-  passwordHash      String?   @map("password_hash") @db.VarChar(255)
-  emailVerifiedAt   DateTime? @map("email_verified_at")
-  lastActiveAt      DateTime? @map("last_active_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  lockedAt          DateTime? @map("locked_at")
-  lockReason        String?   @map("lock_reason") @db.VarChar(1000)
-  moderationVersion Int       @default(1) @map("moderation_version")
-  closedAt          DateTime? @map("closed_at")
+  id                   String                @id @default(uuid()) @db.Uuid
+  role                 UserRole              @default(USER)
+  email                String                @unique @db.VarChar(320)
+  passwordHash         String?               @map("password_hash") @db.VarChar(255)
+  emailVerifiedAt      DateTime?             @map("email_verified_at")
+  lastActiveAt         DateTime?             @map("last_active_at")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  lockedAt             DateTime?             @map("locked_at")
+  lockReason           String?               @map("lock_reason") @db.VarChar(1000)
+  moderationVersion    Int                   @default(1) @map("moderation_version")
+  closedAt             DateTime?             @map("closed_at")
+  identityDeclaration  IdentityDeclaration?
+  reviewedDeclarations IdentityDeclaration[] @relation("IdentityReviewer")
 
   profile             Profile?
   sessions            Session[]
@@ -182,6 +184,7 @@ model User {
   authOtps            AuthOtp[]
   googleAccount       GoogleAccount?
   listings            Listing[]           @relation("ListingOwner")
+  listingSubmissions  ListingSubmission[]
   savedListings       SavedListing[]
   listingReviews      ListingReview[]
   sentConnections     Connection[]        @relation("ConnectionSender")
@@ -346,10 +349,11 @@ model Listing {
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
 
-  owner   User            @relation("ListingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  photos  ListingPhoto[]
-  saves   SavedListing[]
-  reviews ListingReview[]
+  owner           User               @relation("ListingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  photos          ListingPhoto[]
+  saves           SavedListing[]
+  reviews         ListingReview[]
+  firstSubmission ListingSubmission?
 
   @@index([status, publishedAt, id])
   @@index([status, type, publishedAt, id])
@@ -358,6 +362,43 @@ model Listing {
   @@index([amenities], type: Gin)
   @@index([status, boostUntil])
   @@map("listings")
+}
+
+// Immutable first submission of a room/roommate search, independent of edits.
+model ListingSubmission {
+  listingId String   @id @map("listing_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("listing_submissions")
+}
+
+enum IdentityDeclarationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Demonstration declarations only; never represents RAR/eKYC verification.
+model IdentityDeclaration {
+  userId        String                    @id @map("user_id") @db.Uuid
+  encryptedData Bytes                     @map("encrypted_data")
+  documentLast4 String                    @map("document_last4") @db.Char(4)
+  status        IdentityDeclarationStatus @default(PENDING)
+  version       Int                       @default(1)
+  submittedAt   DateTime                  @default(now()) @map("submitted_at")
+  updatedAt     DateTime                  @updatedAt @map("updated_at")
+  reviewedAt    DateTime?                 @map("reviewed_at")
+  reviewerId    String?                   @map("reviewer_id") @db.Uuid
+  reviewNote    String?                   @map("review_note") @db.VarChar(1000)
+  user          User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewer      User?                     @relation("IdentityReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([status, submittedAt])
+  @@map("identity_declarations")
 }
 
 model House {

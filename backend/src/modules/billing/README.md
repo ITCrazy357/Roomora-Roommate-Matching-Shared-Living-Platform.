@@ -45,6 +45,14 @@ Không tự chuyển khoản ngân hàng chỉ vì user gửi yêu cầu.
 
 ## Quy tắc
 
+Bổ sung hạn mức đăng tin 15/10/2026: tài khoản có gói `BOOST_7_DAYS` đã được
+kích hoạt và còn hạn được tăng tổng hạn mức tìm phòng/tìm ở ghép từ 3 lên 8
+tin/tuần UTC+7. Nhiều gói không cộng dồn; không áp dụng cho gói AI, đơn chưa
+PAID, thanh toán đến muộn không được cấp boost hoặc đơn đã hoàn tiền. Ưu đãi
+tài khoản kéo dài đến `ListingBoost.endsAt` dù tin gốc đóng/đã đủ; hoàn tiền
+thành công kết thúc ưu đãi của đơn đó, giữ nguyên số lượt đã dùng. Không thay
+đổi cách ưu tiên hiển thị tin. Chi tiết: `../../../../docs/identity-verification.md`.
+
 Chỉ USER mua cho tin của mình đang PUBLISHED và chưa đánh dấu đủ. Cả ba loại
 ROOMMATE, ROOM_RENTAL và ROOM_WANTED đều có thể dùng gói. ADMIN không mua gói.
 Giá/thời hạn do máy chủ quyết định, không nhận số tiền hoặc trạng thái từ client.

@@ -32,3 +32,9 @@ export class HandleTicketDto extends ReplyTicketDto {
   @IsIn(['IN_PROGRESS', 'WAITING_USER', 'RESOLVED', 'CLOSED'])
   status!: 'IN_PROGRESS' | 'WAITING_USER' | 'RESOLVED' | 'CLOSED';
 }
+
+export class TicketStatusDto {
+  @IsInt() @Min(1) version!: number;
+  @IsIn(['IN_PROGRESS', 'WAITING_USER', 'RESOLVED', 'CLOSED'])
+  status!: 'IN_PROGRESS' | 'WAITING_USER' | 'RESOLVED' | 'CLOSED';
+}

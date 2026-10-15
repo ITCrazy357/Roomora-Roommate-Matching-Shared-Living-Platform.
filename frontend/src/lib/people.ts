@@ -22,6 +22,7 @@ export interface Match {
   }[];
 }
 export interface Person {
+  identityStatus?: import("./identity").IdentityStatus | null;
   userId: string;
   displayName: string;
   avatarUrl: string | null;

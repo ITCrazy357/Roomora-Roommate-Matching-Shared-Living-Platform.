@@ -100,6 +100,7 @@ export interface Listing {
     displayName: string;
     avatarUrl: string | null;
     profilePublic: boolean;
+    identityStatus?: import("./identity").IdentityStatus | null;
   };
   saved?: boolean;
   sponsored?: boolean;
@@ -119,6 +120,15 @@ export interface ListingPage {
   page: number;
   limit: number;
   pages: number;
+}
+
+export interface ListingQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+  startsAt: string;
+  resetsAt: string;
+  bonusUntil: string | null;
 }
 
 export const money = (value: number | null) =>
@@ -146,6 +156,10 @@ export function listingError(error: unknown) {
         "Tin không còn hiển thị hoặc bạn không có quyền truy cập.",
       LISTING_NOT_DRAFT:
         "Chỉ được xóa tin ở trạng thái bản nháp. Tải lại để xem trạng thái hiện tại.",
+      LISTING_WEEKLY_LIMIT:
+        "Bạn đã hết lượt đăng tin tìm phòng/ở ghép tuần này. Hạn mức 3 tin/tuần, tăng thành 8 khi có gói đẩy tin còn hạn và không cộng dồn. Bạn có thể gửi duyệt lại tin cũ hoặc chờ tuần mới.",
+      IDENTITY_DECLARATION_REQUIRED:
+        "Hãy nộp đủ hồ sơ demo tại Khai báo danh tính trước khi gửi tin cho thuê.",
       PHOTO_LIMIT_REACHED: "Mỗi tin có tối đa 8 ảnh.",
       PHOTO_FORMAT_INVALID: "Chọn ảnh JPG, PNG hoặc WebP hợp lệ.",
       PHOTO_SIZE_INVALID: "Mỗi ảnh cần nhỏ hơn hoặc bằng 5 MB.",

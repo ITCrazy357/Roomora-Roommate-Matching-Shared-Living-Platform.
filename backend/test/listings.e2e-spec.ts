@@ -108,6 +108,15 @@ describe('Phase 3 listings (real PostgreSQL)', () => {
     await app?.close();
   });
 
+  beforeEach(async () => {
+    // These scenarios reuse one owner across tests. Keep their prior first
+    // submissions in history without consuming this scenario's weekly slots.
+    await prisma.listingSubmission.updateMany({
+      where: { userId: userIds[0] },
+      data: { createdAt: new Date(0) },
+    });
+  });
+
   async function draft(input: Record<string, unknown> = form) {
     return (
       await owner

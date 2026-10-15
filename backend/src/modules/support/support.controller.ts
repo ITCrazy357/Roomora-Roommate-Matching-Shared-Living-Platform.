@@ -18,6 +18,7 @@ import {
   HandleTicketDto,
   ReplyTicketDto,
   SupportQuery,
+  TicketStatusDto,
 } from './dto/support.dto.js';
 import { SupportService } from './support.service.js';
 
@@ -70,6 +71,13 @@ export class AdminSupportController {
     @Req() req: AuthenticatedRequest,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: HandleTicketDto,
+  ) {
+    return this.support.reply(req.auth.userId, id, dto, true);
+  }
+  @Patch(':id/status') changeStatus(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TicketStatusDto,
   ) {
     return this.support.reply(req.auth.userId, id, dto, true);
   }

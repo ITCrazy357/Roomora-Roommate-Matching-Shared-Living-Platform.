@@ -23,6 +23,34 @@ Mở http://localhost:3000. Backend cần chạy ở cổng 5000 với
 `FRONTEND_ORIGIN=http://localhost:3000`. Nếu đổi origin, cập nhật cả backend và
 frontend rồi khởi động lại. NEXT_PUBLIC được đóng vào bundle tại thời điểm build.
 
+## Deploy frontend trên Vercel, backend trên Render
+
+Chọn Framework Preset `Next.js`, Root Directory `frontend` và khai báo trên Vercel:
+
+```dotenv
+NEXT_PUBLIC_API_BASE_URL=/api/v1
+API_PROXY_TARGET=https://roomora-api-qxjb.onrender.com
+```
+
+`API_PROXY_TARGET` là origin backend, không thêm `/api/v1`. `next.config.ts` dùng
+biến này để proxy `/api/v1/*` tới Render; trình duyệt gọi API cùng origin với
+frontend để giữ cookie đăng nhập. Cần build/deploy lại khi đổi hai biến trên.
+Nếu không đặt `API_PROXY_TARGET`, frontend không tạo rewrite; cấu hình local gọi
+trực tiếp backend ở trên vẫn dùng được.
+
+Trên backend Render, đặt `FRONTEND_ORIGIN=https://roomora-blond.vercel.app`.
+Nếu bật Google OAuth, đặt `GOOGLE_REDIRECT_URI` và Authorized redirect URI trong
+Google Cloud cùng là
+`https://roomora-blond.vercel.app/api/v1/auth/google/callback`, để callback đi qua
+proxy và dùng cùng cookie với frontend. Các secret Google, SMTP và database chỉ
+đặt trên backend.
+
+Sau deploy, kiểm tra `/api/v1/auth/config` trên domain Vercel trả JSON và
+`/api/v1/health/ready` báo PostgreSQL/Redis hoạt động. Tiếp tục kiểm tra đăng nhập,
+cookie phiên, Google OAuth và SSE trên trình duyệt; health/config thành công
+chưa chứng minh các luồng này hoạt động đầy đủ. Render Free có thời gian đánh thức
+backend có thể vượt timeout API mặc định 8 giây của frontend.
+
 ## Các trang
 
 - `/`: giới thiệu Roomora, hai hướng tìm phòng và tìm người ở ghép.

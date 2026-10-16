@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { AiCreditsService } from '../ai-credits/ai-credits.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { AiUsageService } from '../ai-usage/ai-usage.service.js';
 
 export function aiUnavailable(): never {
   throw new ServiceUnavailableException({
@@ -22,6 +23,7 @@ export class AiProviderService {
   constructor(
     private readonly config: ConfigService,
     private readonly credits: AiCreditsService,
+    private readonly costs: AiUsageService,
   ) {}
 
   async usage(userId: string) {
@@ -53,7 +55,8 @@ export class AiProviderService {
     try {
       const reserved = await this.credits.reserve(userId);
       try {
-        const response = await fetch('https://api.openai.com/v1/responses', {
+        const model = this.config.get<string>('AI_MODEL') || 'gpt-4o-mini';
+        const response = await this.costs.request(task, model, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${key}`,
@@ -61,7 +64,8 @@ export class AiProviderService {
           },
           signal: AbortSignal.timeout(20000),
           body: JSON.stringify({
-            model: this.config.get<string>('AI_MODEL') || 'gpt-4o-mini',
+            model,
+            service_tier: 'auto',
             store: false,
             max_output_tokens: 1800,
             instructions:
@@ -90,7 +94,7 @@ export class AiProviderService {
           }),
         });
         if (!response.ok) aiUnavailable();
-        const body = (await response.json()) as {
+        const body = response.body as {
           status?: string;
           output?: { content?: { type: string; text?: string }[] }[];
         };

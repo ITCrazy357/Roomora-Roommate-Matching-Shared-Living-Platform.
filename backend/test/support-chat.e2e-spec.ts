@@ -7,6 +7,7 @@ import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { ChatService } from '../src/modules/support/chat.service.js';
+import { AiUsageService } from '../src/modules/ai-usage/ai-usage.service.js';
 
 describe('Support chatbot and ADMIN handoff (HTTP/PostgreSQL)', () => {
   let app: INestApplication;
@@ -26,7 +27,11 @@ describe('Support chatbot and ADMIN handoff (HTTP/PostgreSQL)', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ChatService)
-      .useValue(new ChatService(new ConfigService({ OPENAI_API_KEY: '' })))
+      .useFactory({
+        inject: [AiUsageService],
+        factory: (costs: AiUsageService) =>
+          new ChatService(new ConfigService({ OPENAI_API_KEY: '' }), costs),
+      })
       .compile();
     app = module.createNestApplication();
     app.setGlobalPrefix('api/v1');

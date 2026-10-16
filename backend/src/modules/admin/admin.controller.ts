@@ -20,6 +20,7 @@ import { AdminReportsService } from './admin-reports.service.js';
 import { AdminAnnouncementsService } from './admin-announcements.service.js';
 import { AdminOrdersService } from './admin-orders.service.js';
 import { AdminAuditService } from './admin-audit.service.js';
+import { AdminAiCostsService } from './admin-ai-costs.service.js';
 import {
   AccountLockDto,
   AccountRestoreDto,
@@ -45,6 +46,7 @@ export class AdminController {
     private readonly announcements: AdminAnnouncementsService,
     private readonly orders: AdminOrdersService,
     private readonly audit: AdminAuditService,
+    private readonly aiCosts: AdminAiCostsService,
   ) {}
   @Get('orders') listOrders(@Query() query: AdminOrdersQuery) {
     return this.orders.list(query);
@@ -57,6 +59,9 @@ export class AdminController {
   }
   @Get('summary') summary(@Query() query: AdminSummaryQuery) {
     return this.admin.summary(query);
+  }
+  @Get('ai-costs') aiUsage(@Query() query: AdminSummaryQuery) {
+    return this.aiCosts.report(query);
   }
   @Get('users') listUsers(@Query() query: AdminUsersQuery) {
     return this.users.list(query);

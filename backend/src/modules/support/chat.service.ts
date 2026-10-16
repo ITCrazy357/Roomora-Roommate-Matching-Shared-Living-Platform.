@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AiUsageService } from '../ai-usage/ai-usage.service.js';
 import {
   findLocalArticle,
   helpArticles,
@@ -24,7 +25,10 @@ export class ChatService {
   private readonly logger = new Logger(ChatService.name);
   private activeRequests = 0;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly costs: AiUsageService,
+  ) {}
 
   async answer(question: string): Promise<HelpReply> {
     if (needsHumanReview(question)) return this.handoff();
@@ -75,7 +79,8 @@ export class ChatService {
     question: string,
     key: string,
   ): Promise<HelpArticle | undefined> {
-    const response = await fetch('https://api.openai.com/v1/responses', {
+    const model = this.config.get<string>('CHATBOT_MODEL') || 'gpt-4o-mini';
+    const response = await this.costs.request('support_faq', model, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${key}`,
@@ -83,7 +88,8 @@ export class ChatService {
       },
       signal: AbortSignal.timeout(6000),
       body: JSON.stringify({
-        model: this.config.get<string>('CHATBOT_MODEL') || 'gpt-4o-mini',
+        model,
+        service_tier: 'auto',
         store: false,
         max_output_tokens: 160,
         instructions: [
@@ -121,7 +127,7 @@ export class ChatService {
       }),
     });
     if (!response.ok) return undefined;
-    const data = (await response.json()) as ModelOutput;
+    const data = response.body as ModelOutput;
     if (data.status !== 'completed' || !Array.isArray(data.output))
       return undefined;
     const contents = data.output.flatMap((item) =>

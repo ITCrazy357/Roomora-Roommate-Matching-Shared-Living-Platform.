@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { money } from "@/lib/expenses";
 import { Card, Input } from "../ui";
 import { HouseholdIcon } from "../houses/household-ui";
 import { AdminResults } from "./admin-results";
+import { AdminAiCosts } from "./admin-ai-costs";
 
 export interface AdminSummary {
   pendingListings: number;
@@ -67,6 +69,7 @@ export function AdminOverview({
   month: string;
   onMonth: (month: string) => void;
 }) {
+  const [aiRefresh, setAiRefresh] = useState(0);
   const queues = [
     {
       label: "Tin chờ duyệt",
@@ -140,7 +143,7 @@ export function AdminOverview({
           <button
             type="button"
             className="button button-secondary dashboard-refresh"
-            onClick={reload}
+            onClick={() => { reload(); setAiRefresh((value) => value + 1); }}
           >
             <HouseholdIcon name="clock" /> Cập nhật
           </button>
@@ -199,6 +202,7 @@ export function AdminOverview({
         </Card>
       </div>
       {data && <AdminResults data={data} />}
+      <AdminAiCosts month={month} refreshKey={aiRefresh} />
       {data && (
         <Card className="dashboard-panel">
           <h2>Người dùng và hoạt động</h2>

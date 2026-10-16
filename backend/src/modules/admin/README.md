@@ -26,6 +26,11 @@ Banner chạy trên mọi trang, cả khách chưa đăng nhập; cập nhật s
 
 ## API
 
+`GET /admin/ai-costs?month=YYYY-MM` trả số lượt gọi, token, chi phí OpenAI ước
+tính bằng USD và phân bổ theo ngày/chức năng/model, dùng cùng bộ lọc tháng.
+Chỉ ADMIN được đọc. Không coi dữ liệu cũ chưa có token hoặc lượt thiếu đơn
+giá là chi phí 0; có số lượt chưa tính được. Xem [chi phí AI](../ai-usage/README.md).
+
 `GET /admin/summary?month=YYYY-MM` trả thống kê tháng trong một snapshot
 `RepeatableRead`, kèm `generatedAt` và `period`. Không truyền tháng thì dùng
 tháng hiện tại ở Việt Nam. Tháng hợp lệ từ 2000–2100; khoảng tính từ 00:00 ngày

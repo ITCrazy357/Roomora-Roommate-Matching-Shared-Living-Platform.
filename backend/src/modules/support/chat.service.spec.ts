@@ -1,13 +1,21 @@
 import { ConfigService } from '@nestjs/config';
 import { ChatService } from './chat.service.js';
 import { helpArticles } from './chat-knowledge.js';
+import { AiUsageService } from '../ai-usage/ai-usage.service.js';
+import type { PrismaService } from '../../database/prisma.service.js';
 
 describe('Bounded Roomora support chat', () => {
+  const costs = new AiUsageService({
+    aiRequest: {
+      create: async () => ({ id: 'request-test' }),
+      update: async () => ({}),
+    },
+  } as unknown as PrismaService);
   afterEach(() => vi.unstubAllGlobals());
   const local = () =>
-    new ChatService(new ConfigService({ OPENAI_API_KEY: '' }));
+    new ChatService(new ConfigService({ OPENAI_API_KEY: '' }), costs);
   const ai = () =>
-    new ChatService(new ConfigService({ OPENAI_API_KEY: 'test-only' }));
+    new ChatService(new ConfigService({ OPENAI_API_KEY: 'test-only' }), costs);
   function output(selection: unknown, status = 'completed') {
     return {
       status,

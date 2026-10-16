@@ -5,7 +5,7 @@ import { adminError, adminTime, type AdminAction } from "@/lib/admin";
 import { useUpdates } from "../communications/updates-provider";
 import { Button, ErrorState, LoadingState } from "../ui";
 
-export function useAdminPage<T>(path: string) {
+export function useAdminPage<T>(path: string, refreshKey = 0) {
   const { revision } = useUpdates();
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{
@@ -29,7 +29,7 @@ export function useAdminPage<T>(path: string) {
           setResult({ path, error: adminError(error) });
       });
     return () => controller.abort();
-  }, [path, retry, revision]);
+  }, [path, retry, revision, refreshKey]);
   return {
     data: result.path === path ? result.data : undefined,
     error: result.path === path ? result.error : undefined,

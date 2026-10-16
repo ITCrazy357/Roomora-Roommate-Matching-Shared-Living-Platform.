@@ -1,5 +1,18 @@
 # Dashboard Roomora
 
+Khối "Chi phí sử dụng AI" trên ADMIN dùng cùng tháng, có ba số liệu chi phí
+USD ước tính/số lượt/token, biểu đồ theo ngày và phân bổ chức năng/model.
+Nút Cập nhật tải lại cả khối này; lỗi/Thử lại của AI không tháo phần dashboard
+khác. API riêng `/admin/ai-costs` chỉ cho ADMIN. Cả AI nghiệp vụ và FAQ OpenAI
+được ghi nhận, phản hồi lỗi có usage vẫn có thể phát sinh phí. Màu/font và
+hoạt ảnh dùng component biểu đồ chung; trục USD có định dạng riêng cho số nhỏ.
+
+Thiếu token/model/tier/đơn giá hiển thị chưa tính được, kèm số lượt thiếu dữ
+liệu. Tổng là phần chi phí đã tính được, không phải hóa đơn OpenAI và không
+bao gồm dữ liệu trước khi bật logger. Không tự quy đổi VND hoặc trừ số này
+khỏi doanh thu dịch vụ. Migration local đã áp dụng ngày 16/10/2026.
+Xem `backend/src/modules/ai-usage/README.md` cho nguồn đơn giá và công thức.
+
 Dashboard admin nằm ở `/admin/tong-quan`, có mục Tổng quan trong sidebar và
 menu tài khoản. Các trang xử lý tin, người dùng, báo cáo và hoàn tiền chỉ có
 thanh hàng chờ gọn; trang mặc định sau đăng nhập vẫn là tin chờ duyệt.

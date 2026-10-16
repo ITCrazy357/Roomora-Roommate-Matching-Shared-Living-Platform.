@@ -9,9 +9,10 @@ import {
 import { SupportService } from './support.service.js';
 import { ChatController, ChatRateGuard } from './chat.controller.js';
 import { ChatService } from './chat.service.js';
+import { AiUsageModule } from '../ai-usage/ai-usage.module.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, AiUsageModule],
   controllers: [SupportController, AdminSupportController, ChatController],
   providers: [SupportService, AdminGuard, ChatService, ChatRateGuard],
 })

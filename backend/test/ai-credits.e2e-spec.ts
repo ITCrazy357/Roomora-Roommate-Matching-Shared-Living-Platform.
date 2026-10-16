@@ -7,6 +7,7 @@ import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { AiProviderService } from '../src/modules/ai/ai-provider.service.js';
+import { AiUsageService } from '../src/modules/ai-usage/ai-usage.service.js';
 import { AiCreditsService } from '../src/modules/ai-credits/ai-credits.service.js';
 import { PaymentGatewayService } from '../src/modules/billing/payment-gateway.service.js';
 import { PayosGatewayService } from '../src/modules/billing/payos-gateway.service.js';
@@ -59,11 +60,12 @@ describe('AI free trial and paid credits (HTTP/PostgreSQL)', () => {
       .useValue(payos)
       .overrideProvider(AiProviderService)
       .useFactory({
-        inject: [AiCreditsService],
-        factory: (balance: AiCreditsService) =>
+        inject: [AiCreditsService, AiUsageService],
+        factory: (balance: AiCreditsService, costs: AiUsageService) =>
           new AiProviderService(
             new ConfigService({ OPENAI_API_KEY: 'test-only' }),
             balance,
+            costs,
           ),
       })
       .compile();

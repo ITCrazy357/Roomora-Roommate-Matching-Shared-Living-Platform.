@@ -10,6 +10,7 @@ import { declareIdentity } from './helpers/identity.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
 import { AiCreditsService } from '../src/modules/ai-credits/ai-credits.service.js';
 import { AiProviderService } from '../src/modules/ai/ai-provider.service.js';
+import { AiUsageService } from '../src/modules/ai-usage/ai-usage.service.js';
 
 describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
   let app: INestApplication, prisma: PrismaService;
@@ -30,13 +31,14 @@ describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(AiProviderService)
       .useFactory({
-        inject: [AiCreditsService],
-        factory: (db: AiCreditsService) =>
+        inject: [AiCreditsService, AiUsageService],
+        factory: (db: AiCreditsService, costs: AiUsageService) =>
           new AiProviderService(
             new ConfigService({
               OPENAI_API_KEY: 'mock-only',
             }),
             db,
+            costs,
           ),
       })
       .compile();
@@ -622,6 +624,7 @@ describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
     const restarted = new AiProviderService(
       new ConfigService({ OPENAI_API_KEY: 'mock-only' }),
       app.get(AiCreditsService),
+      app.get(AiUsageService),
     );
     await expect(
       restarted.generate(ids[1], 'x', '', {}, {}),
@@ -639,6 +642,7 @@ describe('Phase 11 proposals, privacy and quota (HTTP/PostgreSQL)', () => {
             OPENAI_API_KEY: 'mock-only',
           }),
           app.get(AiCreditsService),
+          app.get(AiUsageService),
         );
         return instance.generate(ids[1], 'test', '', {}, {});
       }),

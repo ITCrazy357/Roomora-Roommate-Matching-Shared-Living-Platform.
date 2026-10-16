@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import sharp from 'sharp';
 import { AiProviderService } from './ai-provider.service.js';
+import { AiUsageService } from '../ai-usage/ai-usage.service.js';
 import type { AiCreditsService } from '../ai-credits/ai-credits.service.js';
 import { AiListingsService } from './ai-listings.service.js';
 import { AiReceiptsService } from './ai-receipts.service.js';
@@ -21,6 +22,12 @@ const complete = (value: unknown) => ({
     ],
   }),
 });
+const costs = new AiUsageService({
+  aiRequest: {
+    create: async () => ({ id: 'request-test' }),
+    update: async () => ({}),
+  },
+} as unknown as PrismaService);
 describe('AI provider boundaries', () => {
   const reserve = vi.fn();
   const completed = vi.fn(),
@@ -34,6 +41,7 @@ describe('AI provider boundaries', () => {
     new AiProviderService(
       new ConfigService({ OPENAI_API_KEY: 'test-only' }),
       db,
+      costs,
     );
   beforeEach(() => {
     reserve.mockReset().mockResolvedValue({ id: 'reservation' });
@@ -46,6 +54,7 @@ describe('AI provider boundaries', () => {
       new AiProviderService(
         new ConfigService({ OPENAI_API_KEY: '' }),
         db,
+        costs,
       ).generate('u', 't', '', {}, {}),
     ).rejects.toMatchObject({ response: { code: 'AI_UNAVAILABLE' } });
     expect(reserve).not.toHaveBeenCalled();
@@ -73,6 +82,7 @@ describe('AI provider boundaries', () => {
     ).toEqual({ ids: ['one'] });
     const body = JSON.parse(fetcher.mock.calls[0][1].body as string);
     expect(body.store).toBe(false);
+    expect(body.service_tier).toBe('auto');
     expect(body.tools).toBeUndefined();
     expect(body.text.format.strict).toBe(true);
     expect(fetcher.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);

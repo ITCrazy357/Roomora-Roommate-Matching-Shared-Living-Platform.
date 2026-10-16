@@ -5,6 +5,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
 import { PasswordService } from '../src/modules/auth/password.service.js';
+import { aiResponseUsage } from '../src/modules/ai-usage/ai-pricing.js';
 
 describe('ADMIN operations (real PostgreSQL)', () => {
   let app: INestApplication;
@@ -116,6 +117,7 @@ describe('ADMIN operations (real PostgreSQL)', () => {
   it('allows only ADMIN to operate and keeps user permissions and private APIs separate', async () => {
     for (const path of [
       '/admin/summary',
+      '/admin/ai-costs',
       '/admin/users',
       '/admin/reports',
       '/admin/announcements',
@@ -673,6 +675,143 @@ describe('ADMIN operations (real PostgreSQL)', () => {
     expect(updated.listings.approved).toBe(summary.listings.approved);
     expect(updated.payments.paidAmount).toBe(summary.payments.paidAmount);
     expect(updated.processed.total).toBe(summary.processed.total + 1);
+  });
+
+  it('aggregates AI costs, cached tokens and unknown usage within the Vietnam month', async () => {
+    const from = new Date('2094-01-31T17:00:00.000Z');
+    const to = new Date('2094-02-28T17:00:00.000Z');
+    const metered = aiResponseUsage({
+      model: 'gpt-4o-mini',
+      service_tier: 'default',
+      usage: {
+        input_tokens: 2000,
+        output_tokens: 500,
+        input_tokens_details: { cached_tokens: 1000 },
+      },
+    });
+    const second = aiResponseUsage({
+      model: 'gpt-4o-mini',
+      service_tier: 'default',
+      usage: {
+        input_tokens: 1000,
+        output_tokens: 100,
+        input_tokens_details: { cached_tokens: 0 },
+      },
+    });
+    const logs = [
+      {
+        feature: 'listing_description',
+        model: 'gpt-4o-mini',
+        status: 'COMPLETED' as const,
+        ...metered.tokens,
+        ...metered.cost,
+        createdAt: from,
+      },
+      {
+        feature: 'support_faq',
+        model: 'gpt-4o-mini',
+        status: 'FAILED' as const,
+        ...second.tokens,
+        ...second.cost,
+        createdAt: new Date(to.getTime() - 1),
+      },
+      {
+        feature: 'expense_receipt',
+        model: 'unpriced-model',
+        status: 'COMPLETED' as const,
+        inputTokens: 100,
+        outputTokens: 20,
+        cachedTokens: 0,
+        createdAt: from,
+      },
+      {
+        feature: 'support_faq',
+        model: 'gpt-4o-mini',
+        status: 'FAILED' as const,
+        createdAt: from,
+      },
+      {
+        feature: 'house_expense_summary',
+        model: 'gpt-4o-mini',
+        status: 'PENDING' as const,
+        createdAt: from,
+      },
+      {
+        feature: 'listing_description',
+        model: 'gpt-4o-mini',
+        status: 'COMPLETED' as const,
+        ...metered.tokens,
+        ...metered.cost,
+        createdAt: new Date(from.getTime() - 1),
+      },
+      {
+        feature: 'listing_description',
+        model: 'gpt-4o-mini',
+        status: 'COMPLETED' as const,
+        ...metered.tokens,
+        ...metered.cost,
+        createdAt: to,
+      },
+    ].map((row) => ({ ...row, id: randomUUID() }));
+    try {
+      await prisma.aiRequest.createMany({ data: logs });
+      const result = (
+        await admin.get(`${url}/admin/ai-costs?month=2094-02`).expect(200)
+      ).body;
+      expect(result).toMatchObject({
+        month: '2094-02',
+        currency: 'USD',
+        timeZone: 'Asia/Ho_Chi_Minh',
+        requests: 5,
+        measuredRequests: 3,
+        pricedRequests: 2,
+        unpricedRequests: 3,
+        inputTokens: 3100,
+        cachedTokens: 1000,
+        outputTokens: 620,
+        estimatedCostUsd: '0.000735000000',
+        completed: 2,
+        failed: 2,
+        pending: 1,
+      });
+      expect(result.daily).toEqual([
+        { day: '2094-02-01', requests: 4, estimatedCostUsd: '0.000525000000' },
+        { day: '2094-02-28', requests: 1, estimatedCostUsd: '0.000210000000' },
+      ]);
+      expect(
+        result.features.find(
+          (row: { feature: string }) => row.feature === 'support_faq',
+        ),
+      ).toMatchObject({
+        requests: 2,
+        pricedRequests: 1,
+        estimatedCostUsd: '0.000210000000',
+      });
+      expect(
+        result.models.find(
+          (row: { model: string }) => row.model === 'unpriced-model',
+        ),
+      ).toMatchObject({
+        requests: 1,
+        estimatedCostUsd: null,
+        unpricedRequests: 1,
+      });
+      const empty = (
+        await admin.get(`${url}/admin/ai-costs?month=2094-05`).expect(200)
+      ).body;
+      expect(empty).toMatchObject({
+        requests: 0,
+        estimatedCostUsd: null,
+        features: [],
+        daily: [],
+      });
+      await admin.get(`${url}/admin/ai-costs?month=2094-13`).expect(400);
+      expect(JSON.stringify(result)).not.toContain('responseId');
+    } finally {
+      await prisma.aiRequest.deleteMany({
+        where: { id: { in: logs.map((row) => row.id) } },
+      });
+    }
   });
 
   it('validates summary months and returns Vietnam calendar boundaries', async () => {

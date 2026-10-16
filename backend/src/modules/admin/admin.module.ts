@@ -14,6 +14,7 @@ import { ListingReportsController } from './listing-reports.controller.js';
 import { ListingReportsService } from './listing-reports.service.js';
 import { AdminOrdersService } from './admin-orders.service.js';
 import { AdminAuditService } from './admin-audit.service.js';
+import { AdminAiCostsService } from './admin-ai-costs.service.js';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -31,6 +32,7 @@ import { AdminAuditService } from './admin-audit.service.js';
     ListingReportsService,
     AdminOrdersService,
     AdminAuditService,
+    AdminAiCostsService,
   ],
 })
 export class AdminModule {}

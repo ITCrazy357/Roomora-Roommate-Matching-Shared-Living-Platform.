@@ -229,6 +229,34 @@ model User {
   @@map("users")
 }
 
+enum AiRequestStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model AiRequest {
+  id             String          @id @default(uuid()) @db.Uuid
+  feature        String          @db.VarChar(64)
+  model          String          @db.VarChar(100)
+  responseId     String?         @map("response_id") @db.VarChar(100)
+  serviceTier    String?         @map("service_tier") @db.VarChar(30)
+  status         AiRequestStatus @default(PENDING)
+  inputTokens    Int?            @map("input_tokens")
+  cachedTokens   Int?            @map("cached_tokens")
+  outputTokens   Int?            @map("output_tokens")
+  inputRate      Decimal?        @map("input_rate") @db.Decimal(14, 6)
+  cachedRate     Decimal?        @map("cached_rate") @db.Decimal(14, 6)
+  outputRate     Decimal?        @map("output_rate") @db.Decimal(14, 6)
+  costUsd        Decimal?        @map("cost_usd") @db.Decimal(20, 12)
+  pricingVersion String?         @map("pricing_version") @db.VarChar(30)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  finishedAt     DateTime?       @map("finished_at")
+
+  @@index([createdAt])
+  @@map("ai_requests")
+}
+
 model AiUsage {
   userId String @map("user_id") @db.Uuid
   month  String @db.VarChar(7)

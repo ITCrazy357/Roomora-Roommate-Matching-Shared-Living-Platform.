@@ -1,5 +1,8 @@
 # Phase 11 — Trợ lý theo nghiệp vụ
 
+Chi phí gọi OpenAI của các chức năng này và FAQ được ghi nhận riêng cho
+dashboard ADMIN theo tháng. Xem [ghi nhận chi phí AI](../ai-usage/README.md).
+
 Module `ai` gồm controller mỏng, provider dùng chung và ba service nghiệp vụ.
 Tái sử dụng `PeopleDiscoveryService`, `HouseReportsService`, `HouseAccessService`
 và danh mục khu vực. Không tạo một hệ thống điểm phù hợp hoặc sổ chi phí khác.

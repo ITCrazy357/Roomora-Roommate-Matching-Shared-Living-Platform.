@@ -1,4 +1,23 @@
 /* Shared Roomora dashboard layout and Apache ECharts presentation. */
+.admin-ai-metrics { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 18px; margin: 24px 0; }
+.admin-ai-metrics > div { border-left: 2px solid var(--border); padding-left: 14px; min-width: 0; }
+.admin-ai-metrics > div:first-child { border-color: var(--primary); }
+.admin-ai-metrics dt { font-size: 0.73rem; color: var(--muted); }
+.admin-ai-metrics dd { margin: 10px 0; font-size: 1.5rem; font-weight: 650; letter-spacing: -0.04em; overflow-wrap: anywhere; }
+.admin-ai-metrics small { color: var(--muted); font-size: 0.65rem; line-height: 1.8; }
+.admin-ai-details { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 26px; }
+.admin-ai-costs h4 { font-size: 0.8rem; margin: 18px 0; }
+.admin-ai-features > div { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.admin-ai-features strong, .admin-ai-features span { font-size: 0.72rem; }
+.admin-ai-features small { display: block; color: var(--muted); font-size: 0.64rem; margin-top: 6px; line-height: 1.7; }
+.admin-ai-features > div > span { text-align: right; flex-shrink: 0; }
+.admin-ai-models > div { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; font-size: 0.7rem; padding: 10px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.admin-ai-warning { background: var(--warning-soft); color: var(--warning-foreground); border-radius: 8px; padding: 12px; font-size: 0.72rem; line-height: 1.8; }
+@media (max-width: 760px) {
+  .admin-ai-metrics, .admin-ai-details { grid-template-columns: minmax(0, 1fr); }
+  .admin-ai-models > div { grid-template-columns: minmax(0, 1fr) auto; }
+  .admin-ai-models strong { grid-column: 1 / -1; }
+}
 .dashboard {
   display: grid;
   gap: 24px;

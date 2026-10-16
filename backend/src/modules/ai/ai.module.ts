@@ -12,6 +12,7 @@ import { AiReceiptsService } from './ai-receipts.service.js';
 import { AiInsightsService } from './ai-insights.service.js';
 import { AiCreditsModule } from '../ai-credits/ai-credits.module.js';
 import { AiSummariesService } from './ai-summaries.service.js';
+import { AiUsageModule } from '../ai-usage/ai-usage.module.js';
 @Module({
   imports: [
     PrismaModule,
@@ -21,6 +22,7 @@ import { AiSummariesService } from './ai-summaries.service.js';
     PeopleModule,
     LocationsModule,
     AiCreditsModule,
+    AiUsageModule,
   ],
   controllers: [AiController],
   providers: [

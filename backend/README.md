@@ -151,3 +151,7 @@ npm run start:prod
 
 E2E hiện dùng PostgreSQL thật từ `DATABASE_URL`; cần database hoạt động.
 `start:prod` chạy `dist/main.js` đã được tạo bởi `npm run build`.
+
+Dữ liệu tuyển dụng đã được nạp lên Render: xem [tài khoản và dữ liệu demo](../docs/demo-data.md).
+Các seed tạm đã được xóa sau khi kiểm chứng. Đổi credential/khóa danh tính theo
+[hướng dẫn xoay khóa](../docs/credential-rotation.md); không thay khóa mã hóa trực tiếp.

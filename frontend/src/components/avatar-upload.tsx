@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { authErrorMessage } from "@/lib/auth-errors";
 import type { MyProfile } from "@/lib/profile";
 import { ProfileIcon } from "./profile-icon";
+import { AvatarCropper } from "./avatar-cropper";
 
 export function AvatarUpload({
   profile,
@@ -22,9 +23,11 @@ export function AvatarUpload({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [editing, setEditing] = useState<File | null>(null);
 
-  async function upload(file?: File) {
+  function choose(file?: File) {
     if (!file) return;
+    if (input.current) input.current.value = "";
     setError("");
     setMessage("");
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
@@ -35,6 +38,11 @@ export function AvatarUpload({
       setError("Ảnh không được lớn hơn 5 MB.");
       return;
     }
+    setEditing(file);
+  }
+
+  async function upload(file: File) {
+    setError("");
     setPending(true);
     onBusy(true);
     try {
@@ -47,6 +55,7 @@ export function AvatarUpload({
         timeoutMs: 60000,
       });
       onUpdated(updated);
+      setEditing(null);
       setMessage("Ảnh đại diện đã được cập nhật.");
     } catch (error) {
       setError(authErrorMessage(error));
@@ -79,6 +88,20 @@ export function AvatarUpload({
 
   return (
     <div className="avatar-field">
+      {editing && (
+        <AvatarCropper
+          file={editing}
+          uploading={pending}
+          uploadError={error}
+          onCancel={() => {
+            if (!pending) {
+              setEditing(null);
+              setError("");
+            }
+          }}
+          onSave={upload}
+        />
+      )}
       <div className="avatar-upload-row">
         <div className="avatar-upload-preview">
           {profile.avatarUrl ? (
@@ -134,14 +157,15 @@ export function AvatarUpload({
           aria-label="Chọn ảnh đại diện"
           className="visually-hidden"
           disabled={pending || disabled}
-          onChange={(event) => void upload(event.target.files?.[0])}
+          onChange={(event) => choose(event.target.files?.[0])}
         />
       </div>
       <p className="avatar-hint">
-        JPG, PNG hoặc WebP · tối đa 5 MB. Ảnh được lưu ngay và có liên kết công
-        khai; không dùng ảnh chứa thông tin nhạy cảm.
+        JPG, PNG hoặc WebP · tối đa 5 MB. Cắt, xoay và căn ảnh trước khi lưu.
+        Ảnh đã lưu có liên kết công khai; không dùng ảnh chứa thông tin nhạy
+        cảm.
       </p>
-      {error && (
+      {error && !editing && (
         <p className="text-danger text-sm" role="alert">
           {error}
         </p>

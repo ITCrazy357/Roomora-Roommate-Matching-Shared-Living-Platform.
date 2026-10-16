@@ -66,7 +66,7 @@ backend có thể vượt timeout API mặc định 8 giây của frontend.
 - `/quen-mat-khau`, `/dat-lai-mat-khau`: khôi phục mật khẩu; đổi mật khẩu thu hồi
   toàn bộ phiên cũ.
 - `/onboarding`: hồ sơ ngắn; chỉ tên hiển thị là bắt buộc.
-- `/tai-khoan/ho-so`: tải ảnh đại diện, giới thiệu, ngân sách, khu vực và thói quen.
+- `/tai-khoan/ho-so`: tải/cắt/xoay ảnh đại diện, giới thiệu, ngân sách, khu vực và thói quen.
 - `/tai-khoan/cai-dat`: quyền riêng tư và danh sách/thu hồi phiên đăng nhập.
 - `/ho-so/[id]`: hồ sơ công khai, đối chiếu nếp sống, kết nối, chặn và báo cáo;
   không trả email và tuân theo lựa chọn riêng tư.
@@ -79,12 +79,20 @@ và phân loại lỗi HTTP/mạng/phản hồi. `src/components/ui.tsx` chứa 
 ```powershell
 npm run lint
 npm run test:api
+npm run test:avatar
 npm run build
 npm run start
 ```
 
 Test API dùng Node.js 22.23+ và test runner tích hợp; không cần thêm dependency.
 Build cần mạng để next/font tải Be Vietnam Pro, sau đó font được phục vụ từ ứng dụng.
+
+Ảnh đại diện mở trình chỉnh trước khi tải lên: kéo hoặc dùng phím mũi tên để căn,
+thu phóng 100–400%, xoay từng 90°, đặt lại hoặc hủy. Chỉ **Lưu ảnh** mới gửi ảnh
+JPEG vuông 640 × 640 tới API; nếu tải lên lỗi, giữ phần chỉnh để thử lại.
+Ảnh nguồn hỗ trợ JPG/PNG/WebP, tối đa 5 MB và 25 triệu điểm ảnh. Khung tròn cho
+biết phần hiển thị trên hồ sơ; bản đã lưu không chứa phần ảnh nằm ngoài khung vuông.
+Backend tiếp tục kiểm tra và mã hóa lại ảnh trước khi lưu trên Cloudinary.
 
 Danh sách file thay đổi, kết quả HTTP/trình duyệt và giới hạn hiện tại:
 [FOUNDATION_STATUS.md](../FOUNDATION_STATUS.md).

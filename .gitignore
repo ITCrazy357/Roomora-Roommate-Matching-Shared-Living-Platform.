@@ -7,6 +7,19 @@
 /design-reference/
 /.verification/
 
+# Local deployment metadata and database exports.
+.vercel/
+.netlify/
+*.dump
+*.backup
+*.sql.gz
+*.sql.zip
+*.bak
+
+# Personal agent metadata; application dependency lockfiles stay tracked.
+**/skills-lock.json
+**/CLAUDE.md
+
 # Dependencies and package-manager caches. Keep package-lock.json tracked.
 node_modules/
 .npm/

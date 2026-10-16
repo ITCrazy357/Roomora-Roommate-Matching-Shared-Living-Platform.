@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:api": "node --experimental-strip-types --test test/api.test.mjs"
+    "test:api": "node --experimental-strip-types --test test/api.test.mjs",
+    "test:avatar": "node --experimental-strip-types --test test/avatar-crop.test.mjs"
   },
   "dependencies": {
     "@lucasmarkes/hairline": "0.5.0",

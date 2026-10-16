@@ -7,6 +7,8 @@
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
+    "identity:rotate-key": "node scripts/rotate-identity-key.mjs",
+    "test:identity-key-rotation": "node --test scripts/rotate-identity-key-config.test.mjs scripts/rotate-identity-key.test.mjs",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "prisma:format": "prisma format",

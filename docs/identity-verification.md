@@ -72,7 +72,8 @@ Backend cần `IDENTITY_ENCRYPTION_KEY` gồm 64 ký tự hex ngẫu nhiên (32 
 Khóa local đã tạo trong `backend/.env`, không in giá trị ra log/chat và không
 đưa vào Git. Khi chạy container, đặt khóa trong env_file của môi trường API.
 Giữ khóa cùng bản sao lưu được bảo vệ; đổi/mất khóa làm dữ liệu cũ không giải
-mã được, chưa có chức năng xoay khóa tự động.
+mã được. Có [công cụ xoay khóa thủ công](credential-rotation.md) có transaction
+và rollback; phải dừng mọi backend ghi cùng DB rồi triển khai khóa mới đồng bộ.
 
 `IDENTITY_DECLARATION_REQUIRED=true` là mặc định và được đặt rõ trong CI.
 Các fixture chạy luồng tạo/vào nhà hoặc gửi tin cho thuê phải nộp khai báo

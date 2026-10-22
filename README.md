@@ -217,6 +217,7 @@ Repository có Docker image cho API, frontend và migration; Compose triển kha
 | AI, lượt sử dụng và chi phí ước tính | [AI](backend/src/modules/ai/README.md) · [AI usage](backend/src/modules/ai-usage/README.md) |
 | Khai báo danh tính demo | [Danh tính](docs/identity-verification.md) |
 | Hệ thống giao diện | [Theme](docs/ui-theme.md) |
+| MCP hỗ trợ phát triển và kiểm tra UI | [Cài đặt và kiểm chứng MCP](docs/mcp-setup.md) |
 
 ---
 

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readCodexMcpConfig } from './codex-mcp-config.mjs';
 
 // Exercise the registered server through MCP; no application dependency is added.
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -20,9 +20,7 @@ const tooling = process.env.ROOMORA_MCP_TOOLS_DIR ?? join(homedir(), '.codex', '
 const requireTool = createRequire(join(tooling, 'package.json'));
 const { Client } = requireTool('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = requireTool('@modelcontextprotocol/sdk/client/stdio.js');
-const config = JSON.parse(execFileSync(process.env.CODEX_CLI ?? 'codex', [
-  '--no-daemon', 'mcp', 'get', 'playwright', '--json',
-], { encoding: 'utf8', windowsHide: true }));
+const config = readCodexMcpConfig('playwright');
 assert.equal(config.enabled, true, 'Playwright MCP must be enabled in Codex.');
 assert.equal(config.transport.type, 'stdio');
 assert.ok(config.transport.args.includes('--isolated'), 'Use a separate browser session.');

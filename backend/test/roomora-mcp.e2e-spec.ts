@@ -555,31 +555,40 @@ describe('Roomora OAuth and read-only MCP (HTTP/PostgreSQL/SDK)', () => {
   });
 
   it('shares public lookup with the chatbot and clarifies unsupported filters without AI charges', async () => {
-    const path = '/api/v1/support/chat/listings';
-    await http()
-      .post(path)
-      .set('Origin', origin)
-      .send({ message: 'Tìm phòng tại Hà Nội' })
-      .expect(401);
-    const response = await http()
-      .post(path)
-      .set('Cookie', cookie)
-      .set('Origin', origin)
-      .send({ message: 'Tìm phòng tại Hà Nội dưới 4 triệu' })
-      .expect(200);
-    expect(response.body.items.map((item: { id: string }) => item.id)).toEqual([
-      publicId,
-    ]);
-    expect(response.body.answer).toContain('4.000.000');
-    const clarify = await http()
-      .post(path)
-      .set('Cookie', cookie)
-      .set('Origin', origin)
-      .send({ message: 'Tìm phòng tại Hà Nội có máy lạnh gần trường A' })
-      .expect(200);
-    expect(clarify.body.items).toEqual([]);
-    expect(clarify.body.answer).toContain('bộ lọc');
-    expect(await prisma.aiRequest.count()).toBe(0);
+    // Other E2E suites share this database and can leave AI telemetry behind.
+    const existingRequest = await prisma.aiRequest.create({
+      data: { feature: 'ci-isolation-fixture', model: 'fixture-no-provider' },
+    });
+    try {
+      const requestsBefore = await prisma.aiRequest.count();
+      const path = '/api/v1/support/chat/listings';
+      await http()
+        .post(path)
+        .set('Origin', origin)
+        .send({ message: 'Tìm phòng tại Hà Nội' })
+        .expect(401);
+      const response = await http()
+        .post(path)
+        .set('Cookie', cookie)
+        .set('Origin', origin)
+        .send({ message: 'Tìm phòng tại Hà Nội dưới 4 triệu' })
+        .expect(200);
+      expect(
+        response.body.items.map((item: { id: string }) => item.id),
+      ).toEqual([publicId]);
+      expect(response.body.answer).toContain('4.000.000');
+      const clarify = await http()
+        .post(path)
+        .set('Cookie', cookie)
+        .set('Origin', origin)
+        .send({ message: 'Tìm phòng tại Hà Nội có máy lạnh gần trường A' })
+        .expect(200);
+      expect(clarify.body.items).toEqual([]);
+      expect(clarify.body.answer).toContain('bộ lọc');
+      expect(await prisma.aiRequest.count()).toBe(requestsBefore);
+    } finally {
+      await prisma.aiRequest.deleteMany({ where: { id: existingRequest.id } });
+    }
   });
 
   it('hides published listings while their owner is locked or closed', async () => {

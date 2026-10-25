@@ -3,6 +3,7 @@ import type { ConfigService } from '@nestjs/config';
 
 export function httpCors(config: ConfigService) {
   const frontend = config.getOrThrow<string>('FRONTEND_ORIGIN');
+
   const allowed = [
     frontend,
     ...config
@@ -11,6 +12,7 @@ export function httpCors(config: ConfigService) {
       .map((value) => value.trim())
       .filter(Boolean),
   ];
+
   return (
     req: Request,
     callback: (

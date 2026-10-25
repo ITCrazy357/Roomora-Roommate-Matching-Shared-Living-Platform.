@@ -1,0 +1,28 @@
+.mcp-consent {
+  max-width: 42rem;
+  margin-inline: auto;
+  overflow-wrap: anywhere;
+}
+.mcp-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.help-chat-modes {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.help-chat-lookup-note {
+  padding: 0.5rem 1rem;
+  margin: 0;
+}
+.help-chat-listings {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.help-chat-listings li {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}

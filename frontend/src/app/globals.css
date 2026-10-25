@@ -2,6 +2,7 @@
 @import "./theme.css";
 @import "./ai.css";
 @import "./uiverse.css";
+@import "./mcp.css";
 
 .focus-panel {
   scroll-margin-block: 24px;

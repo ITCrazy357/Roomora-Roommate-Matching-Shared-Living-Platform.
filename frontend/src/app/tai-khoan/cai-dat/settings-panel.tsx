@@ -17,6 +17,7 @@ import { authErrorMessage } from "@/lib/auth-errors";
 import type { MyProfile } from "@/lib/profile";
 import { GoogleAccountCard } from "./google-account-card";
 import { AccountClosureCard } from "./account-closure-card";
+import { McpConnectionsCard } from "./mcp-connections-card";
 
 interface LoginSession {
   id: string;
@@ -123,6 +124,7 @@ export function SettingsPanel() {
   return (
     <div className="settings-grid">
       <GoogleAccountCard />
+      <McpConnectionsCard />
       {auth.user?.hasPassword && (
         <Card className="settings-card">
           <h2>Mật khẩu đăng nhập</h2>

@@ -1,5 +1,9 @@
 {$DOMAIN} {
   encode zstd gzip
+  @mcpDiscovery path /.well-known/oauth-authorization-server /.well-known/oauth-protected-resource/api/v1/mcp
+  handle @mcpDiscovery {
+    reverse_proxy api:5000
+  }
   handle /api/* {
     reverse_proxy api:5000 {
       # Flush SSE events immediately.

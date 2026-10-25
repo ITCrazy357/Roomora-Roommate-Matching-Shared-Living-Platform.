@@ -251,6 +251,41 @@ export function validateEnvironment(
   if (identityKey && !/^[a-fA-F0-9]{64}$/.test(identityKey))
     throw new Error('IDENTITY_ENCRYPTION_KEY phải có 64 ký tự hex');
 
+  const mcpEnabled = booleanValue('MCP_ENABLED', nodeEnv !== 'production');
+  const mcpOrigin =
+    optionalText('MCP_PUBLIC_ORIGIN') ?? `http://localhost:${port}`;
+  const validateMcpOrigin = (value: string) => {
+    const url = new URL(value);
+    const loopback =
+      url.protocol === 'http:' &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (
+      (url.protocol !== 'https:' && !loopback) ||
+      url.origin !== value ||
+      url.username ||
+      url.password
+    )
+      throw new Error(
+        'MCP origins cần HTTPS hoặc HTTP loopback, không có đường dẫn',
+      );
+    return url.origin;
+  };
+  validateMcpOrigin(mcpOrigin);
+  if (
+    mcpEnabled &&
+    nodeEnv === 'production' &&
+    !mcpOrigin.startsWith('https://')
+  )
+    throw new Error(
+      'MCP_PUBLIC_ORIGIN HTTPS là bắt buộc khi bật MCP ở production',
+    );
+  const mcpAllowedOrigins = optionalText('MCP_ALLOWED_ORIGINS') ?? '';
+  for (const value of mcpAllowedOrigins
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean))
+    validateMcpOrigin(value);
+
   return {
     ...config,
     NODE_ENV: nodeEnv,
@@ -266,6 +301,9 @@ export function validateEnvironment(
     ),
     TRUST_PROXY_HOPS: integerInRange('TRUST_PROXY_HOPS', 0, 0, 1),
     FRONTEND_ORIGIN: origin.origin,
+    MCP_ENABLED: mcpEnabled,
+    MCP_PUBLIC_ORIGIN: mcpOrigin,
+    MCP_ALLOWED_ORIGINS: mcpAllowedOrigins,
     AUTH_DEV_EXPOSE_LINKS: devExposeLinks,
     AUTH_OTP_SECRET: otpSecret,
     GOOGLE_CLIENT_ID: googleClientId,

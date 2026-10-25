@@ -1,0 +1,18 @@
+[[sources]]
+id = "roomora-local"
+description = "Roomora local diagnostics. Read mcp_inspect views; application tables are not granted."
+dsn = "${ROOMORA_MCP_DSN}"
+connection_timeout = 5
+query_timeout = 5
+pool_max_connections = 2
+search_path = "mcp_inspect,pg_catalog"
+
+[[tools]]
+name = "execute_sql"
+source = "roomora-local"
+readonly = true
+max_rows = 100
+
+[[tools]]
+name = "search_objects"
+source = "roomora-local"

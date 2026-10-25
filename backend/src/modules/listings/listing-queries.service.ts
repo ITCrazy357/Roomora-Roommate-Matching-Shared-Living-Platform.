@@ -35,13 +35,28 @@ export class ListingQueriesService {
     return { ...this.rules.publicView(listing), saved: Boolean(saved) };
   }
 
+  // Assistants must never use the owner shortcut in getPublic().
+  async getPublished(id: string) {
+    const listing = await this.prisma.listing.findFirst({
+      where: {
+        id,
+        status: 'PUBLISHED',
+        deletedAt: null,
+        owner: { lockedAt: null, closedAt: null },
+      },
+      include: details,
+    });
+    if (!listing) this.rules.notFound();
+    return this.rules.publicView(listing);
+  }
+
   listPublic(query: ListingQueryDto, userId?: string) {
     return this.list(
       query,
       {
         ...this.filters(query),
         status: 'PUBLISHED',
-        owner: { lockedAt: null },
+        owner: { lockedAt: null, closedAt: null },
       },
       userId,
     );

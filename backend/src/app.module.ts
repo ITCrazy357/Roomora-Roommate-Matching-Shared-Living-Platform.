@@ -21,6 +21,7 @@ import { BillingModule } from './modules/billing/billing.module.js';
 import { SupportModule } from './modules/support/support.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { RedisModule } from './redis/redis.module.js';
+import { RoomoraMcpModule } from './modules/roomora-mcp/roomora-mcp.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -45,6 +46,7 @@ import { RedisModule } from './redis/redis.module.js';
     BillingModule,
     SupportModule,
     AiModule,
+    RoomoraMcpModule,
   ],
   controllers: [AppController],
   providers: [

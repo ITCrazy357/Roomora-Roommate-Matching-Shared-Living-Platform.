@@ -8,6 +8,7 @@ import { SystemBanner } from "@/components/admin/system-banner";
 import { AdminRouteGate } from "@/components/admin/admin-route-gate";
 import { ChatWidget } from "@/components/chat-widget";
 import { themeScript } from "@/lib/theme";
+import { siteOrigin } from "@/lib/seo";
 import "./admin.css";
 import "./globals.css";
 import "./support.css";
@@ -26,9 +27,17 @@ import "./house-dashboard.css";
 
 const beVietnam = localFont({
   src: [
-    { path: "./fonts/BeVietnamPro-Regular.ttf", weight: "400", style: "normal" },
+    {
+      path: "./fonts/BeVietnamPro-Regular.ttf",
+      weight: "400",
+      style: "normal",
+    },
     { path: "./fonts/BeVietnamPro-Medium.ttf", weight: "500", style: "normal" },
-    { path: "./fonts/BeVietnamPro-SemiBold.ttf", weight: "600", style: "normal" },
+    {
+      path: "./fonts/BeVietnamPro-SemiBold.ttf",
+      weight: "600",
+      style: "normal",
+    },
     { path: "./fonts/BeVietnamPro-Bold.ttf", weight: "700", style: "normal" },
   ],
   variable: "--font-be-vietnam",
@@ -37,6 +46,7 @@ const beVietnam = localFont({
 });
 
 export const metadata: Metadata = {
+  ...(siteOrigin() ? { metadataBase: new URL(siteOrigin()!) } : {}),
   title: {
     default: "Roomora — Hợp người, chung nhà",
     template: "%s | Roomora",

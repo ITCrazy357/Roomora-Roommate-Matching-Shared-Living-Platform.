@@ -1,7 +1,7 @@
 # MCP cho Roomora
 
-MCP được cài ở công cụ phát triển của người dùng; backend và frontend Roomora
-không cần chạy MCP để phục vụ các chức năng hiện có.
+Ba MCP đầu tiên phục vụ công cụ phát triển của người dùng. Mục 4 là MCP của sản phẩm,
+chạy trong backend Roomora để ứng dụng AI bên ngoài tra cứu tin công khai qua OAuth.
 
 ## 1. Playwright MCP
 
@@ -208,11 +208,139 @@ Gỡ đăng ký: `codex --no-daemon mcp remove github`.
 Nguồn: [GitHub MCP chính thức](https://github.com/github/github-mcp-server),
 [cấu hình chế độ chỉ đọc](https://github.com/github/github-mcp-server/blob/main/docs/server-configuration.md).
 
-## Các mục tiếp theo
+## 3. PostgreSQL MCP
+
+Đã cài ngày 23/10/2026, phục vụ database **local** `roomora` tại `127.0.0.1:5433`.
+Dùng `@bytebase/dbhub@1.5.0` và `pg@8.23.0`, cài riêng tại
+`%USERPROFILE%\.codex\tools\postgres-mcp`; không thêm dependency ứng dụng.
+Codex đăng ký server tên `postgres` qua stdio, không mở HTTP server.
+
+### Phạm vi truy cập
+
+Role riêng `roomora_mcp_readonly` không có quyền quản trị, kế thừa role khác hoặc
+đọc/ghi trực tiếp bảng nghiệp vụ. MCP được cấp `USAGE` trên schema `mcp_inspect`
+và `SELECT` trên bảy view sau:
+
+| View | Nội dung được đọc |
+| --- | --- |
+| `table_inventory` | Tên bảng, số dòng ước tính và kích thước |
+| `column_inventory` | Tên cột, kiểu dữ liệu và ràng buộc null |
+| `index_inventory` | Tên và định nghĩa index |
+| `migration_status` | Tên và trạng thái migration, không có nội dung log |
+| `listing_counts` | Số tin theo loại/trạng thái |
+| `expense_counts` | Số khoản chi và tổng tiền theo danh mục/trạng thái |
+| `service_order_counts` | Số đơn và tổng tiền theo provider/trạng thái |
+
+Không cấp `SELECT` trên bảng gốc, bao gồm tài khoản, session/token, danh tính,
+tin nhắn và payload thanh toán. Metadata tên bảng/cột vẫn có thể được xem.
+Không tự cấp quyền cho bảng/view tạo trong tương lai. Phạm vi này hỗ trợ xem
+schema, index, migration và thống kê; chưa hỗ trợ điều tra từng bản ghi cá nhân.
+
+DBHub chỉ công bố `execute_sql` và `search_objects`. `execute_sql` bật
+`readonly = true`, tối đa 100 dòng; query timeout 5 giây, pool tối đa 2 kết nối
+mỗi process. Role có connection limit 6, mặc định read-only, statement timeout
+5 giây và lock timeout 1 giây. Quyền database vẫn chặn ghi khi session đổi sang
+`READ WRITE`; không chỉ dựa vào cờ mặc định hoặc bộ lọc SQL của MCP.
+
+Mật khẩu role được tạo ngẫu nhiên. File
+`%USERPROFILE%\.codex\tools\postgres-mcp\connection.dpapi` chứa kết nối được mã hóa
+bằng Windows DPAPI theo người dùng; launcher giải mã trong bộ nhớ rồi truyền qua
+environment của process DBHub. Không ghi URL/mật khẩu vào config Codex, command
+line, source hoặc báo cáo. Launcher chỉ chấp nhận đúng role/database/host local này.
+
+### Kiểm tra bằng Git Bash
+
+Mở Docker Desktop trước, rồi chạy:
+
+```bash
+cd /f/VSCode/Projects/Roomora
+export PATH="/c/Users/HP/AppData/Local/Author Software/nvm/installs/v22.23.2:$PATH"
+docker compose up -d postgres
+node scripts/check-postgres-mcp.mjs
+```
+
+Script tự tìm CLI Codex trong extension VS Code/Insiders. Kết quả hiện tại:
+**10 bước PASS** với database thật và MCP thật, gồm đọc đủ bảy view, từ chối đọc
+bảng riêng tư, từ chối ghi/DDL cả trong `READ WRITE`, chặn truy vấn nhiều statement
+có thao tác ghi, giới hạn 100 dòng và hủy `pg_sleep(6)` sau 5 giây. Sau timeout,
+kết nối vẫn truy vấn được. Các probe ghi dùng `WHERE false` hoặc transaction có
+rollback; không thay đổi bản ghi nghiệp vụ.
+
+Artifact tại `.verification/postgres-mcp/report.json` và `capabilities.json`.
+Đây là kiểm chứng qua MCP SDK và PostgreSQL local; chưa kiểm tra production,
+HTTP ứng dụng hoặc việc namespace được nạp trong mọi cửa sổ Codex.
+Nếu cửa sổ chưa thấy server `postgres`, mở phiên mới và kiểm tra `/mcp`.
+
+Ví dụ yêu cầu trợ lý sau khi công cụ được nạp:
+
+- “Liệt kê các bảng Roomora và kích thước ước tính.”
+- “Xem index của bảng expenses.”
+- “Kiểm tra migration chưa hoàn thành hoặc đã rollback.”
+- “Thống kê đơn dịch vụ theo provider và trạng thái.”
+
+Ví dụ SQL:
+
+```sql
+SELECT * FROM mcp_inspect.table_inventory ORDER BY total_bytes DESC;
+SELECT * FROM mcp_inspect.index_inventory WHERE table_name = 'expenses';
+SELECT * FROM mcp_inspect.migration_status WHERE finished_at IS NULL;
+SELECT * FROM mcp_inspect.service_order_counts;
+```
+
+### Cài lại trên máy Windows khác
+
+Yêu cầu Node 22, database local có schema Roomora và SDK kiểm tra từ mục 1.
+Từ thư mục gốc repository, chạy PowerShell bằng tài khoản sử dụng Codex:
+
+```powershell
+$toolingDir = Join-Path $env:USERPROFILE '.codex\tools\postgres-mcp'
+npm.cmd install --prefix $toolingDir --save-exact --ignore-scripts --omit=optional @bytebase/dbhub@1.5.0 pg@8.23.0
+node scripts/setup-postgres-mcp.mjs
+Copy-Item -LiteralPath scripts/start-postgres-mcp.mjs,scripts/postgres-mcp-connection.mjs -Destination $toolingDir
+Copy-Item -LiteralPath scripts/postgres-mcp.dbhub.toml -Destination (Join-Path $toolingDir 'dbhub.toml')
+$nodeExe = (Get-Command node.exe).Source
+codex --no-daemon mcp add postgres -- $nodeExe (Join-Path $toolingDir 'start-postgres-mcp.mjs')
+node scripts/check-postgres-mcp.mjs
+```
+
+Sao lưu schema và config trước khi cài trên máy khác. Script setup chỉ chấp nhận
+database local từ `backend/.env`, tạo role/schema mới trong transaction và dừng
+nếu đã tồn tại; không tự ghi đè quyền hoặc xoay mật khẩu đang dùng. Chỉ setup đọc
+credential ứng dụng để cấp quyền; server MCP không dùng credential đó.
+DPAPI gắn với Windows user/machine, vì vậy tạo kết nối mới trên máy khác thay vì
+chép file mã hóa sang. Sau khi đổi source launcher/helper/config, sao chép lại
+các file tương ứng vào thư mục công cụ người dùng.
+
+Backup trên máy hiện tại:
+
+- Schema: `.verification/postgres-mcp/schema-before-mcp.sql`.
+- Codex config: `%USERPROFILE%\.codex\backups\config-before-postgres-20261023-002157.toml`.
+
+Các view tạo dependency vào bảng/cột nguồn; khi migration đổi hoặc xóa chúng,
+cần cập nhật view chẩn đoán tương ứng. Không thêm các view này vào Prisma schema.
+Tạm tắt: đặt `enabled = false` trong `[mcp_servers.postgres]`.
+Gỡ đăng ký: `codex --no-daemon mcp remove postgres`; thao tác đó giữ nguyên role/view.
+
+Nguồn: [DBHub](https://github.com/bytebase/dbhub),
+[read-only SQL](https://dbhub.ai/tools/execute-sql),
+[quyền PostgreSQL](https://www.postgresql.org/docs/17/sql-grant.html).
+
+## 4. MCP sản phẩm Roomora qua OAuth
+
+Backend có Streamable HTTP tại `/api/v1/mcp`, OAuth authorization code + PKCE S256,
+đăng ký public client tự động và hai công cụ chỉ đọc: `search_listings`, `get_listing`.
+Người dùng đăng nhập, duyệt quyền rồi mới nhận token; có thể thu hồi tại Cài đặt.
+Chatbot có chế độ **Tìm tin**, dùng chung lớp tra cứu và không trừ lượt AI.
+
+Chi tiết cấu hình, kiểm thử Git Bash và kết nối ChatGPT: [roomora-mcp.md](roomora-mcp.md).
+Google Search là luồng SEO riêng: [search-visibility.md](search-visibility.md).
+Chưa triển khai bản thay đổi lên production hoặc liên kết tài khoản ChatGPT thật.
+
+## Trạng thái
 
 | Thứ tự | Mục | Trạng thái |
 | --- | --- | --- |
 | 1 | Playwright MCP hỗ trợ kiểm tra UI | Đã cài, bật và gọi MCP thật với UI local |
 | 2 | GitHub MCP hỗ trợ PR/CI | Đã cài, bật và gọi MCP thật đọc repo/PR/CI/log; chỉ đọc |
-| 3 | PostgreSQL MCP với quyền chỉ đọc | Chưa cấu hình |
-| 4 | MCP server riêng cho Roomora | Chưa triển khai; cần giữ kiểm tra quyền nghiệp vụ |
+| 3 | PostgreSQL MCP với quyền chỉ đọc | Đã cài, bật; 10 kiểm tra thật qua trên DB local, chỉ đọc view chẩn đoán |
+| 4 | MCP server riêng cho Roomora | Đã triển khai mã nguồn OAuth + tra cứu công khai; kiểm chứng local, chưa kết nối ChatGPT production |

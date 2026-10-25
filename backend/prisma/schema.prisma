@@ -183,6 +183,8 @@ model User {
   authTokens          AuthToken[]
   authOtps            AuthOtp[]
   googleAccount       GoogleAccount?
+  mcpAuthorizations   McpAuthorization[]
+  mcpGrants           McpGrant[]
   listings            Listing[]           @relation("ListingOwner")
   listingSubmissions  ListingSubmission[]
   savedListings       SavedListing[]
@@ -841,9 +843,75 @@ model Session {
 
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   googleLoginStates GoogleLoginState[]
+  mcpAuthorizations McpAuthorization[]
+  mcpGrants         McpGrant[]
 
   @@index([userId, expiresAt])
   @@map("sessions")
+}
+
+// OAuth access is limited to public listing lookup and bound to a login session.
+model McpClient {
+  id             String             @id @default(uuid()) @db.Uuid
+  metadata       Json
+  createdAt      DateTime           @default(now()) @map("created_at")
+  authorizations McpAuthorization[]
+  grants         McpGrant[]
+
+  @@map("mcp_clients")
+}
+
+model McpAuthorization {
+  id            String    @id @default(uuid()) @db.Uuid
+  clientId      String    @map("client_id") @db.Uuid
+  redirectUri   String    @map("redirect_uri") @db.VarChar(2048)
+  state         String?   @db.VarChar(1024)
+  codeChallenge String    @map("code_challenge") @db.VarChar(43)
+  codeHash      String?   @unique @map("code_hash") @db.Char(64)
+  resource      String    @db.VarChar(2048)
+  expiresAt     DateTime  @map("expires_at")
+  approvedAt    DateTime? @map("approved_at")
+  consumedAt    DateTime? @map("consumed_at")
+  userId        String?   @map("user_id") @db.Uuid
+  sessionId     String?   @map("session_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  client        McpClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session       Session?  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("mcp_authorizations")
+}
+
+model McpGrant {
+  id               String            @id @default(uuid()) @db.Uuid
+  clientId         String            @map("client_id") @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  sessionId        String            @map("session_id") @db.Uuid
+  accessHash       String            @unique @map("access_hash") @db.Char(64)
+  resource         String            @db.VarChar(2048)
+  expiresAt        DateTime          @map("expires_at")
+  refreshExpiresAt DateTime          @map("refresh_expires_at")
+  revokedAt        DateTime?         @map("revoked_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  client           McpClient         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session          Session           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  refreshTokens    McpRefreshToken[]
+
+  @@index([userId, revokedAt, refreshExpiresAt])
+  @@map("mcp_grants")
+}
+
+model McpRefreshToken {
+  hash       String    @id @db.Char(64)
+  grantId    String    @map("grant_id") @db.Uuid
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  grant      McpGrant  @relation(fields: [grantId], references: [id], onDelete: Cascade)
+
+  @@index([grantId])
+  @@map("mcp_refresh_tokens")
 }
 
 // One current challenge per email and purpose, including unknown emails.

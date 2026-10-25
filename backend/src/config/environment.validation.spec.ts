@@ -1,5 +1,36 @@
 import { validateEnvironment } from './environment.validation.js';
 
+describe('MCP canonical origins', () => {
+  const base = { FRONTEND_ORIGIN: 'http://localhost:3000' };
+  const production = {
+    ...base,
+    NODE_ENV: 'production',
+    AUTH_OTP_SECRET: 'a'.repeat(64),
+    REDIS_URL: 'redis://localhost:6379',
+  };
+  it('requires explicit production enablement and a canonical HTTPS origin', () => {
+    expect(validateEnvironment(production).MCP_ENABLED).toBe(false);
+    expect(() =>
+      validateEnvironment({ ...production, MCP_ENABLED: true }),
+    ).toThrow('MCP_PUBLIC_ORIGIN');
+    expect(
+      validateEnvironment({
+        ...production,
+        MCP_ENABLED: true,
+        MCP_PUBLIC_ORIGIN: 'https://api.example.com',
+      }).MCP_ENABLED,
+    ).toBe(true);
+  });
+  it.each([
+    'http://untrusted.example',
+    'https://api.example.com/path',
+    'https://user:password@api.example.com',
+    'https://api.example.com/?token=x',
+  ])('rejects noncanonical origin %s', (MCP_PUBLIC_ORIGIN) => {
+    expect(() => validateEnvironment({ ...base, MCP_PUBLIC_ORIGIN })).toThrow();
+  });
+});
+
 describe('Redis environment validation', () => {
   const base = { FRONTEND_ORIGIN: 'http://localhost:3000' };
   it('allows local memory only outside production', () => {

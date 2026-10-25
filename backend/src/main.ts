@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { observeHttp } from './common/http-observability.js';
+import { httpCors } from './common/http-cors.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -21,11 +22,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
-  app.enableCors({
-    origin: config.getOrThrow<string>('FRONTEND_ORIGIN'),
-    credentials: true,
-    exposedHeaders: ['X-Request-ID'],
-  });
+  app.enableCors(httpCors(config));
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -15,6 +15,7 @@ import {
   ListingModerationController,
 } from './listings.controller.js';
 import { ListingsService } from './listings.service.js';
+import { ListingSeoController } from './listing-seo.controller.js';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { ListingsService } from './listings.service.js';
     LocationsModule,
     IdentityModule,
   ],
-  controllers: [ListingsController, ListingModerationController],
+  controllers: [ListingsController, ListingModerationController, ListingSeoController],
   providers: [
     ListingsService,
     ListingQueriesService,
@@ -34,5 +35,6 @@ import { ListingsService } from './listings.service.js';
     ListingQuotaService,
     AdminGuard,
   ],
+  exports: [ListingQueriesService],
 })
 export class ListingsModule {}

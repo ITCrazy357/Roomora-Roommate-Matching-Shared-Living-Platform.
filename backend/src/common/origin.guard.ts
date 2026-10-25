@@ -13,6 +13,8 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 // Only gateway handlers that authenticate signed server notifications use this.
 export const SignedPaymentNotification = () =>
   SetMetadata('signedPaymentNotification', true);
+// Only MCP transport handlers use this; their guard independently requires OAuth bearer tokens.
+export const McpBearerEndpoint = () => SetMetadata('mcpBearerEndpoint', true);
 
 @Injectable()
 export class OriginGuard implements CanActivate {
@@ -33,6 +35,19 @@ export class OriginGuard implements CanActivate {
       return true;
 
     const expectedOrigin = this.config.getOrThrow<string>('FRONTEND_ORIGIN');
+    if (
+      this.reflector.get<boolean>('mcpBearerEndpoint', context.getHandler())
+    ) {
+      const allowed = [
+        expectedOrigin,
+        ...this.config
+          .get<string>('MCP_ALLOWED_ORIGINS', '')
+          .split(',')
+          .map((value) => value.trim()),
+      ];
+      if (!request.headers.origin || allowed.includes(request.headers.origin))
+        return true;
+    }
     if (request.headers.origin !== expectedOrigin) {
       throw new ForbiddenException({
         code: 'ORIGIN_NOT_ALLOWED',

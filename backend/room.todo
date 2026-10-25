@@ -564,3 +564,12 @@ trong CI; giữ kiểm thử chặn tài khoản chưa khai báo. Kiểm chứng
 rỗng qua 44 migration, Prisma generate/validate, build/lint backend (5 warning cũ),
 185 unit và 450 E2E qua, không bỏ qua test. DB kiểm thử riêng đã dọn;
 chưa commit/push hoặc chạy lại GitHub Actions. Chi tiết: ../docs/identity-verification.md.
+
+Bổ sung 23/10/2026: MCP sản phẩm chỉ tra cứu tin công khai qua OAuth PKCE; chatbot
+dùng chung lớp lookup, có duyệt/thu hồi kết nối trong UI. Bổ sung SEO website/tin
+công khai: sitemap/robots, metadata và nội dung SSR, noindex trang riêng/tin nháp.
+20 HTTP/PostgreSQL/SDK cùng 201 unit qua (5 unit bỏ qua theo cấu hình), browser local
+kiểm chứng consent/callback/thu hồi/chat và HTML khi tắt JavaScript. Migration thêm
+bốn bảng OAuth đã áp dụng DB local sau full backup. Chưa deploy, liên kết ChatGPT
+thật hoặc submit Google Search Console; không đánh dấu Phase 12 hoàn tất.
+Chi tiết: ../docs/roomora-mcp.md; ../docs/search-visibility.md.

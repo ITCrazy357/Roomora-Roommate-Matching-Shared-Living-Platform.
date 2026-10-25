@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth-provider";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import {
   Listing,
   listingError,
@@ -15,9 +15,15 @@ import { ListingContent } from "./listing-content";
 import { DeleteListingDraft } from "./delete-listing-draft";
 import { ReportListing } from "./report-listing";
 
-function ListingDetailView({ id }: { id: string }) {
+function ListingDetailView({
+  id,
+  initialListing,
+}: {
+  id: string;
+  initialListing: Listing | null;
+}) {
   const { user, loading } = useAuth();
-  const [listing, setListing] = useState<Listing | null>(null);
+  const [listing, setListing] = useState<Listing | null>(initialListing);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -30,7 +36,14 @@ function ListingDetailView({ id }: { id: string }) {
         setError("");
       })
       .catch((error) => {
-        if (!controller.signal.aborted) setError(listingError(error));
+        if (!controller.signal.aborted) {
+          if (
+            error instanceof ApiError &&
+            [401, 403, 404].includes(error.status ?? 0)
+          )
+            setListing(null);
+          setError(listingError(error));
+        }
       });
     return () => controller.abort();
   }, [id, loading, user?.id, retry]);
@@ -116,7 +129,7 @@ function ListingDetailView({ id }: { id: string }) {
         )}
       </div>
       {error && <ErrorState message={error} />}
-      {owner && (
+      {owner && listing.version !== undefined && (
         <div className="listing-owner-bar">
           <p>
             {listing.status === "PUBLISHED"
@@ -175,13 +188,25 @@ function ListingDetailView({ id }: { id: string }) {
   );
 }
 
-export function ListingDetail({ id }: { id: string }) {
+export function ListingDetail({
+  id,
+  initialListing = null,
+}: {
+  id: string;
+  initialListing?: Listing | null;
+}) {
   const { user, loading } = useAuth();
-  if (loading)
+  if (loading && !initialListing)
     return (
       <div className="container page-section">
         <LoadingState />
       </div>
     );
-  return <ListingDetailView key={`${id}:${user?.id ?? "guest"}`} id={id} />;
+  return (
+    <ListingDetailView
+      key={`${id}:${user?.id ?? "guest"}`}
+      id={id}
+      initialListing={initialListing}
+    />
+  );
 }

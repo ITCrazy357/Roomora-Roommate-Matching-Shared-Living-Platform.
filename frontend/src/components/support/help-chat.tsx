@@ -8,9 +8,19 @@ import { useAuth } from "../auth-provider";
 import { Button } from "../ui";
 
 interface HelpReply {
-  kind: "answer" | "handoff";
+  kind: "answer" | "handoff" | "lookup";
   answer: string;
   source?: { title: string; href: string };
+  items?: {
+    id: string;
+    title: string;
+    rent: number | null;
+    priceUnit: string;
+    provinceName: string;
+    wardName: string | null;
+    isFull: boolean;
+  }[];
+  searchHref?: string;
 }
 interface ChatMessage {
   id: string;
@@ -28,6 +38,7 @@ const examples = [
 
 export function HelpChat() {
   const { user } = useAuth();
+  const [mode, setMode] = useState<"help" | "lookup">("help");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
@@ -61,12 +72,15 @@ export function HelpChat() {
       { id: crypto.randomUUID(), role: "user", text: question },
     ]);
     try {
-      const reply = await apiFetch<HelpReply>("/support/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question }),
-        signal: controller.signal,
-      });
+      const reply = await apiFetch<HelpReply>(
+        mode === "lookup" ? "/support/chat/listings" : "/support/chat",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: question }),
+          signal: controller.signal,
+        },
+      );
       setMessages((previous) => [
         ...previous,
         {
@@ -80,9 +94,14 @@ export function HelpChat() {
     } catch (error) {
       if (controller.signal.aborted) return;
       const text =
-        error instanceof ApiError && error.code === "CHAT_RATE_LIMITED"
-          ? "Bạn gửi câu hỏi quá nhanh. Hãy đợi một phút trước khi thử lại."
-          : "Trợ lý chưa trả lời được lúc này. Bạn có thể gửi yêu cầu hỗ trợ để ADMIN kiểm tra.";
+        mode === "lookup"
+          ? error instanceof ApiError &&
+            (error.status === 401 || error.status === 403)
+            ? "Bạn cần đăng nhập bằng tài khoản người dùng đã xác minh để tra cứu tin."
+            : "Chưa tra cứu được lúc này. Hãy thử lại sau hoặc dùng trang Tìm phòng."
+          : error instanceof ApiError && error.code === "CHAT_RATE_LIMITED"
+            ? "Bạn gửi câu hỏi quá nhanh. Hãy đợi một phút trước khi thử lại."
+            : "Trợ lý chưa trả lời được lúc này. Bạn có thể gửi yêu cầu hỗ trợ để ADMIN kiểm tra.";
       setMessages((previous) => [
         ...previous,
         {
@@ -90,7 +109,10 @@ export function HelpChat() {
           role: "assistant",
           text,
           question,
-          reply: { kind: "handoff", answer: text },
+          reply:
+            mode === "lookup"
+              ? { kind: "lookup", answer: text, searchHref: "/tim-phong" }
+              : { kind: "handoff", answer: text },
         },
       ]);
     } finally {
@@ -149,6 +171,40 @@ export function HelpChat() {
   return (
     <div className="help-chat">
       <div
+        className="mcp-actions help-chat-modes"
+        role="group"
+        aria-label="Chế độ trợ lý"
+      >
+        <Button
+          variant={mode === "help" ? "primary" : "secondary"}
+          aria-pressed={mode === "help"}
+          disabled={pending || !!handoff}
+          onClick={() => setMode("help")}
+        >
+          Hướng dẫn
+        </Button>
+        <Button
+          variant={mode === "lookup" ? "primary" : "secondary"}
+          aria-pressed={mode === "lookup"}
+          disabled={pending || !!handoff}
+          onClick={() => setMode("lookup")}
+        >
+          Tìm tin
+        </Button>
+      </div>
+      {mode === "lookup" && (
+        <p className="text-muted text-sm help-chat-lookup-note">
+          Tra cứu tin công khai, không dùng lượt AI trả phí. Nhập theo mẫu bên
+          dưới; dùng bộ lọc tìm phòng cho tiêu chí khác.
+          {!user && (
+            <>
+              {" "}
+              <Link href="/dang-nhap">Đăng nhập để tra cứu</Link>.
+            </>
+          )}
+        </p>
+      )}
+      <div
         className="help-chat-messages"
         role="log"
         aria-label="Hội thoại hỗ trợ"
@@ -157,14 +213,24 @@ export function HelpChat() {
       >
         {!messages.length && (
           <div className="help-chat-welcome">
-            <h3>Bạn cần hỗ trợ gì?</h3>
+            <h3>
+              {mode === "lookup"
+                ? "Bạn muốn tìm phòng ở đâu?"
+                : "Bạn cần hỗ trợ gì?"}
+            </h3>
             <p>
-              Tôi hướng dẫn về tài khoản, đăng/tìm tin, kết nối, nhà chung và
-              dịch vụ Roomora. Những việc cần kiểm tra cụ thể sẽ chuyển sang hỗ
-              trợ.
+              {mode === "lookup"
+                ? "Tìm theo tỉnh/thành phố và giá tối đa. Những điều kiện chưa nhận diện được sẽ được hỏi lại."
+                : "Tôi hướng dẫn về tài khoản, đăng/tìm tin, kết nối, nhà chung và dịch vụ Roomora. Những việc cần kiểm tra cụ thể sẽ chuyển sang hỗ trợ."}
             </p>
             <div className="help-chat-examples">
-              {examples.map((question) => (
+              {(mode === "lookup"
+                ? [
+                    "Tìm phòng tại Hà Nội dưới 4 triệu",
+                    "Tìm ở ghép tại Đà Nẵng",
+                  ]
+                : examples
+              ).map((question) => (
                 <button
                   key={question}
                   type="button"
@@ -199,6 +265,38 @@ export function HelpChat() {
           >
             <small>{message.role === "user" ? "Bạn" : "Trợ lý Roomora"}</small>
             <p>{message.text}</p>
+            {!!message.reply?.items?.length && (
+              <ul className="help-chat-listings">
+                {message.reply.items.map((item) => (
+                  <li key={item.id}>
+                    <Link
+                      className="help-chat-source"
+                      href={`/phong/${item.id}`}
+                    >
+                      {item.title}
+                    </Link>
+                    <p className="text-sm">
+                      {item.rent === null
+                        ? "Giá thỏa thuận"
+                        : `${item.rent.toLocaleString("vi-VN")} ${item.priceUnit}`}{" "}
+                      ·{" "}
+                      {[item.wardName, item.provinceName]
+                        .filter(Boolean)
+                        .join(", ")}
+                      {item.isFull ? " · Đã đủ người" : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {message.reply?.searchHref && (
+              <Link
+                className="help-chat-source"
+                href={message.reply.searchHref}
+              >
+                Mở bộ lọc tìm phòng →
+              </Link>
+            )}
             {message.reply?.source && (
               <Link
                 className="help-chat-source"
@@ -226,7 +324,9 @@ export function HelpChat() {
         ))}
         {pending && (
           <p className="help-chat-thinking" role="status">
-            Đang tìm hướng dẫn phù hợp…
+            {mode === "lookup"
+              ? "Đang tra cứu tin công khai…"
+              : "Đang tìm hướng dẫn phù hợp…"}
           </p>
         )}
         <div ref={end} />
@@ -284,10 +384,14 @@ export function HelpChat() {
             ref={inputRef}
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Bạn muốn hỏi gì về Roomora?"
+            placeholder={
+              mode === "lookup"
+                ? "Tìm phòng tại Hà Nội dưới 4 triệu"
+                : "Bạn muốn hỏi gì về Roomora?"
+            }
             rows={2}
-            maxLength={1600}
-            disabled={pending}
+            maxLength={mode === "lookup" ? 500 : 1600}
+            disabled={pending || (mode === "lookup" && !user)}
             onKeyDown={(event) => {
               if (
                 event.key === "Enter" &&
@@ -302,7 +406,9 @@ export function HelpChat() {
           <button
             className="help-chat-send"
             type="submit"
-            disabled={input.trim().length < 2 || pending}
+            disabled={
+              input.trim().length < 2 || pending || (mode === "lookup" && !user)
+            }
             aria-label="Gửi câu hỏi"
           >
             <svg

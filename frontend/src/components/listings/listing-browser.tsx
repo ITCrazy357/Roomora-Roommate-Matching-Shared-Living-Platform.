@@ -30,19 +30,29 @@ type Unit = { code: string; name: string };
 export function ListingBrowser({
   mode = "explore",
   initialType = "",
+  initialProvince = "",
+  initialMaxRent = "",
 }: {
   mode?: "explore" | "mine" | "saved";
   initialType?: ListingType | "";
+  initialProvince?: string;
+  initialMaxRent?: string;
 }) {
   const { user } = useAuth();
   const searchForm = useRef<HTMLFormElement>(null);
-  const [query, setQuery] = useState(initialType ? `type=${initialType}` : "");
+  const [query, setQuery] = useState(() => {
+    const params = new URLSearchParams();
+    if (initialType) params.set("type", initialType);
+    if (initialProvince) params.set("provinceCode", initialProvince);
+    if (initialMaxRent) params.set("maxRent", initialMaxRent);
+    return params.toString();
+  });
   const [type, setType] = useState<ListingType | "">(initialType);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [retry, setRetry] = useState(0);
   const [notice, setNotice] = useState("");
-  const [province, setProvince] = useState("");
+  const [province, setProvince] = useState(initialProvince);
   const [provinces, setProvinces] = useState<Unit[]>([]);
   const [wards, setWards] = useState<Unit[]>([]);
   const [locationError, setLocationError] = useState("");
@@ -233,9 +243,12 @@ export function ListingBrowser({
               <div className="listing-filter-heading">
                 <h2>Bộ lọc</h2>
                 <button
-                  type="reset"
+                  type="button"
                   className="text-link"
                   onClick={() => {
+                    searchForm.current?.reset();
+                    const maxRent = searchForm.current?.elements.namedItem("maxRent");
+                    if (maxRent instanceof HTMLInputElement) maxRent.value = "";
                     setProvince("");
                     setWards([]);
                     setQuery("");
@@ -312,6 +325,7 @@ export function ListingBrowser({
               <Input
                 id="maxRent"
                 name="maxRent"
+                defaultValue={initialMaxRent}
                 label="Mức tiền đến / tháng"
                 type="number"
                 min={0}

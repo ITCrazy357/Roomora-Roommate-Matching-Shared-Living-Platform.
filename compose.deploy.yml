@@ -77,8 +77,12 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_BASE_URL: /api/v1
+        SITE_URL: https://${DOMAIN:?Set DOMAIN}
     restart: unless-stopped
     init: true
+    environment:
+      SITE_URL: https://${DOMAIN:?Set DOMAIN}
+      API_SERVER_BASE_URL: http://api:5000/api/v1
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000', {signal: AbortSignal.timeout(4000)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s

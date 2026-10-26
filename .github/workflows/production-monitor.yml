@@ -1,0 +1,27 @@
+name: Roomora production monitor
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: production-monitor
+  cancel-in-progress: false
+jobs:
+  monitor:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.ROOMORA_MONITOR_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      SITE_URL: https://roomora-blond.vercel.app
+      API_ORIGIN: https://roomora-api-qxjb.onrender.com
+      CHECK_BACKUP_ARTIFACT: "true"
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - run: node scripts/check-production.mjs

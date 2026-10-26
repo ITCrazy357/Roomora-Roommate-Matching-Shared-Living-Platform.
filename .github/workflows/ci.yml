@@ -51,7 +51,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      - run: node --test ../scripts/monitor-health.test.mjs
+      - run: node --test ../scripts/*.test.mjs
+      - run: npm run verify:release
       - run: npm run test:e2e
   frontend:
     runs-on: ubuntu-latest

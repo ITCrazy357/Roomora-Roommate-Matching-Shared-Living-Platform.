@@ -10,6 +10,7 @@ import { AdminRouteGate } from "@/components/admin/admin-route-gate";
 import { ChatWidget } from "@/components/chat-widget";
 import { themeScript } from "@/lib/theme";
 import { siteOrigin } from "@/lib/seo";
+import { WebVitals } from "@/components/web-vitals";
 import "./admin.css";
 import "./globals.css";
 import "./support.css";
@@ -28,17 +29,21 @@ import "./house-dashboard.css";
 const beVietnam = localFont({
   src: [
     {
-      path: "./fonts/BeVietnamPro-Regular.ttf",
+      path: "./fonts/BeVietnamPro-Regular.woff2",
       weight: "400",
       style: "normal",
     },
-    { path: "./fonts/BeVietnamPro-Medium.ttf", weight: "500", style: "normal" },
     {
-      path: "./fonts/BeVietnamPro-SemiBold.ttf",
+      path: "./fonts/BeVietnamPro-Medium.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "./fonts/BeVietnamPro-SemiBold.woff2",
       weight: "600",
       style: "normal",
     },
-    { path: "./fonts/BeVietnamPro-Bold.ttf", weight: "700", style: "normal" },
+    { path: "./fonts/BeVietnamPro-Bold.woff2", weight: "700", style: "normal" },
   ],
   variable: "--font-be-vietnam",
   display: "swap",
@@ -62,9 +67,13 @@ export default async function RootLayout({
   return (
     <html lang="vi" className={beVietnam.variable} suppressHydrationWarning>
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
       </head>
       <body>
+        <WebVitals />
         <a className="skip-link" href="#main-content">
           Đi đến nội dung chính
         </a>

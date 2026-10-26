@@ -36,6 +36,7 @@ const loopingSlides = [slides[slides.length - 1], ...slides, slides[0]];
 
 export function HomeSlideshow() {
   const [activeSlide, setActiveSlide] = useState(1);
+  const [firstImageLoaded, setFirstImageLoaded] = useState(false);
   const [transitionEnabled, setTransitionEnabled] = useState(false);
   const reducedMotion = useReducedMotion();
   const [paused, setPaused] = useState(false);
@@ -111,15 +112,20 @@ export function HomeSlideshow() {
             className="hero-slide"
             aria-hidden={index !== activeSlide}
           >
-            <Image
-              src={item.src}
-              alt={item.alt}
-              fill
-              sizes="(max-width: 700px) 100vw, 50vw"
-              preload={index === 1}
-              loading={index === 1 ? undefined : "lazy"}
-              className="hero-image"
-            />
+            {(index === 1 || index === activeSlide || firstImageLoaded) && (
+              <Image
+                src={item.src}
+                alt={item.alt}
+                fill
+                sizes="(max-width: 700px) 100vw, 50vw"
+                preload={index === 1}
+                loading={index === 1 ? undefined : "lazy"}
+                className="hero-image"
+                onLoad={
+                  index === 1 ? () => setFirstImageLoaded(true) : undefined
+                }
+              />
+            )}
           </div>
         ))}
       </div>

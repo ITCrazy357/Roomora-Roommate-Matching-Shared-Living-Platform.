@@ -3,6 +3,7 @@ import { ListingBrowser } from "@/components/listings/listing-browser";
 
 import { listingTypes, type ListingType } from "@/lib/listings";
 import { siteOrigin } from "@/lib/seo";
+import { serverListings } from "@/lib/server-listings";
 
 export const metadata: Metadata = {
   title: "Tìm phòng",
@@ -31,12 +32,18 @@ export default async function RoomsPage({
     maxRent && /^\d{1,9}$/.test(maxRent) && Number(maxRent) <= 100000000
       ? maxRent
       : "";
+  const query = new URLSearchParams({ page: "1" });
+  if (initialType) query.set("type", initialType);
+  if (initialProvince) query.set("provinceCode", initialProvince);
+  if (initialMaxRent) query.set("maxRent", initialMaxRent);
+  const initialResult = await serverListings(query.toString());
   return (
     <ListingBrowser
       key={`${initialType}:${initialProvince}:${initialMaxRent}`}
       initialType={initialType}
       initialProvince={initialProvince}
       initialMaxRent={initialMaxRent}
+      initialResult={initialResult}
     />
   );
 }

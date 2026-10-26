@@ -1,7 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { isPublicCloudinaryImage, publicImageLoader } from "@/lib/public-image";
+import {
+  isPublicCloudinaryImage,
+  isLocalPublicImage,
+  publicImageLoader,
+} from "@/lib/public-image";
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "../auth-provider";
@@ -89,11 +93,13 @@ export function SaveListing({
 export function ListingCard({
   listing,
   manage = false,
+  preloadPhoto = false,
   onSave,
   onDelete,
 }: {
   listing: Listing;
   manage?: boolean;
+  preloadPhoto?: boolean;
   onSave?: (saved: boolean) => void;
   onDelete?: () => void;
 }) {
@@ -111,13 +117,21 @@ export function ListingCard({
               src={listing.photos[0].url}
               alt={`Ảnh phòng: ${listing.title}`}
               fill
+              preload={preloadPhoto}
               sizes={
                 manage
                   ? "220px"
                   : "(max-width: 640px) 100vw, (max-width: 1100px) 45vw, 30vw"
               }
-              loader={publicImageLoader}
-              unoptimized={!isPublicCloudinaryImage(listing.photos[0].url)}
+              loader={
+                isPublicCloudinaryImage(listing.photos[0].url)
+                  ? publicImageLoader
+                  : undefined
+              }
+              unoptimized={
+                !isPublicCloudinaryImage(listing.photos[0].url) &&
+                !isLocalPublicImage(listing.photos[0].url)
+              }
             />
           ) : (
             <div className="listing-no-photo">

@@ -11,11 +11,11 @@ describe('Health HTTP contract', () => {
   const redisStatus = vi.fn();
 
   beforeEach(async () => {
-    query.mockReset().mockResolvedValue([{ '?column?': 1 }]);
+    query.mockReset().mockResolvedValue([{ schema_ready: true }]);
     redisStatus.mockReset().mockResolvedValue('disabled');
     const module = await Test.createTestingModule({ imports: [HealthModule] })
       .overrideProvider(PrismaService)
-      .useValue({ $queryRaw: query })
+      .useValue({ $queryRawUnsafe: query })
       .overrideProvider(RedisService)
       .useValue({ status: redisStatus })
       .compile();
@@ -38,14 +38,26 @@ describe('Health HTTP contract', () => {
     expect(redisStatus).not.toHaveBeenCalled();
   });
 
-  it('executes SELECT 1 before reporting ready', async () => {
+  it('checks the release schema before reporting ready', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/v1/health/ready')
       .expect(200)
       .expect('Cache-Control', 'no-store');
-    expect(response.body).toMatchObject({ status: 'ok', database: 'up' });
+    expect(response.body).toMatchObject({
+      status: 'ok',
+      database: 'up',
+      schema: 'up',
+    });
     expect(query).toHaveBeenCalledOnce();
-    expect(query.mock.calls[0]?.[0]).toEqual(['SELECT 1']);
+    expect(query.mock.calls[0]?.[0]).toContain('LIMIT 0');
+  });
+
+  it('rejects a reachable database with missing release prerequisites', async () => {
+    query.mockResolvedValue([{ schema_ready: false }]);
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/health/ready')
+      .expect(503);
+    expect(response.body).toMatchObject({ database: 'up', schema: 'down' });
   });
 
   it('returns 503 without exposing database errors or credentials', async () => {
@@ -60,6 +72,7 @@ describe('Health HTTP contract', () => {
       status: 'error',
       service: 'roomora-api',
       database: 'down',
+      schema: 'down',
       redis: 'disabled',
       timestamp: expect.any(String),
     });

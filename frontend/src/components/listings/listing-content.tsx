@@ -1,5 +1,9 @@
 import Image from "next/image";
-import { isPublicCloudinaryImage, publicImageLoader } from "@/lib/public-image";
+import {
+  isPublicCloudinaryImage,
+  isLocalPublicImage,
+  publicImageLoader,
+} from "@/lib/public-image";
 import {
   amenities,
   Listing,
@@ -65,8 +69,15 @@ export function ListingContent({
                 alt={`${listing.title} — ảnh ${index + 1}`}
                 fill
                 sizes={index === 0 ? "(max-width: 700px) 100vw, 65vw" : "30vw"}
-                loader={publicImageLoader}
-                unoptimized={!isPublicCloudinaryImage(photo.url)}
+                loader={
+                  isPublicCloudinaryImage(photo.url)
+                    ? publicImageLoader
+                    : undefined
+                }
+                unoptimized={
+                  !isPublicCloudinaryImage(photo.url) &&
+                  !isLocalPublicImage(photo.url)
+                }
                 priority={index === 0}
               />
             </div>

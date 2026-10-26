@@ -29,6 +29,7 @@
     "start:prod": "node dist/main.js",
     "lint": "oxlint --type-aware src/ test/",
     "typecheck": "tsc --noEmit --incremental false",
+    "verify:release": "node scripts/verify-release.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",

@@ -4,7 +4,8 @@ Hệ thống người dùng cung cấp hiện chạy frontend tại
 `https://roomora-blond.vercel.app` và API tại `https://roomora-api-qxjb.onrender.com`.
 Kiểm tra GET ngày 26/10/2026: trang chủ, readiness API trực tiếp và readiness qua
 proxy Vercel đều trả 200. Chưa xác định nhà cung cấp/gói PostgreSQL; người dùng
-xác nhận chưa có backup. Xem [cấu hình Vercel/Render và backup](security-performance-hardening.md).
+xác nhận chưa có backup. Đã xác nhận PostgreSQL ở Render, chưa có quyền dashboard
+để bật backup thật. Xem [kích hoạt backup/monitor/email](operations-activation.md).
 
 Bộ Compose trong repo là phương án triển khai riêng trên một máy Docker,
 một API instance theo mặc định. Redis chia sẻ rate limit và cache bản đồ giữa các
@@ -84,7 +85,8 @@ Healthcheck báo lỗi nhưng Docker không tự restart container chỉ vì tr�
 ## Log, health và cảnh báo
 
 `/api/v1/health` là liveness, không phụ thuộc DB/Redis. `/api/v1/health/ready` chạy
-SELECT 1 và PING Redis song song, trả 503 nếu DB hoặc Redis đã cấu hình bị lỗi.
+kiểm tra cột nghiệp vụ, migration/index/CHECK của release và Redis song song,
+trả 503 nếu thiếu schema hoặc DB/Redis đã cấu hình bị lỗi.
 Dùng timeout 6 giây cho monitor ngoài để bao phủ query timeout 5 giây.
 Docker health dùng timeout 4 giây để phát hiện DB suy giảm sớm.
 

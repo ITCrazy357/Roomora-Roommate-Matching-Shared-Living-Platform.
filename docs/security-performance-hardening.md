@@ -1,5 +1,11 @@
 # Bảo mật, hiệu năng và vận hành — 26/10/2026
 
+Đây là mốc kiểm chứng đợt 35.1. Đợt bổ sung sau đó có hướng dẫn tại
+[kích hoạt vận hành](operations-activation.md): PostgreSQL đã được xác nhận ở
+Render; CI GitHub của commit `7d6fd49` đã thành công và frontend public đã có CSP
+nonce khi kiểm tra lại. Các trạng thái local/chưa deploy dưới đây là ảnh chụp
+tại thời điểm đợt 35.1, không thay thế kết quả đo hoặc quy trình mới.
+
 Đợt này hoàn thiện các mục còn lại sau bốn bản sửa về đăng nhập/reset mật khẩu,
 bản nháp chi định kỳ, PayOS reconciliation và cập nhật ngân sách đồng thời.
 Các kết quả dưới đây được phân biệt giữa mã nguồn/local và hệ thống đang chạy.

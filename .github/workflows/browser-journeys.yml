@@ -1,0 +1,54 @@
+name: Roomora browser journeys
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: browser-journeys-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: roomora
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: roomora_ui
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U roomora -d roomora_ui"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://roomora:ci-only@127.0.0.1:5432/roomora_ui
+      ROOMORA_E2E_FIXTURE: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm run build && npm run prisma:migrate:deploy
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:journeys
+        working-directory: frontend
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: browser-failures-${{ github.run_id }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import { RedisService } from '../../redis/redis.service.js';
+import { schemaReadinessQuery } from '../../database/schema-readiness.js';
 
 @Controller('health')
 export class HealthController {
@@ -28,15 +29,21 @@ export class HealthController {
   @Header('Cache-Control', 'no-store')
   async ready() {
     const [database, redis] = await Promise.allSettled([
-      this.prisma.$queryRaw`SELECT 1`,
+      this.prisma.$queryRawUnsafe<{ schema_ready: boolean }[]>(
+        schemaReadinessQuery,
+      ),
       this.redis.status(),
     ]);
     const redisStatus = redis.status === 'fulfilled' ? redis.value : 'down';
-    const ready = database.status === 'fulfilled' && redisStatus !== 'down';
+    const schemaReady =
+      database.status === 'fulfilled' &&
+      database.value[0]?.schema_ready === true;
+    const ready = schemaReady && redisStatus !== 'down';
     const result = {
       status: ready ? 'ok' : 'error',
       service: 'roomora-api',
       database: database.status === 'fulfilled' ? 'up' : 'down',
+      schema: schemaReady ? 'up' : 'down',
       redis: redisStatus,
       timestamp: new Date().toISOString(),
     };

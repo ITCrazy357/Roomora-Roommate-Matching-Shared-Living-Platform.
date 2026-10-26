@@ -1,5 +1,9 @@
 import type { ImageLoaderProps } from "next/image";
 
+export function isLocalPublicImage(src: string) {
+  return /^\/images\/[a-zA-Z0-9_/-]+\.(?:webp|avif|png|jpe?g)$/.test(src);
+}
+
 export function isPublicCloudinaryImage(src: string) {
   try {
     const url = new URL(src);

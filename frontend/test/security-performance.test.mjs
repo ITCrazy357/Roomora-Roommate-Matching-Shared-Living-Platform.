@@ -4,7 +4,19 @@ import { contentSecurityPolicy } from "../src/lib/security.ts";
 import {
   publicImageLoader,
   isPublicCloudinaryImage,
+  isLocalPublicImage,
 } from "../src/lib/public-image.ts";
+
+test("only known static public images use the local optimizer", () => {
+  assert.equal(isLocalPublicImage("/images/home-balcony.webp"), true);
+  for (const path of [
+    "/api/v1/private/image.jpg",
+    "/images/../private.jpg",
+    "/images/photo.jpg?token=private",
+    "//images/photo.jpg",
+  ])
+    assert.equal(isLocalPublicImage(path), false);
+});
 
 test("production CSP permits nonce scripts and configured API without unsafe eval", () => {
   const policy = contentSecurityPolicy("random-nonce", {

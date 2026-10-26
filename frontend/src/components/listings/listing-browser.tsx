@@ -32,13 +32,16 @@ export function ListingBrowser({
   initialType = "",
   initialProvince = "",
   initialMaxRent = "",
+  initialResult = null,
 }: {
   mode?: "explore" | "mine" | "saved";
   initialType?: ListingType | "";
   initialProvince?: string;
   initialMaxRent?: string;
+  initialResult?: ListingPage | null;
 }) {
   const { user } = useAuth();
+  const userId = user?.id;
   const searchForm = useRef<HTMLFormElement>(null);
   const [query, setQuery] = useState(() => {
     const params = new URLSearchParams();
@@ -60,7 +63,10 @@ export function ListingBrowser({
     key: string;
     data?: ListingPage;
     error?: string;
-  }>({ key: "" });
+  }>({
+    key: initialResult ? `/listings?page=1&${query}:0:` : "",
+    ...(initialResult ? { data: initialResult } : {}),
+  });
   const path =
     mode === "mine"
       ? "/listings/mine"
@@ -70,8 +76,13 @@ export function ListingBrowser({
   const requestPath = `${path}?page=${page}&${query}`;
   const requestKey = `${requestPath}:${retry}:${user?.id ?? ""}`;
   const ready = result.key === requestKey;
+  const usedInitial = useRef(false);
 
   useEffect(() => {
+    if (!usedInitial.current) {
+      usedInitial.current = true;
+      if (mode === "explore" && initialResult && !userId) return;
+    }
     const controller = new AbortController();
     apiFetch<ListingPage>(requestPath, { signal: controller.signal })
       .then((data) => {
@@ -83,7 +94,7 @@ export function ListingBrowser({
           setResult({ key: requestKey, error: listingError(error) });
       });
     return () => controller.abort();
-  }, [requestPath, requestKey, page]);
+  }, [requestPath, requestKey, page, mode, initialResult, userId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -247,7 +258,8 @@ export function ListingBrowser({
                   className="text-link"
                   onClick={() => {
                     searchForm.current?.reset();
-                    const maxRent = searchForm.current?.elements.namedItem("maxRent");
+                    const maxRent =
+                      searchForm.current?.elements.namedItem("maxRent");
                     if (maxRent instanceof HTMLInputElement) maxRent.value = "";
                     setProvince("");
                     setWards([]);
@@ -393,11 +405,12 @@ export function ListingBrowser({
                       }
                       key={requestKey}
                     >
-                      {result.data.items.map((listing) => (
+                      {result.data.items.map((listing, index) => (
                         <ListingCard
                           key={listing.id}
                           listing={listing}
                           manage={mode === "mine"}
+                          preloadPhoto={mode === "explore" && index === 0}
                           onDelete={() => {
                             setNotice("Đã xóa bản nháp.");
                             setRetry((value) => value + 1);

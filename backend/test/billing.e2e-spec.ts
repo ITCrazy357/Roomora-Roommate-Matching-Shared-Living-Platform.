@@ -12,6 +12,7 @@ import { ListingQueryDto } from '../src/modules/listings/dto/listing.dto.js';
 import { ListingQueriesService } from '../src/modules/listings/listing-queries.service.js';
 import { PaymentGatewayService } from '../src/modules/billing/payment-gateway.service.js';
 import { ServiceOrdersService } from '../src/modules/billing/service-orders.service.js';
+import { ServicePaymentsService } from '../src/modules/billing/service-payments.service.js';
 import type { ServiceOrder } from '../src/generated/prisma/client.js';
 
 describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
@@ -972,6 +973,28 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
       },
     });
   }
+  async function queuedPayos(count: number) {
+    const seed = await linkedPayos();
+    const oldest = await prisma.serviceOrder.update({
+      where: { id: seed.id },
+      data: { status: 'EXPIRED', createdAt: new Date('2020-01-01T00:00:00Z') },
+    });
+    const orders = [oldest];
+    for (let index = 1; index < count; index++) {
+      orders.push(
+        await prisma.serviceOrder.create({
+          data: {
+            ...oldest,
+            id: randomUUID(),
+            clientId: randomUUID(),
+            providerOrderCode: String(Number(seed.providerOrderCode) + index),
+            createdAt: new Date(oldest.createdAt.getTime() + index * 1000),
+          },
+        }),
+      );
+    }
+    return orders;
+  }
   function paidPayosLink(
     order: ServiceOrder,
     change: Record<string, unknown> = {},
@@ -1375,6 +1398,134 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
       }).expect(409);
     },
   );
+  it('reconciles a paid oldest order beyond the former ten-order cutoff and visits every queued order', async () => {
+    const orders = await queuedPayos(11);
+    const byCode = new Map(
+      orders.map((order) => [order.providerOrderCode, order]),
+    );
+    const checked = new Set<string>();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url,
+      );
+      const order = byCode.get(url.pathname.split('/').at(-1)!);
+      if (!order) throw new Error('Unexpected payment request');
+      checked.add(order.id);
+      return Response.json(
+        order.id === orders[0].id ? paidPayosLink(order) : payosLink(order),
+      );
+    });
+    const worker = app.get(ServiceOrdersService);
+    for (let run = 0; run < 3; run++) await worker.reconcilePayos(userIds[0]);
+
+    expect(checked).toEqual(new Set(orders.map((order) => order.id)));
+    expect(globalThis.fetch).toHaveBeenCalledTimes(11);
+    expect(
+      await prisma.serviceOrder.findUniqueOrThrow({
+        where: { id: orders[0].id },
+      }),
+    ).toMatchObject({
+      status: 'PAID',
+      providerTransId: 'RECONCILE-' + orders[0].id,
+    });
+    expect(
+      await prisma.listingBoost.count({ where: { orderId: orders[0].id } }),
+    ).toBe(1);
+  });
+  it('shares disjoint batches between workers and retries failed orders after their persisted leases expire', async () => {
+    const orders = await queuedPayos(11);
+    const payments = app.get(ServicePaymentsService);
+    const sync = vi
+      .spyOn(payments, 'syncPayos')
+      .mockRejectedValue(new Error('Provider unavailable'));
+    const freshWorker = () =>
+      new ServiceOrdersService(
+        prisma,
+        app.get(PaymentGatewayService),
+        payments,
+        config,
+      );
+    await Promise.all([
+      app.get(ServiceOrdersService).reconcilePayos(userIds[0]),
+      freshWorker().reconcilePayos(userIds[0]),
+    ]);
+
+    expect(sync).toHaveBeenCalledTimes(11);
+    expect(new Set(sync.mock.calls.map(([order]) => order.id))).toEqual(
+      new Set(orders.map((order) => order.id)),
+    );
+    await freshWorker().reconcilePayos(userIds[0]);
+    expect(sync).toHaveBeenCalledTimes(11);
+    const ids = orders.map((order) => order.id);
+    const claimed = await prisma.serviceOrder.findMany({
+      where: { id: { in: ids } },
+    });
+    expect(
+      claimed.every(
+        (order) => order.reconcileAfter && order.reconcileAfter > new Date(),
+      ),
+    ).toBe(true);
+    expect(claimed.every((order) => order.status === 'EXPIRED')).toBe(true);
+
+    await prisma.serviceOrder.updateMany({
+      where: { id: { in: ids } },
+      data: { reconcileAfter: new Date(0) },
+    });
+    const restarted = freshWorker();
+    await restarted.reconcilePayos(userIds[0]);
+    await restarted.reconcilePayos(userIds[0]);
+    expect(sync).toHaveBeenCalledTimes(22);
+    for (const id of ids) {
+      expect(sync.mock.calls.filter(([order]) => order.id === id)).toHaveLength(
+        2,
+      );
+    }
+    expect(
+      await prisma.servicePaymentEvent.count({
+        where: { orderId: { in: ids } },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.listingBoost.count({ where: { orderId: { in: ids } } }),
+    ).toBe(0);
+  });
+  it('limits scoped reconciliation claims to the requested user', async () => {
+    const orders = await queuedPayos(2);
+    const other = await prisma.serviceOrder.create({
+      data: {
+        ...orders[0],
+        id: randomUUID(),
+        clientId: randomUUID(),
+        userId: userIds[1],
+        listingId: listingIds[2],
+        providerOrderCode: String(Number(orders[0].providerOrderCode) + 1000),
+        createdAt: new Date('2019-01-01T00:00:00Z'),
+      },
+    });
+    const sync = vi
+      .spyOn(app.get(ServicePaymentsService), 'syncPayos')
+      .mockResolvedValue({
+        status: 'PENDING',
+        amountPaid: 0,
+        payUrl: '',
+        providerLinkId: linkId,
+        payment: undefined,
+      });
+
+    await app.get(ServiceOrdersService).reconcilePayos(userIds[0]);
+
+    expect(sync).toHaveBeenCalledTimes(2);
+    expect(
+      sync.mock.calls.every(([order]) => order.userId === userIds[0]),
+    ).toBe(true);
+    expect(
+      await prisma.serviceOrder.findUniqueOrThrow({ where: { id: other.id } }),
+    ).toMatchObject({ reconcileAfter: null });
+  });
   it('does not redirect a paid checkout and reconciles concurrent webhook/queries without extending the boost', async () => {
     const old = await linkedPayos();
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>

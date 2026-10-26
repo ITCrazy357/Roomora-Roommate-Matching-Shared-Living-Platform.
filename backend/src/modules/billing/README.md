@@ -98,6 +98,30 @@ Partial money, PAID thiếu mã giao dịch, nhiều giao dịch hoặc lỗi x�
 đối soát; UI thay nút thu thêm bằng Kiểm tra trạng thái thanh toán.
 `BILLING_RECONCILE_ENABLED=true` bật kiểm tra nền mỗi phút, tối đa 10 đơn/chạy và
 3 request đồng thời. Mặc định false; không tự thay cấu hình môi trường đang chạy.
+Worker ưu tiên đơn chưa được kiểm tra, sau đó đơn có lịch thử lại cũ nhất; cùng
+mức ưu tiên thì lấy ngày tạo và ID tăng dần. `reconcile_after` được ghi nguyên tử
+bằng `FOR UPDATE SKIP LOCKED` trước khi gọi PayOS, giữ lô tối đa hai phút giữa các
+worker. Lỗi provider không ngăn lô tiếp theo chạy; sau hai phút đơn được thử lại,
+kể cả khi worker cũ đã dừng hoặc khởi động lại. Đây là lease nhận việc, không phải
+xác nhận đã thanh toán; chữ ký và quy tắc cấp dịch vụ vẫn do luồng thanh toán xử lý.
+
+Trước khi chạy backend mới, backup rồi chạy từ `backend`:
+`npm run prisma:migrate:deploy -- --config prisma7.config.ts`, với cấu hình database
+triển khai. Hai migration `20261026100000_service_order_reconcile_after`
+và `20261026100100_service_order_reconcile_queue_index` thêm cột nullable và partial
+index cho hàng đợi; không backfill hay thay đổi số tiền/trạng thái đơn cũ. Migration
+index dùng một câu `CREATE INDEX CONCURRENTLY`, không bọc trong transaction.
+Nếu phải rollback ứng dụng, giữ nguyên cột/index để image cũ tiếp tục đọc dữ liệu;
+việc loại bỏ schema về sau cần một migration mới. Nếu tạo index bị gián đoạn, kiểm
+tra tính hợp lệ trong `pg_index`, xử lý index không hợp lệ rồi mới resolve/retry
+migration; không dùng `IF NOT EXISTS` để bỏ qua một index chưa hợp lệ.
+
+Kiểm chứng local 26/10/2026: 48 migration chạy trên PostgreSQL 17 rỗng, index mới
+`indisvalid=true`; 222 unit test qua (5 test Redis bỏ qua), 157 HTTP/PostgreSQL test
+billing/household/OTP/Google qua. Bao gồm đơn cũ ngoài lô 10 đơn, hai worker nhận lô
+khác nhau, lỗi provider, lease hết hạn/worker mới và phạm vi tài khoản. PayOS dùng
+fixture/provider mô phỏng, không tạo giao dịch thật; chưa áp dụng lên DB ứng dụng.
+
 Lịch sử kiểm tra tối đa 3 request đồng thời, frontend chờ tối đa 60s cho trang 10 đơn.
 
 IPN xác thực HMAC-SHA256 bằng so sánh constant time, kiểm tra merchant, amount,

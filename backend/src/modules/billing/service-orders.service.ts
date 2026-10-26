@@ -6,7 +6,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
-import type { Prisma, ServiceOrder } from '../../generated/prisma/client.js';
+import { Prisma, type ServiceOrder } from '../../generated/prisma/client.js';
 import { randomInt } from 'node:crypto';
 import { PaymentGatewayService } from './payment-gateway.service.js';
 import { PayosLinkClosedException } from './payos-gateway.service.js';
@@ -412,15 +412,33 @@ export class ServiceOrdersService {
   }
 
   async reconcilePayos(userId?: string) {
+    const scope = userId
+      ? Prisma.sql`AND user_id = ${userId}::uuid`
+      : Prisma.empty;
+    // Claim in one statement across instances; never hold row locks over HTTP.
+    // A short lease also lets another worker recover after this process stops.
+    const claimed = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+      WITH candidates AS (
+        SELECT id FROM service_orders
+        WHERE provider = 'PAYOS'
+          AND status IN ('PENDING', 'EXPIRED', 'CANCELLED')
+          AND provider_link_id IS NOT NULL
+          AND (reconcile_after IS NULL OR reconcile_after <= CURRENT_TIMESTAMP)
+          ${scope}
+        ORDER BY reconcile_after ASC NULLS FIRST, created_at ASC, id ASC
+        LIMIT 10
+        FOR UPDATE SKIP LOCKED
+      )
+      UPDATE service_orders AS orders
+      SET reconcile_after = CURRENT_TIMESTAMP + INTERVAL '2 minutes'
+      FROM candidates
+      WHERE orders.id = candidates.id
+      RETURNING orders.id
+    `);
+    if (!claimed.length) return;
     const orders = await this.prisma.serviceOrder.findMany({
-      where: {
-        userId,
-        provider: 'PAYOS',
-        status: { in: ['PENDING', 'EXPIRED', 'CANCELLED'] },
-        providerLinkId: { not: null },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
+      where: { id: { in: claimed.map(({ id }) => id) } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
     for (let index = 0; index < orders.length; index += 3) {
       await Promise.allSettled(

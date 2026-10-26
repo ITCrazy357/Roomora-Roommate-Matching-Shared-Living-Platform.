@@ -1545,6 +1545,7 @@ model ServiceOrder {
   providerTransId   String?               @map("provider_trans_id") @db.VarChar(128)
   payUrl            String?               @map("pay_url") @db.VarChar(2000)
   checkoutLeaseAt   DateTime?             @map("checkout_lease_at")
+  reconcileAfter    DateTime?             @map("reconcile_after")
   expiresAt         DateTime              @map("expires_at")
   paidAt            DateTime?             @map("paid_at")
   refundedAt        DateTime?             @map("refunded_at")
@@ -1567,6 +1568,7 @@ model ServiceOrder {
   @@index([userId, createdAt, id])
   @@index([status, expiresAt])
   @@index([listingId, postingRound, status])
+  // The reconciliation queue has a partial, NULLS FIRST index in its migration.
   @@map("service_orders")
 }
 

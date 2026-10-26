@@ -1,0 +1,55 @@
+name: Roomora database backup
+on:
+  workflow_dispatch:
+  schedule:
+    # 02:23 Asia/Bangkok daily (GitHub schedules use UTC).
+    - cron: "23 19 * * *"
+permissions:
+  contents: read
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.ROOMORA_BACKUP_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-backup
+    env:
+      ROOMORA_BACKUP_DATABASE_URL: ${{ secrets.ROOMORA_BACKUP_DATABASE_URL }}
+      ROOMORA_BACKUP_KEY: ${{ secrets.ROOMORA_BACKUP_KEY }}
+      ROOMORA_POSTGRES_MAJOR: ${{ vars.ROOMORA_POSTGRES_MAJOR || '18' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Check archive and restore policies
+        run: node --experimental-strip-types --test scripts/backup-archive.test.mjs scripts/restore-encrypted-backup.test.mjs
+      - name: Export and encrypt without a plaintext dump on disk
+        run: node scripts/run-database-backup.mjs
+      - name: Choose daily or weekly retention
+        id: retention
+        shell: bash
+        run: |
+          if [ "$(date -u +%u)" = '7' ]; then
+            echo 'days=35' >> "$GITHUB_OUTPUT"
+          else
+            echo 'days=7' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Restore drill in an isolated PostgreSQL container
+        if: github.event_name == 'workflow_dispatch' || steps.retention.outputs.days == '35'
+        shell: bash
+        run: |
+          mapfile -t backups < <(find backups/encrypted -name '*.dump.enc' -type f)
+          test "${#backups[@]}" -eq 1
+          node --experimental-strip-types scripts/restore-encrypted-backup.mjs "${backups[0]}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: database-encrypted-${{ github.run_id }}
+          path: |
+            backups/encrypted/*.dump.enc
+            backups/encrypted/*.dump.enc.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: ${{ steps.retention.outputs.days }}

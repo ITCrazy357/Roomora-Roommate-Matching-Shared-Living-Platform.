@@ -569,6 +569,7 @@ model Profile {
   bio                   String?            @db.VarChar(500)
   budgetMin             Int?               @map("budget_min")
   budgetMax             Int?               @map("budget_max")
+  // profiles_budget_range_valid enforces nullable budget ordering in SQL.
   desiredAreas          String[]           @default([]) @map("desired_areas")
   desiredLocations      Json               @default("[]") @map("desired_locations")
   sleepSchedule         SleepSchedule?     @map("sleep_schedule")

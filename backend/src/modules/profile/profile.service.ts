@@ -95,61 +95,68 @@ export class ProfileService {
   }
 
   async updateMine(userId: string, dto: UpdateProfileDto) {
-    const existing = await this.prisma.profile.findUnique({
-      where: { userId },
-    });
-    if (!existing) throw this.notFound();
-
-    const budgetMin =
-      dto.budgetMin === undefined ? existing.budgetMin : dto.budgetMin;
-    const budgetMax =
-      dto.budgetMax === undefined ? existing.budgetMax : dto.budgetMax;
-    if (budgetMin !== null && budgetMax !== null && budgetMin > budgetMax) {
-      throw new BadRequestException({
-        code: 'BUDGET_RANGE_INVALID',
-        message: 'Ngân sách tối thiểu không được lớn hơn tối đa',
+    return this.prisma.$transaction(async (tx) => {
+      // Read both budget bounds only after serializing edits to this profile.
+      await tx.$queryRaw`SELECT user_id FROM profiles WHERE user_id = ${userId}::uuid FOR UPDATE`;
+      const existing = await tx.profile.findUnique({
+        where: { userId },
       });
-    }
+      if (!existing) throw this.notFound();
 
-    if (dto.desiredLocations !== undefined && dto.desiredAreas !== undefined) {
-      throw new BadRequestException({
-        code: 'LOCATION_INVALID',
-        message: 'Chỉ gửi một định dạng khu vực',
+      const budgetMin =
+        dto.budgetMin === undefined ? existing.budgetMin : dto.budgetMin;
+      const budgetMax =
+        dto.budgetMax === undefined ? existing.budgetMax : dto.budgetMax;
+      if (budgetMin !== null && budgetMax !== null && budgetMin > budgetMax) {
+        throw new BadRequestException({
+          code: 'BUDGET_RANGE_INVALID',
+          message: 'Ngân sách tối thiểu không được lớn hơn tối đa',
+        });
+      }
+
+      if (
+        dto.desiredLocations !== undefined &&
+        dto.desiredAreas !== undefined
+      ) {
+        throw new BadRequestException({
+          code: 'LOCATION_INVALID',
+          message: 'Chỉ gửi một định dạng khu vực',
+        });
+      }
+      const resolvedLocations =
+        dto.desiredLocations === undefined
+          ? undefined
+          : this.locations.resolve(dto.desiredLocations);
+      const desiredAreas = resolvedLocations
+        ? resolvedLocations.map((item) =>
+            [item.wardName, item.provinceName].filter(Boolean).join(', '),
+          )
+        : dto.desiredAreas
+          ? [
+              ...new Set(
+                dto.desiredAreas.map((area) => area.trim()).filter(Boolean),
+              ),
+            ]
+          : undefined;
+      const { completeOnboarding, desiredLocations, ...profileData } = dto;
+      const profile = await tx.profile.update({
+        where: { userId },
+        data: {
+          ...profileData,
+          desiredAreas,
+          desiredLocations:
+            desiredLocations?.map(({ provinceCode, wardCode }) => ({
+              provinceCode,
+              wardCode: wardCode ?? null,
+            })) ?? (dto.desiredAreas !== undefined ? [] : undefined),
+          onboardingCompletedAt:
+            completeOnboarding === true
+              ? (existing.onboardingCompletedAt ?? new Date())
+              : undefined,
+        },
       });
-    }
-    const resolvedLocations =
-      dto.desiredLocations === undefined
-        ? undefined
-        : this.locations.resolve(dto.desiredLocations);
-    const desiredAreas = resolvedLocations
-      ? resolvedLocations.map((item) =>
-          [item.wardName, item.provinceName].filter(Boolean).join(', '),
-        )
-      : dto.desiredAreas
-        ? [
-            ...new Set(
-              dto.desiredAreas.map((area) => area.trim()).filter(Boolean),
-            ),
-          ]
-        : undefined;
-    const { completeOnboarding, desiredLocations, ...profileData } = dto;
-    const profile = await this.prisma.profile.update({
-      where: { userId },
-      data: {
-        ...profileData,
-        desiredAreas,
-        desiredLocations:
-          desiredLocations?.map(({ provinceCode, wardCode }) => ({
-            provinceCode,
-            wardCode: wardCode ?? null,
-          })) ?? (dto.desiredAreas !== undefined ? [] : undefined),
-        onboardingCompletedAt:
-          completeOnboarding === true
-            ? (existing.onboardingCompletedAt ?? new Date())
-            : undefined,
-      },
+      return this.fullProfile(profile);
     });
-    return this.fullProfile(profile);
   }
 
   async getPublic(userId: string, requesterId?: string) {

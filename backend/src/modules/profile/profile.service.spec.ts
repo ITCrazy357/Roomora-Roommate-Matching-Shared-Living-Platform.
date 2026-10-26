@@ -23,6 +23,7 @@ describe('Profile avatar consistency and location privacy', () => {
   };
   function setup() {
     const prisma = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
       userBlock: { findFirst: vi.fn().mockResolvedValue(null) },
       profile: {
         findUnique: vi.fn().mockResolvedValue(existing),
@@ -45,7 +46,11 @@ describe('Profile avatar consistency and location privacy', () => {
       deleteAvatar: vi.fn().mockResolvedValue(undefined),
     };
     const service = new ProfileService(
-      prisma as unknown as PrismaService,
+      {
+        ...prisma,
+        $transaction: (action: (tx: typeof prisma) => Promise<unknown>) =>
+          action(prisma),
+      } as unknown as PrismaService,
       cloudinary as unknown as CloudinaryService,
       new LocationsService(),
       new RateLimitService(new RedisService(new ConfigService())),
@@ -124,6 +129,37 @@ describe('Profile avatar consistency and location privacy', () => {
     await expect(
       service.updateMine('owner', { desiredLocations: [], desiredAreas: [] }),
     ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it.each([{ budgetMin: 3_000_000 }, { budgetMax: 500_000 }])(
+    'rejects an invalid partial budget without saving other edits: %j',
+    async (bounds) => {
+      const { service, prisma } = setup();
+      prisma.profile.findUnique.mockResolvedValueOnce({
+        ...existing,
+        budgetMin: 1_000_000,
+        budgetMax: 2_000_000,
+      });
+      await expect(
+        service.updateMine('owner', { ...bounds, bio: 'Do not save' }),
+      ).rejects.toMatchObject({
+        status: 400,
+        response: { code: 'BUDGET_RANGE_INVALID' },
+      });
+      expect(prisma.profile.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it('returns the existing not-found response when the profile is missing', async () => {
+    const { service, prisma } = setup();
+    prisma.profile.findUnique.mockResolvedValueOnce(null);
+    await expect(
+      service.updateMine('owner', { budgetMin: 0 }),
+    ).rejects.toMatchObject({
+      status: 404,
+      response: { code: 'PROFILE_NOT_FOUND' },
+    });
+    expect(prisma.profile.update).not.toHaveBeenCalled();
   });
 
   it('does not leak location codes or storage identifiers in a public response', async () => {

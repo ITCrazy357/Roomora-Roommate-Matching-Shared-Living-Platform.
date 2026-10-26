@@ -6,9 +6,10 @@ import {
   type ScryptOptions,
 } from 'node:crypto';
 const KEY_LENGTH = 64;
-const COST = 16_384;
+const COST = 32_768;
 const BLOCK_SIZE = 8;
-const PARALLELIZATION = 1;
+const PARALLELIZATION = 3;
+const LEGACY_COST = 16_384;
 
 function deriveKey(
   password: string,
@@ -26,6 +27,17 @@ function deriveKey(
 @Injectable()
 export class PasswordService {
   private dummyHash?: Promise<string>;
+
+  needsRehash(encodedHash: string): boolean {
+    const parts = encodedHash.split('$');
+    return (
+      parts.length === 6 &&
+      parts[0] === 'scrypt' &&
+      parts[1] === String(LEGACY_COST) &&
+      parts[2] === '8' &&
+      parts[3] === '1'
+    );
+  }
 
   async hash(password: string): Promise<string> {
     const salt = randomBytes(16);
@@ -57,11 +69,15 @@ export class PasswordService {
     const expected = Buffer.from(parts[5], 'base64url');
 
     if (
-      cost !== COST ||
+      !(
+        (cost === COST && parallelization === PARALLELIZATION) ||
+        (cost === LEGACY_COST && parallelization === 1)
+      ) ||
       blockSize !== BLOCK_SIZE ||
-      parallelization !== PARALLELIZATION ||
       salt.length !== 16 ||
-      expected.length !== KEY_LENGTH
+      expected.length !== KEY_LENGTH ||
+      salt.toString('base64url') !== parts[4] ||
+      expected.toString('base64url') !== parts[5]
     ) {
       return false;
     }

@@ -75,6 +75,9 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       pages: Math.ceil(total / query.limit),
     };
   }
+  unread(userId: string) {
+    return this.prisma.notification.count({ where: { userId, readAt: null } });
+  }
   async read(userId: string, id?: string) {
     if (
       id &&

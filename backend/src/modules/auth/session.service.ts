@@ -26,6 +26,7 @@ export class SessionService {
     request: Request,
     response: Response,
     verifiedPasswordHash?: string,
+    upgradedPasswordHash?: string,
   ): Promise<void> {
     const token = randomToken();
     await this.prisma.$transaction(async (tx) => {
@@ -55,6 +56,12 @@ export class SessionService {
         throw new UnauthorizedException({
           code: 'INVALID_CREDENTIALS',
           message: 'Email hoặc mật khẩu không đúng',
+        });
+      }
+      if (verifiedPasswordHash !== undefined && upgradedPasswordHash) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { passwordHash: upgradedPasswordHash },
         });
       }
       await tx.session.create({

@@ -97,7 +97,16 @@ export class AuthAccountsService {
       });
     }
 
-    await this.sessions.create(user.id, request, response, user.passwordHash);
+    const upgradedHash = this.passwords.needsRehash(user.passwordHash)
+      ? await this.passwords.hash(dto.password)
+      : undefined;
+    await this.sessions.create(
+      user.id,
+      request,
+      response,
+      user.passwordHash,
+      upgradedHash,
+    );
     return { user: this.support.serializeUser(user) };
   }
 

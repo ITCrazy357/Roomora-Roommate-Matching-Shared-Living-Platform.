@@ -35,14 +35,7 @@ export class ConversationQueriesService {
       this.prisma.conversation.count({ where }),
     ]);
     // Unread counts in one aggregate query, including conversations outside this page.
-    const unread = await this.prisma.$queryRaw<{ id: string; count: number }[]>`
-      SELECT c.id, COUNT(m.id)::int AS count FROM conversations c
-      JOIN connections r ON r.id = c.connection_id
-      JOIN messages m ON m.conversation_id = c.id AND m.sender_id <> ${userId}::uuid AND m.deleted_at IS NULL
-        AND m.number > CASE WHEN r.sender_id = ${userId}::uuid THEN c.sender_read ELSE c.receiver_read END
-      WHERE r.status = 'ACCEPTED' AND (r.sender_id = ${userId}::uuid OR r.receiver_id = ${userId}::uuid)
-      AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = r.sender_id AND b.target_id = r.receiver_id) OR (b.blocker_id = r.receiver_id AND b.target_id = r.sender_id))
-      GROUP BY c.id`;
+    const unread = await this.unreadRows(userId);
     const counts = new Map(unread.map((row) => [row.id, row.count]));
     return {
       items: rows.map((row) => ({
@@ -55,6 +48,22 @@ export class ConversationQueriesService {
       page: query.page,
       pages: Math.ceil(total / query.limit),
     };
+  }
+
+  async unread(userId: string) {
+    const rows = await this.unreadRows(userId);
+    return rows.reduce((sum, row) => sum + row.count, 0);
+  }
+
+  private unreadRows(userId: string) {
+    return this.prisma.$queryRaw<{ id: string; count: number }[]>`
+      SELECT c.id, COUNT(m.id)::int AS count FROM conversations c
+      JOIN connections r ON r.id = c.connection_id
+      JOIN messages m ON m.conversation_id = c.id AND m.sender_id <> ${userId}::uuid AND m.deleted_at IS NULL
+        AND m.number > CASE WHEN r.sender_id = ${userId}::uuid THEN c.sender_read ELSE c.receiver_read END
+      WHERE r.status = 'ACCEPTED' AND (r.sender_id = ${userId}::uuid OR r.receiver_id = ${userId}::uuid)
+      AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = r.sender_id AND b.target_id = r.receiver_id) OR (b.blocker_id = r.receiver_id AND b.target_id = r.sender_id))
+      GROUP BY c.id`;
   }
 
   async detail(userId: string, id: string) {

@@ -19,12 +19,21 @@ const descriptions: Record<ListingType, string> = {
   ROOM_WANTED: "Nhu cầu tìm phòng theo khu vực và ngân sách.",
 };
 
-function ListingSection({ type }: { type: ListingType }) {
-  const [result, setResult] = useState<ListingPage | null>(null);
+function ListingSection({
+  type,
+  initialResult,
+}: {
+  type: ListingType;
+  initialResult: ListingPage | null;
+}) {
+  const { user, loading } = useAuth();
+  const userId = user?.id;
+  const [result, setResult] = useState<ListingPage | null>(initialResult);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    if (loading || (!userId && initialResult && retry === 0)) return;
     const controller = new AbortController();
     apiFetch<ListingPage>(`/listings?type=${type}&limit=3`, {
       signal: controller.signal,
@@ -34,7 +43,7 @@ function ListingSection({ type }: { type: ListingType }) {
         if (!controller.signal.aborted) setError(true);
       });
     return () => controller.abort();
-  }, [type, retry]);
+  }, [type, retry, loading, userId, initialResult]);
 
   return (
     <section className="home-listing-section" aria-labelledby={`home-${type}`}>
@@ -77,12 +86,20 @@ function ListingSection({ type }: { type: ListingType }) {
   );
 }
 
-export function HomeListings() {
+export function HomeListings({
+  initial,
+}: {
+  initial: Record<ListingType, ListingPage | null>;
+}) {
   const { user } = useAuth();
   return (
     <div className="home-listings" id="tin-moi">
       {types.map((type) => (
-        <ListingSection key={`${type}:${user?.id ?? "guest"}`} type={type} />
+        <ListingSection
+          key={`${type}:${user?.id ?? "guest"}`}
+          type={type}
+          initialResult={initial[type]}
+        />
       ))}
     </div>
   );

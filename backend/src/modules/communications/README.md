@@ -16,7 +16,11 @@
   the newest timestamp with an atomic PostgreSQL update. Transactions lock the user
   before sessions, matching login/account moderation; writes are throttled to
   15 seconds per session.
-- Presence refreshes through the existing SSE synchronization (every 20 seconds).
+- Presence refreshes through SSE invalidations and a 60-second recovery sync.
+  Lightweight heartbeats still recheck session revocation every 20 seconds.
+  Visible tabs debounce bursts and use `GET /api/v1/updates/unread` for counters
+  instead of fetching conversation/notification bodies. Hidden tabs defer sync
+  until focus/visibility returns; authorization stays on each underlying API.
   The shared client clock updates elapsed labels every 15 seconds and expires a
   stale green dot locally. A disconnected stream suppresses green status.
 - Migration: `20261011160000_chat_presence` adds nullable activity timestamps to

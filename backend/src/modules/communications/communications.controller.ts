@@ -62,6 +62,14 @@ export class CommunicationsController {
   ) {
     return this.presence.heartbeat(req.auth, dto.idleSeconds);
   }
+  @Get('updates/unread')
+  async unread(@Req() req: AuthenticatedRequest) {
+    const [messages, notifications] = await Promise.all([
+      this.conversations.unread(req.auth.userId),
+      this.notifications.unread(req.auth.userId),
+    ]);
+    return { messages, notifications };
+  }
   @Get('conversations') list(
     @Req() req: AuthenticatedRequest,
     @Query() query: PageQuery,

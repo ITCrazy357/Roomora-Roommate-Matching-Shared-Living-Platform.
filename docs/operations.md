@@ -1,15 +1,21 @@
 # Vận hành Roomora — Phase 12
 
-Chưa chọn nhà cung cấp hoặc domain. Bộ đóng gói này phục vụ một máy Docker,
+Hệ thống người dùng cung cấp hiện chạy frontend tại
+`https://roomora-blond.vercel.app` và API tại `https://roomora-api-qxjb.onrender.com`.
+Kiểm tra GET ngày 26/10/2026: trang chủ, readiness API trực tiếp và readiness qua
+proxy Vercel đều trả 200. Chưa xác định nhà cung cấp/gói PostgreSQL; người dùng
+xác nhận chưa có backup. Xem [cấu hình Vercel/Render và backup](security-performance-hardening.md).
+
+Bộ Compose trong repo là phương án triển khai riêng trên một máy Docker,
 một API instance theo mặc định. Redis chia sẻ rate limit và cache bản đồ giữa các
 API instance; việc tăng replica vẫn cần kiểm tra tổng pool và tải thực tế.
-Chưa có staging/production công khai hoặc phản hồi người dùng.
 Không suy ra sức tải production từ số liệu local trong `phase-12-status.md`.
 
 ## Kiểm tra trước khi đưa lên server
 
 `Roomora CI` chạy validate/generate/build Prisma, migrations trên PostgreSQL mới,
-lint/unit/HTTP tests, lint/API tests/build frontend và build cả ba Docker image.
+lint/typecheck/unit/HTTP tests, monitor tests, lint/toàn bộ tests/build frontend
+và build cả ba Docker image.
 Redis test chạy trong service riêng; kiểm tra bộ đếm nguyên tử, TTL, cache và
 hai API dùng chung giới hạn qua HTTP. Xem [Redis](redis.md).
 CI chặn advisory mức high/critical ở dependencies production frontend và API runtime.
@@ -23,17 +29,18 @@ kiểm thử và xuất API/migrate/frontend lên GHCR với tag SHA. Không đ�
 Bản sửa CI/CD cần push để kiểm chứng lại trên GitHub: CI trước đó lỗi lockfile
 do optional peer TypeScript của `vite-tsconfig-paths`; CD lỗi tag vì tên repo có dấu chấm cuối.
 Vitest dùng hỗ trợ tsconfig có sẵn của Vite; CI kiểm tra tag Docker trước khi phát hành.
-Triển khai lên server chưa tự động hóa vì chưa có đích triển khai.
+Workflow xuất image không chứng minh Vercel/Render đã triển khai commit đó;
+đối chiếu commit và thiết lập auto-deploy trong dashboard của từng dịch vụ.
 
 Font frontend được đóng gói local, giữ Be Vietnam Pro 400/500/600/700, giấy phép OFL.
 Các `.dockerignore` loại `.env`, node_modules và output local khỏi build context.
 API runtime chạy user `node`, chỉ có production dependencies và `dist`, bao gồm font PDF.
 Runtime bỏ khai báo dev dependencies trước `npm ci --omit=dev --omit=peer`, để Prisma CLI
 không bị giữ lại qua optional peer của client. Sharp được vá lên 0.35.5; Next.js/
-eslint-config-next dùng patch 16.3.8, source-map-js dùng bản vá tương thích đã khóa.
+eslint-config-next dùng patch 16.4.3, source-map-js dùng bản vá tương thích đã khóa.
 Image migrate riêng có Prisma CLI/schema/migrations; không chạy migration trong mỗi API replica.
 
-## Staging và production
+## Triển khai bằng Docker Compose
 
 1. Chuẩn bị hai host riêng, DNS trỏ đúng host, mở 80/443; PostgreSQL và API không có port public.
 2. Sao chép `deploy/environment.example` thành `deploy/roomora.env` trên mỗi host,

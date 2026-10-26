@@ -162,7 +162,9 @@ describe('Message edits and deletions (PostgreSQL)', () => {
         agents[0].patch(url).set('Origin', origin).send({ version: 1, text }),
       ),
     );
-    expect(results.map((result) => result.status).sort()).toEqual([200, 409]);
+    expect(
+      results.map((result) => result.status).sort((a, b) => a - b),
+    ).toEqual([200, 409]);
   });
 
   it('deletes audio for both people, excludes it from unread and never restores it on retry', async () => {

@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { observeHttp } from './common/http-observability.js';
 import { httpCors } from './common/http-cors.js';
+import type { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -19,6 +20,11 @@ async function bootstrap() {
     .set('trust proxy', config.get<number>('TRUST_PROXY_HOPS', 0));
 
   app.use(observeHttp);
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
+  app.use((_request: Request, response: Response, next: NextFunction) => {
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    next();
+  });
 
   app.setGlobalPrefix('api/v1');
 

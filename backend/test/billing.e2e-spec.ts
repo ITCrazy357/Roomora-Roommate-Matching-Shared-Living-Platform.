@@ -31,9 +31,15 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
       .post(base + path)
       .set('Origin', origin)
       .send(body);
-  const create = async (listingId = listingIds[0], clientId = randomUUID()) =>
-    (await post('/orders', { listingId, clientId }).expect(201))
+  const create = async (
+    listingId = listingIds[0],
+    clientId: string = randomUUID(),
+  ) => {
+    const order = (await post('/orders', { listingId, clientId }).expect(201))
       .body as ServiceOrder;
+    expect(order.listingId).toBe(listingId);
+    return { ...order, listingId };
+  };
   function signed(
     order: ServiceOrder,
     change: Record<string, string | number> = {},
@@ -362,7 +368,7 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
     ).toBe(0);
     expect((await get(order.id)).status).toBe('PENDING');
   });
-  it.each([
+  const signedMismatchCases: Record<string, string | number>[] = [
     { amount: 1 },
     { partnerCode: 'OTHER' },
     { requestId: randomUUID() },
@@ -370,11 +376,15 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
     { transId: 0 },
     { amount: '49000' },
     { responseTime: Date.now() + 86400000 },
-  ])('rejects signed mismatched fields %j', async (change) => {
-    const order = await create();
-    await ipn(signed(order, change)).expect(400);
-    expect((await get(order.id)).status).toBe('PENDING');
-  });
+  ];
+  it.each(signedMismatchCases)(
+    'rejects signed mismatched fields %j',
+    async (change) => {
+      const order = await create();
+      await ipn(signed(order, change)).expect(400);
+      expect((await get(order.id)).status).toBe('PENDING');
+    },
+  );
   it('rejects an unknown signed order', async () => {
     const order = await create(),
       id = randomUUID();
@@ -673,7 +683,10 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
       data: { expiresAt: new Date(Date.now() - 1000) },
     });
     const second = await create();
-    let finish!: (value: { payUrl: string }) => void;
+    let finish!: (value: {
+      payUrl: string;
+      providerLinkId: string | null;
+    }) => void;
     let started!: () => void;
     const waiting = new Promise<void>((resolve) => {
       started = resolve;
@@ -692,7 +705,10 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
     await waiting;
     await post(`/orders/${second.id}/checkout`).expect(409);
     await ipn(signed(first)).expect(204);
-    finish({ payUrl: 'https://test-payment.momo.vn/checkout-test' });
+    finish({
+      payUrl: 'https://test-payment.momo.vn/checkout-test',
+      providerLinkId: null,
+    });
     expect((await checkout).status).toBe(409);
     expect(gateway).toHaveBeenCalledTimes(1);
     expect((await get(second.id)).status).toBe('EXPIRED');
@@ -965,13 +981,15 @@ describe('Phase 9 billing (HTTP + PostgreSQL, simulated signed MoMo)', () => {
   async function linkedPayos() {
     usePayos();
     const order = await create();
-    return prisma.serviceOrder.update({
+    const linked = await prisma.serviceOrder.update({
       where: { id: order.id },
       data: {
         payUrl: `https://pay.payos.vn/web/${linkId}`,
         providerLinkId: linkId,
       },
     });
+    if (!linked.listingId) throw new Error('Expected a listing boost order');
+    return { ...linked, listingId: linked.listingId };
   }
   async function queuedPayos(count: number) {
     const seed = await linkedPayos();

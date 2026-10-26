@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import type { Request } from 'express';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, scryptSync, randomBytes } from 'node:crypto';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/database/prisma.service.js';
 import { AuthOtpService } from '../src/modules/auth/auth-otp.service.js';
@@ -25,7 +25,7 @@ describe('OTP authentication (PostgreSQL e2e)', () => {
   const password = 'Mat-khau-an-toan-2026';
   let sequence = 0;
   const req = () => ({ ip: `192.0.2.${++sequence}` }) as Request;
-  const post = (path: string, body: unknown) =>
+  const post = (path: string, body: object) =>
     request(app.getHttpServer())
       .post(`/api/v1/auth/${path}`)
       .set('Origin', origin)
@@ -363,6 +363,48 @@ describe('OTP authentication (PostgreSQL e2e)', () => {
     await post('login', { email: user.email, password: newPassword }).expect(
       200,
     );
+  });
+
+  it('upgrades a legacy password atomically with login without changing the password', async () => {
+    const user = await account();
+    const salt = randomBytes(16);
+    const key = scryptSync(password, salt, 64, { N: 16384, r: 8, p: 1 });
+    const legacy = [
+      'scrypt',
+      16384,
+      8,
+      1,
+      salt.toString('base64url'),
+      key.toString('base64url'),
+    ].join('$');
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: legacy },
+    });
+    await post('login', {
+      email: user.email,
+      password: 'wrong-password',
+    }).expect(401);
+    expect(
+      (await prisma.user.findUniqueOrThrow({ where: { id: user.id } }))
+        .passwordHash,
+    ).toBe(legacy);
+    await post('login', { email: user.email, password }).expect(200);
+    const saved = await prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
+    });
+    expect(saved.passwordHash).not.toBe(legacy);
+    expect(app.get(PasswordService).needsRehash(saved.passwordHash!)).toBe(
+      false,
+    );
+    await expect(
+      app.get(PasswordService).verify(password, saved.passwordHash!),
+    ).resolves.toBe(true);
+    expect(
+      await prisma.session.count({
+        where: { userId: user.id, revokedAt: null },
+      }),
+    ).toBe(1);
   });
 
   it('rejects expired reset grants and all old link tokens', async () => {

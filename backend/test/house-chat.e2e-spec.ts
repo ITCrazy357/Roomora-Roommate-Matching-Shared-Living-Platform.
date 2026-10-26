@@ -135,7 +135,9 @@ describe('House chat (real PostgreSQL and SSE)', () => {
         agents[0].patch(url).set('Origin', origin).send({ version: 1, text }),
       ),
     );
-    expect(results.map((reply) => reply.status).sort()).toEqual([200, 409]);
+    expect(results.map((reply) => reply.status).sort((a, b) => a - b)).toEqual([
+      200, 409,
+    ]);
     const edited = (await post(0, path(), body).expect(201)).body;
     expect(edited.version).toBe(2);
     expect(edited.text).not.toBe(body.text);

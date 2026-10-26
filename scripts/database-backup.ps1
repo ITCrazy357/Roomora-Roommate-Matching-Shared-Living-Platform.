@@ -3,7 +3,8 @@ param(
   [string]$EnvFile = 'deploy/roomora.env',
   [string]$OutputDirectory = 'backups',
   [string]$ContainerName,
-  [string]$DatabaseName = 'roomora'
+  [string]$DatabaseName = 'roomora',
+  [string]$DatabaseUser = 'roomora'
 )
 $ErrorActionPreference = 'Stop'
 $taskCompose = @('compose', '--env-file', $EnvFile, '-f', $ComposeFile)
@@ -15,7 +16,7 @@ $taskRemoteFile = "/tmp/roomora-$taskBackupId.dump"
 $taskDirectory = New-Item -ItemType Directory -Force -Path $OutputDirectory
 $taskOutput = Join-Path $taskDirectory.FullName "roomora-$(Get-Date -Format 'yyyyMMdd-HHmmss')-$taskBackupId.dump"
 try {
-  & docker @taskExec pg_dump -U roomora -d $DatabaseName --format=custom --no-owner --no-acl --file=$taskRemoteFile
+  & docker @taskExec pg_dump -U $DatabaseUser -d $DatabaseName --format=custom --no-owner --no-acl --file=$taskRemoteFile
   if ($LASTEXITCODE -ne 0) { throw 'pg_dump failed' }
   & docker cp "${taskContainer}:$taskRemoteFile" $taskOutput
   if ($LASTEXITCODE -ne 0) { throw 'Copying backup failed' }

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { isPublicCloudinaryImage, publicImageLoader } from "@/lib/public-image";
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "../auth-provider";
@@ -115,7 +116,8 @@ export function ListingCard({
                   ? "220px"
                   : "(max-width: 640px) 100vw, (max-width: 1100px) 45vw, 30vw"
               }
-              unoptimized
+              loader={publicImageLoader}
+              unoptimized={!isPublicCloudinaryImage(listing.photos[0].url)}
             />
           ) : (
             <div className="listing-no-photo">

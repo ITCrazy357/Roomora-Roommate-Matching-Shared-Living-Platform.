@@ -2,7 +2,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "../auth-provider";
 import { apiFetch, apiUrl } from "@/lib/api";
-import type { Page, Conversation, Notice } from "@/lib/communications";
 import { useActivityHeartbeat } from "./use-activity-heartbeat";
 
 const UpdatesContext = createContext({
@@ -15,6 +14,8 @@ const UpdatesContext = createContext({
 });
 export function UpdatesProvider({ children }: { children: React.ReactNode }) {
   const { user, setUser } = useAuth();
+  const authenticatedUserId = user?.id;
+  const isAdmin = user?.role === "ADMIN";
   useActivityHeartbeat(user?.role === "USER" ? user.id : undefined);
   const [state, setState] = useState({
     now: 0,
@@ -26,14 +27,14 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
     typingByConversation: {} as Record<string, boolean>,
   });
   useEffect(() => {
-    if (!user) return;
-    const userId = user.id;
+    if (!authenticatedUserId) return;
+    const userId = authenticatedUserId;
     const controller = new AbortController();
     const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
-    const clock = setInterval(
-      () => setState((old) => ({ ...old, now: Date.now() })),
-      15000,
-    );
+    const clock = setInterval(() => {
+      if (document.visibilityState === "visible")
+        setState((old) => ({ ...old, now: Date.now() }));
+    }, 15000);
     function setTyping(id: string, typing: boolean) {
       setState((old) => {
         const next = { ...old.typingByConversation };
@@ -44,8 +45,13 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
     }
     let running = false;
     let pending = false;
+    let scheduled: ReturnType<typeof setTimeout> | undefined;
     async function sync() {
-      if (user?.role === "ADMIN") {
+      if (document.visibilityState !== "visible") {
+        pending = true;
+        return;
+      }
+      if (isAdmin) {
         setState((old) => ({
           ...old,
           userId,
@@ -66,27 +72,38 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
           // A sync also refreshes support/profile screens if unread counters fail.
           if (!controller.signal.aborted)
             setState((old) => ({ ...old, userId, revision: old.revision + 1 }));
-          const [messages, notices] = await Promise.all([
-            apiFetch<Page<Conversation>>("/conversations?limit=1", {
-              signal: controller.signal,
-            }),
-            apiFetch<Page<Notice>>("/notifications?limit=1", {
-              signal: controller.signal,
-            }),
-          ]);
+          const counts = await apiFetch<{
+            messages: number;
+            notifications: number;
+          }>("/updates/unread", { signal: controller.signal });
           if (!controller.signal.aborted)
             setState((old) => ({
               ...old,
               userId,
-              messages: messages.unread ?? 0,
-              notifications: notices.unread ?? 0,
+              messages: counts.messages,
+              notifications: counts.notifications,
             }));
-        } while (pending && !controller.signal.aborted);
+        } while (
+          pending &&
+          !controller.signal.aborted &&
+          document.visibilityState === "visible"
+        );
       } catch {
         /* Stream reconnect or focus will retry. */
       } finally {
         running = false;
       }
+    }
+    function scheduleSync() {
+      if (document.visibilityState !== "visible") {
+        pending = true;
+        return;
+      }
+      if (scheduled) return;
+      scheduled = setTimeout(() => {
+        scheduled = undefined;
+        void sync();
+      }, 150);
     }
     const stream = new EventSource(apiUrl("/updates"), {
       withCredentials: true,
@@ -101,11 +118,11 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
         notifications: old.userId === userId ? old.notifications : 0,
         typingByConversation: {},
       }));
-      void sync();
+      scheduleSync();
     };
     stream.onerror = () => setState((old) => ({ ...old, connected: false }));
     stream.addEventListener("sync", () => {
-      void sync();
+      scheduleSync();
     });
     stream.addEventListener("typing", (event) => {
       try {
@@ -141,19 +158,20 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
       setState((old) => ({ ...old, connected: false }));
     });
     const focus = () => {
-      if (document.visibilityState === "visible") void sync();
+      if (document.visibilityState === "visible") scheduleSync();
     };
     window.addEventListener("focus", focus);
     document.addEventListener("visibilitychange", focus);
     return () => {
       controller.abort();
       clearInterval(clock);
+      clearTimeout(scheduled);
       typingTimers.forEach(clearTimeout);
       stream.close();
       window.removeEventListener("focus", focus);
       document.removeEventListener("visibilitychange", focus);
     };
-  }, [user, setUser]);
+  }, [authenticatedUserId, isAdmin, setUser]);
   const value =
     user && user.id === state.userId
       ? state

@@ -144,7 +144,8 @@ describe('Service refunds (HTTP and PostgreSQL)', () => {
         ...change,
       },
     });
-    return order;
+    if (!order.listingId) throw new Error('Expected a listing boost order');
+    return { ...order, listingId: order.listingId };
   }
   async function requested(
     order?: Awaited<ReturnType<typeof paid>>,

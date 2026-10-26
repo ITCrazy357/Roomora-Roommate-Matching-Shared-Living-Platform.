@@ -1,6 +1,6 @@
 import { HomeSlideshow } from "@/components/home-slideshow";
 import { HomeJourney } from "@/components/home-journey";
-import { HomeListings } from "@/components/listings/home-listings";
+import { HomeListingsServer } from "@/components/listings/home-listings-server";
 import { ButtonLink } from "@/components/ui";
 import type { Metadata } from "next";
 import { siteOrigin } from "@/lib/seo";
@@ -38,7 +38,7 @@ export default function Home() {
         <HomeSlideshow />
       </section>
       <HomeJourney />
-      <HomeListings />
+      <HomeListingsServer />
     </div>
   );
 }

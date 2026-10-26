@@ -496,12 +496,12 @@ describe('Roomora OAuth and read-only MCP (HTTP/PostgreSQL/SDK)', () => {
       grant_type: 'refresh_token',
       refresh_token: original.refresh_token,
     };
-    for (const extra of [
+    const changes: Record<string, string>[] = [
       { scope: 'listings:write' },
       { resource: 'https://other.example/mcp' },
       { client_id: otherClientId },
-    ])
-      await token({ ...data, ...extra }).expect(400);
+    ];
+    for (const extra of changes) await token({ ...data, ...extra }).expect(400);
     const responses = await Promise.all([token(data), token(data)]);
     expect(responses.map((item) => item.status).sort((a, b) => a - b)).toEqual([
       200, 400,

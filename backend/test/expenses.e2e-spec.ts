@@ -250,7 +250,9 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       participantIds: [ids[1], ids[0]],
     });
     const shares = row.splits as { participantId: string; amount: number }[];
-    expect(shares.map((split) => split.amount).sort()).toEqual([500, 501]);
+    expect(shares.map((split) => split.amount).sort((a, b) => a - b)).toEqual([
+      500, 501,
+    ]);
     expect(
       shares.find((split) => split.participantId === ids.slice(0, 2).sort()[0])!
         .amount,
@@ -331,7 +333,9 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
         }),
       ),
     );
-    expect(results.map((reply) => reply.status).sort()).toEqual([200, 409]);
+    expect(results.map((reply) => reply.status).sort((a, b) => a - b)).toEqual([
+      200, 409,
+    ]);
     const history = (
       await agents[1].get(base() + `/${row.id}/history`).expect(200)
     ).body;
@@ -703,7 +707,9 @@ describe('Phase 7 expenses and debt (real PostgreSQL)', () => {
       post(1, base() + '/payments', paymentBody(300)),
       post(1, base() + '/payments', paymentBody(300)),
     ]);
-    expect(attempts.map((reply) => reply.status).sort()).toEqual([201, 409]);
+    expect(attempts.map((reply) => reply.status).sort((a, b) => a - b)).toEqual(
+      [201, 409],
+    );
   });
   it('blocks changes while payment is pending, and releases reservations on rejection or cancellation', async () => {
     const row = await create();

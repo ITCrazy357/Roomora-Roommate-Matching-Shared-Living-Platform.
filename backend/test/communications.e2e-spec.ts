@@ -117,6 +117,23 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
       })
     ).id;
   }, 30000);
+  it('returns only authorized unread counters matching the full lists', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/updates/unread')
+      .expect(401);
+    for (const agent of [a, b, outsider]) {
+      const [messages, notices, counts] = await Promise.all([
+        agent.get('/api/v1/conversations?limit=1').expect(200),
+        agent.get('/api/v1/notifications?limit=1').expect(200),
+        agent.get('/api/v1/updates/unread').expect(200),
+      ]);
+      expect(counts.body).toEqual({
+        messages: messages.body.unread,
+        notifications: notices.body.unread,
+      });
+    }
+  });
+
   afterAll(async () => {
     if (prisma && ids.length)
       await prisma.user.deleteMany({ where: { id: { in: ids } } });
@@ -273,6 +290,12 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
     await post(a, path() + '/messages', { ...body, senderId: bid }).expect(400);
   });
   it('tracks unread messages monotonically, separately from notifications', async () => {
+    expect(
+      (await b.get('/api/v1/updates/unread').expect(200)).body.messages,
+    ).toBe(1);
+    expect(
+      (await outsider.get('/api/v1/updates/unread').expect(200)).body.messages,
+    ).toBe(0);
     expect((await b.get('/api/v1/conversations').expect(200)).body.unread).toBe(
       1,
     );
@@ -281,6 +304,9 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
     expect((await b.get('/api/v1/conversations').expect(200)).body.unread).toBe(
       0,
     );
+    expect(
+      (await b.get('/api/v1/updates/unread').expect(200)).body.messages,
+    ).toBe(0);
     expect(
       (await b.get('/api/v1/notifications').expect(200)).body.unread,
     ).toBeGreaterThan(0);
@@ -640,6 +666,9 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
     ).not.toBeNull();
     await post(b, '/api/v1/notifications/read').expect(201);
     expect(
+      (await b.get('/api/v1/updates/unread').expect(200)).body.notifications,
+    ).toBe(0);
+    expect(
       (await b.get('/api/v1/notifications?tab=unread').expect(200)).body.total,
     ).toBe(0);
     const emails = await prisma.notification.findMany({
@@ -662,6 +691,9 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
   it('revokes conversation access and cancels meetings when a participant blocks', async () => {
     await post(b, '/api/v1/user-safety/' + aid + '/block').expect(201);
     for (const agent of [a, b]) {
+      expect(
+        (await agent.get('/api/v1/updates/unread').expect(200)).body.messages,
+      ).toBe(0);
       await agent.get(path()).expect(404);
       await agent.get(path() + '/messages').expect(404);
       await agent.get(path() + '/attachments/' + attachmentId).expect(404);

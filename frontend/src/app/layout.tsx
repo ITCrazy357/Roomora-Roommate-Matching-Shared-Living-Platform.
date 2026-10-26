@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import localFont from "next/font/local";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -13,7 +14,6 @@ import "./admin.css";
 import "./globals.css";
 import "./support.css";
 import "./chat-widget.css";
-import "leaflet/dist/leaflet.css";
 import "./profile-editor.css";
 import "./listings.css";
 import "./people.css";
@@ -55,13 +55,14 @@ export const metadata: Metadata = {
     "Một nơi ở phù hợp, một người bạn cùng nhà đồng điệu. Khám phá Roomora — Hợp người, chung nhà.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="vi" className={beVietnam.variable} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
         <a className="skip-link" href="#main-content">

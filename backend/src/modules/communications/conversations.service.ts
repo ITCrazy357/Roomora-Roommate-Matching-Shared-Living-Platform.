@@ -31,6 +31,10 @@ export class ConversationsService {
     return this.queries.list(userId, query);
   }
 
+  unread(userId: string) {
+    return this.queries.unread(userId);
+  }
+
   detail(userId: string, id: string) {
     return this.queries.detail(userId, id);
   }

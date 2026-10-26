@@ -109,7 +109,13 @@ export class UpdatesService implements OnModuleInit, OnModuleDestroy {
         filter((users) => users.includes(auth.userId)),
         map(() => ({ type: 'sync', data: {} })),
       ),
-      timer(0, 20000).pipe(map(() => ({ type: 'sync', data: {} }))),
+      // Keep session revocation checks at 20s; only every third tick refreshes UI data.
+      timer(0, 20000).pipe(
+        map((tick) => ({
+          type: tick % 3 === 0 ? 'sync' : 'heartbeat',
+          data: {},
+        })),
+      ),
       this.typingUpdates.pipe(
         filter((signal) => signal.userId === auth.userId),
         map((signal) => ({

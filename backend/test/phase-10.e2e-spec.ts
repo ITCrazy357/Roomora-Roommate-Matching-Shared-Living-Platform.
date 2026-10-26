@@ -39,7 +39,7 @@ describe('Phase 10 reports, support and account closure (HTTP/PostgreSQL)', () =
   const post = (
     agent: ReturnType<typeof request.agent>,
     path: string,
-    body: unknown,
+    body: object,
   ) =>
     agent
       .post(url + path)
@@ -48,7 +48,7 @@ describe('Phase 10 reports, support and account closure (HTTP/PostgreSQL)', () =
   const patch = (
     agent: ReturnType<typeof request.agent>,
     path: string,
-    body: unknown,
+    body: object,
   ) =>
     agent
       .patch(url + path)

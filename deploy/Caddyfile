@@ -1,4 +1,5 @@
 {$DOMAIN} {
+  header Strict-Transport-Security "max-age=15552000"
   encode zstd gzip
   @mcpDiscovery path /.well-known/oauth-authorization-server /.well-known/oauth-protected-resource/api/v1/mcp
   handle @mcpDiscovery {

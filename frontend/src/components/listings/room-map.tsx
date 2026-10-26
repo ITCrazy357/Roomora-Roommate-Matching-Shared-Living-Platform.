@@ -1,4 +1,5 @@
 "use client";
+import "leaflet/dist/leaflet.css";
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { Map, Marker } from "leaflet";

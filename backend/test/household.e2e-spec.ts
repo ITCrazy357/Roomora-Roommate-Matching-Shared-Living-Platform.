@@ -501,6 +501,62 @@ describe('Phase 8 household (real HTTP and PostgreSQL)', () => {
       }),
     ).toBe(1);
   });
+  it.each([undefined, 0, 400, 1001])(
+    'persists paidAmount=%s for recurring confirmations and keeps retries idempotent',
+    async (paidAmount) => {
+      const row = await draft();
+      const body = {
+        ...confirmation(),
+        ...(paidAmount === undefined ? {} : { paidAmount }),
+      };
+      const expected = paidAmount ?? body.amount;
+      const path = base() + `/drafts/${row.id}/confirm`;
+      const expense = (await post(1, path, body).expect(201)).body;
+      expect(expense).toMatchObject({
+        amount: body.amount,
+        paidAmount: expected,
+        remainingAmount: body.amount - expected,
+      });
+      expect(
+        expense.splits
+          .map((split: { amount: number }) => split.amount)
+          .sort((a: number, b: number) => a - b),
+      ).toEqual([500, 501]);
+      expect(
+        await prisma.expense.findUniqueOrThrow({ where: { id: expense.id } }),
+      ).toMatchObject({ paidAmount: expected });
+
+      const retry = (await post(0, path, body).expect(201)).body;
+      expect(retry).toMatchObject({ id: expense.id, paidAmount: expected });
+      await post(0, path, {
+        ...body,
+        paidAmount: expected === 0 ? 400 : 0,
+      }).expect(409);
+      expect(await prisma.expense.count({ where: { houseId } })).toBe(1);
+      expect(
+        await prisma.expenseAdjustment.count({
+          where: { expenseId: expense.id, action: 'CREATE' },
+        }),
+      ).toBe(1);
+    },
+  );
+  it('rejects invalid recurring paid amounts without confirming the draft or writing a ledger entry', async () => {
+    const row = await draft();
+    const path = base() + `/drafts/${row.id}/confirm`;
+    for (const paidAmount of [-1, 0.5, 1002]) {
+      await post(0, path, { ...confirmation(), paidAmount }).expect(400);
+    }
+    expect(await prisma.expense.count({ where: { houseId } })).toBe(0);
+    expect(
+      await prisma.expenseAdjustment.count({ where: { expense: { houseId } } }),
+    ).toBe(0);
+    expect(
+      await prisma.recurringExpenseDraft.findUniqueOrThrow({
+        where: { id: row.id },
+      }),
+    ).toMatchObject({ status: 'PENDING', expenseId: null, version: 1 });
+    await post(0, path, { ...confirmation(), paidAmount: 0 }).expect(201);
+  });
   it('confirms exactly once under simultaneous requests from different authorized users', async () => {
     const row = await draft(),
       body = confirmation();

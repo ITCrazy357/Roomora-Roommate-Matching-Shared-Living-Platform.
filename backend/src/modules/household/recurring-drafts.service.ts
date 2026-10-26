@@ -90,6 +90,7 @@ export class RecurringDraftsService {
         description: dto.description,
         payerId: dto.payerId,
         amount: dto.amount,
+        paidAmount: dto.paidAmount,
         splitMode: dto.splitMode,
         participantIds: dto.participantIds,
         splits: dto.splits,

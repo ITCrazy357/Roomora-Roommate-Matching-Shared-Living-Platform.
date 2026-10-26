@@ -26,6 +26,8 @@ jobs:
           node-version: "22"
       - name: Check archive and restore policies
         run: node --experimental-strip-types --test scripts/backup-archive.test.mjs scripts/restore-encrypted-backup.test.mjs
+      - name: Validate backup settings without revealing secrets
+        run: node scripts/run-database-backup.mjs --check-config
       - name: Export and encrypt without a plaintext dump on disk
         run: node scripts/run-database-backup.mjs
       - name: Choose daily or weekly retention

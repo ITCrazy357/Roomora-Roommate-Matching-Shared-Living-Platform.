@@ -13,8 +13,9 @@ import { fileURLToPath } from "node:url";
 
 const magic = Buffer.from("ROOMORA_BACKUP_V1\n");
 export function backupKey(value) {
-  const key = Buffer.from(value ?? "", "base64");
-  if (key.length !== 32 || key.toString("base64") !== value)
+  const encoded = typeof value === "string" ? value.trim() : "";
+  const key = Buffer.from(encoded, "base64");
+  if (key.length !== 32 || key.toString("base64") !== encoded)
     throw new Error("Invalid backup key");
   return key;
 }

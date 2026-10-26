@@ -4,8 +4,14 @@ import { mkdtemp, readFile, readdir, writeFile, rm } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { backupKey, encryptBackup, decryptBackup } from "./backup-archive.mjs";
-import { backupConnection } from "./run-database-backup.mjs";
+import {
+  backupConnection,
+  inspectBackupConfiguration,
+  classifyDumpFailure,
+} from "./run-database-backup.mjs";
 
 test("encrypted backups authenticate content and never publish failed plaintext", async () => {
   const dir = await mkdtemp(join(tmpdir(), "roomora-backup-"));
@@ -71,4 +77,88 @@ test("Render export requires TLS, bounded client versions and private credential
       "17;command",
     ),
   );
+});
+
+test("preflight explains bad or missing settings without printing any secret values", () => {
+  const key = Buffer.alloc(32, 7).toString("base64");
+  const url =
+    "postgresql://fixture-user:fixture-private-password@dpg-fixture.singapore-postgres.render.com/roomora";
+  assert.deepEqual(
+    inspectBackupConfiguration({
+      ROOMORA_BACKUP_KEY: `\n${key}\n`,
+      ROOMORA_BACKUP_DATABASE_URL: url,
+    }),
+    { configured: true, issues: [], postgresMajor: "18" },
+  );
+  assert.deepEqual(inspectBackupConfiguration({}).issues, [
+    "BACKUP_KEY_MISSING",
+    "BACKUP_DATABASE_URL_MISSING",
+  ]);
+  assert.deepEqual(
+    inspectBackupConfiguration({
+      ROOMORA_BACKUP_KEY: key,
+      ROOMORA_BACKUP_DATABASE_URL:
+        "postgresql://fixture:fixture-only@dpg-internal-a/roomora",
+    }).issues,
+    ["BACKUP_DATABASE_URL_USE_EXTERNAL"],
+  );
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./run-database-backup.mjs", import.meta.url)),
+      "--check-config",
+    ],
+    {
+      env: {
+        ...process.env,
+        ROOMORA_BACKUP_KEY: "fixture-private-invalid-key",
+        ROOMORA_BACKUP_DATABASE_URL:
+          "postgresql://fixture:fixture-private-password@unexpected.example/roomora",
+        ROOMORA_POSTGRES_MAJOR: "18",
+      },
+      encoding: "utf8",
+      windowsHide: true,
+    },
+  );
+  assert.equal(result.status, 1);
+  const report = JSON.parse(result.stderr);
+  assert.deepEqual(report.issues, [
+    "BACKUP_KEY_INVALID_BASE64_32_BYTES",
+    "BACKUP_DATABASE_URL_NOT_RENDER",
+  ]);
+  for (const forbidden of [
+    "fixture-private-invalid-key",
+    "fixture-private-password",
+    "unexpected.example",
+  ])
+    assert.equal(result.stderr.includes(forbidden), false);
+  assert.equal(result.stdout, "");
+});
+
+test("pg_dump errors produce only actionable fixed codes, including a safe unknown fallback", () => {
+  const cases = [
+    [
+      'password authentication failed for user "fixture-private"',
+      "DATABASE_AUTHENTICATION_FAILED",
+    ],
+    [
+      "root certificate file not found for fixture-private host",
+      "DATABASE_TLS_VERIFICATION_FAILED",
+    ],
+    [
+      "no pg_hba.conf entry for host fixture-private",
+      "DATABASE_NETWORK_ACCESS_DENIED",
+    ],
+    ["connection timed out at fixture-private", "DATABASE_CONNECTION_FAILED"],
+    ["aborting because of server version mismatch", "PG_DUMP_VERSION_MISMATCH"],
+    [
+      "permission denied for table fixture_private",
+      "DATABASE_READ_PERMISSION_DENIED",
+    ],
+    ["Cannot connect to the Docker daemon", "DOCKER_ENGINE_UNAVAILABLE"],
+    ["manifest unknown", "POSTGRES_IMAGE_PULL_FAILED"],
+    ["unexpected error: fixture-private-details", "PG_DUMP_FAILED"],
+  ];
+  for (const [stderr, code] of cases)
+    assert.equal(classifyDumpFailure(stderr), code);
 });

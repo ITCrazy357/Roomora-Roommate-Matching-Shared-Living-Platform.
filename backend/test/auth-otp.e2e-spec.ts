@@ -317,6 +317,54 @@ describe('OTP authentication (PostgreSQL e2e)', () => {
     );
   });
 
+  it('rejects an in-flight old-password login after reset commits without issuing a session cookie', async () => {
+    const user = await account();
+    const initialLogin = await post('login', {
+      email: user.email,
+      password,
+    }).expect(200);
+    const dto = await challenge(user.email);
+    const proof = await post('password/verify', dto).expect(200);
+    const newPassword = 'Mat-khau-sau-reset-2026';
+    const passwords = app.get(PasswordService);
+    const verify = passwords.verify.bind(passwords);
+    const pausedLogin = vi
+      .spyOn(passwords, 'verify')
+      .mockImplementationOnce(async (input, hash) => {
+        const matches = await verify(input, hash);
+        // Finish a real HTTP reset after verification, before session creation.
+        await post('password/reset', {
+          token: proof.body.token,
+          newPassword,
+        }).expect(200);
+        return matches;
+      });
+    try {
+      const staleLogin = await post('login', {
+        email: user.email,
+        password,
+      }).expect(401);
+      expect(staleLogin.body.code).toBe('INVALID_CREDENTIALS');
+      expect(staleLogin.headers['set-cookie']).toBeUndefined();
+    } finally {
+      pausedLogin.mockRestore();
+    }
+    expect(
+      await prisma.session.count({
+        where: { userId: user.id, revokedAt: null },
+      }),
+    ).toBe(0);
+    const oldCookie = initialLogin.headers['set-cookie'][0].split(';')[0];
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Cookie', oldCookie)
+      .expect(401);
+    await post('login', { email: user.email, password }).expect(401);
+    await post('login', { email: user.email, password: newPassword }).expect(
+      200,
+    );
+  });
+
   it('rejects expired reset grants and all old link tokens', async () => {
     const user = await account();
     for (const type of [

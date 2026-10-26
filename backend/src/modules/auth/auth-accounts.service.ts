@@ -97,7 +97,7 @@ export class AuthAccountsService {
       });
     }
 
-    await this.sessions.create(user.id, request, response);
+    await this.sessions.create(user.id, request, response, user.passwordHash);
     return { user: this.support.serializeUser(user) };
   }
 

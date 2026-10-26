@@ -83,13 +83,17 @@ export class AuthOtpService {
       if (account)
         await transaction.$queryRaw`SELECT id FROM users WHERE id = ${account.id}::uuid FOR UPDATE`;
       await this.lockEmail(transaction, email, type);
+
       const now = new Date();
+
       const user = account
         ? await transaction.user.findUnique({ where: { id: account.id } })
         : null;
+
       const previous = await transaction.authOtp.findUnique({
         where: { email_type: { email, type } },
       });
+
       const sameWindow =
         previous &&
         now.getTime() - previous.sendWindowAt.getTime() < SEND_WINDOW_MS;
@@ -128,6 +132,7 @@ export class AuthOtpService {
         sendWindowAt: reuseWindow ? previous.sendWindowAt : now,
         sendCount: reuseWindow ? previous.sendCount + 1 : 1,
       };
+
       const challenge = await transaction.authOtp.upsert({
         where: { email_type: { email, type } },
         create: data,
@@ -135,7 +140,9 @@ export class AuthOtpService {
       });
       return { challenge };
     });
+
     let emailSent = false;
+
     if (result.challenge.userId) {
       emailSent = await this.support.trySend(() =>
         type === 'EMAIL_VERIFICATION'
@@ -172,9 +179,11 @@ export class AuthOtpService {
       60,
       15 * 60 * 1000,
     );
+
     const saved = await this.prisma.authOtp.findUnique({
       where: { challengeId: dto.challengeId },
     });
+
     const result =
       saved &&
       (await this.prisma.$transaction(async (transaction) => {

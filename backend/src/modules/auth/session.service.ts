@@ -25,6 +25,7 @@ export class SessionService {
     userId: string,
     request: Request,
     response: Response,
+    verifiedPasswordHash?: string,
   ): Promise<void> {
     const token = randomToken();
     await this.prisma.$transaction(async (tx) => {
@@ -33,7 +34,7 @@ export class SessionService {
       await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
       const user = await tx.user.findUniqueOrThrow({
         where: { id: userId },
-        select: { lockedAt: true, closedAt: true },
+        select: { lockedAt: true, closedAt: true, passwordHash: true },
       });
       if (user.closedAt)
         throw new ForbiddenException({
@@ -45,6 +46,17 @@ export class SessionService {
           code: 'ACCOUNT_LOCKED',
           message: 'Tài khoản đã bị khóa do vi phạm',
         });
+      // Password verification runs before this transaction. Recheck its hash
+      // under the reset's user-row lock before creating a password login session.
+      if (
+        verifiedPasswordHash !== undefined &&
+        user.passwordHash !== verifiedPasswordHash
+      ) {
+        throw new UnauthorizedException({
+          code: 'INVALID_CREDENTIALS',
+          message: 'Email hoặc mật khẩu không đúng',
+        });
+      }
       await tx.session.create({
         data: {
           userId,

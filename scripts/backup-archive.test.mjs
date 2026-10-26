@@ -11,6 +11,7 @@ import {
   backupConnection,
   inspectBackupConfiguration,
   classifyDumpFailure,
+  backupTlsMount,
 } from "./run-database-backup.mjs";
 
 test("encrypted backups authenticate content and never publish failed plaintext", async () => {
@@ -77,6 +78,68 @@ test("Render export requires TLS, bounded client versions and private credential
       "17;command",
     ),
   );
+});
+
+test("exports mount an explicit CA bundle read-only and fail closed when it is unavailable", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "roomora-backup-ca-"));
+  const caFile = join(dir, "public-ca.crt");
+  const url =
+    "postgresql://fixture:fixture-only@dpg-fixture.render.com/roomora";
+  try {
+    await writeFile(caFile, "test-only CA fixture; no real connection is made");
+    const connection = backupConnection(url);
+    assert.deepEqual(await backupTlsMount(connection, caFile), [
+      "--mount",
+      `type=bind,source=${caFile},target=/run/roomora-backup-ca.crt,readonly`,
+    ]);
+    assert.equal(connection.PGSSLROOTCERT, "/run/roomora-backup-ca.crt");
+    assert.equal(connection.PGSSLMODE, "verify-full");
+    const defaultConnection = backupConnection(url);
+    assert.deepEqual(await backupTlsMount(defaultConnection, undefined), []);
+    assert.equal(defaultConnection.PGSSLROOTCERT, "system");
+    const empty = join(dir, "empty.crt");
+    await writeFile(empty, "");
+    for (const bad of [
+      "",
+      "relative.crt",
+      dir,
+      empty,
+      join(dir, "missing.crt"),
+      `${caFile},readonly=false`,
+    ]) {
+      const rejectedConnection = backupConnection(url);
+      await assert.rejects(backupTlsMount(rejectedConnection, bad), {
+        backupCode: "BACKUP_CA_FILE_INVALID",
+      });
+      assert.equal(rejectedConnection.PGSSLROOTCERT, "system");
+    }
+    const result = spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL("./run-database-backup.mjs", import.meta.url))],
+      {
+        env: {
+          ...process.env,
+          ROOMORA_BACKUP_KEY: Buffer.alloc(32, 7).toString("base64"),
+          ROOMORA_BACKUP_DATABASE_URL: url,
+          ROOMORA_BACKUP_CA_FILE: join(dir, "fixture-private-missing.crt"),
+        },
+        encoding: "utf8",
+        windowsHide: true,
+      },
+    );
+    assert.equal(result.status, 1);
+    assert.deepEqual(JSON.parse(result.stderr), {
+      completed: false,
+      error: "BACKUP_CA_FILE_INVALID",
+    });
+    assert.equal(result.stdout, "");
+  } finally {
+    const target = resolve(dir);
+    assert.ok(
+      target.startsWith(`${resolve(tmpdir())}${sep}roomora-backup-ca-`),
+    );
+    await rm(target, { recursive: true, force: true });
+  }
 });
 
 test("preflight explains bad or missing settings without printing any secret values", () => {

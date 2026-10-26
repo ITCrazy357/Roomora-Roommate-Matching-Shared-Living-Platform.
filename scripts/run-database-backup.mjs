@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdir, stat } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { encryptBackup, backupKey } from "./backup-archive.mjs";
@@ -24,6 +24,7 @@ const runtimeCodes = new Set([
   "PG_DUMP_VERSION_MISMATCH",
   "DATABASE_AUTHENTICATION_FAILED",
   "DATABASE_TLS_VERIFICATION_FAILED",
+  "BACKUP_CA_FILE_INVALID",
   "DATABASE_NETWORK_ACCESS_DENIED",
   "DATABASE_READ_PERMISSION_DENIED",
   "DATABASE_CONNECTION_FAILED",
@@ -152,12 +153,38 @@ export function classifyDumpFailure(stderr) {
   return "PG_DUMP_FAILED";
 }
 
+export async function backupTlsMount(connection, caFile) {
+  if (caFile === undefined) return [];
+  // Docker receives a public CA file only, mounted read-only at a fixed path.
+  // A missing/mistyped file must fail rather than downgrade TLS verification.
+  if (
+    typeof caFile !== "string" ||
+    !isAbsolute(caFile) ||
+    /[,\r\n]/.test(caFile)
+  )
+    throw failure("BACKUP_CA_FILE_INVALID");
+  let file;
+  try {
+    file = await stat(caFile);
+  } catch {
+    throw failure("BACKUP_CA_FILE_INVALID");
+  }
+  if (!file.isFile() || file.size === 0)
+    throw failure("BACKUP_CA_FILE_INVALID");
+  connection.PGSSLROOTCERT = "/run/roomora-backup-ca.crt";
+  return [
+    "--mount",
+    `type=bind,source=${caFile},target=${connection.PGSSLROOTCERT},readonly`,
+  ];
+}
+
 export async function runBackup(env = process.env) {
   const key = backupKey(env.ROOMORA_BACKUP_KEY);
   const { image, ...connection } = backupConnection(
     env.ROOMORA_BACKUP_DATABASE_URL,
     env.ROOMORA_POSTGRES_MAJOR || "18",
   );
+  const tlsMount = await backupTlsMount(connection, env.ROOMORA_BACKUP_CA_FILE);
   const directory = resolve(env.BACKUP_OUTPUT_DIRECTORY || "backups/encrypted");
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const output = join(
@@ -167,6 +194,7 @@ export async function runBackup(env = process.env) {
   const args = [
     "run",
     "--rm",
+    ...tlsMount,
     ...Object.keys(connection).flatMap((name) => ["--env", name]),
     image,
     "pg_dump",

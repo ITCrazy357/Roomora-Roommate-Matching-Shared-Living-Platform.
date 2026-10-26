@@ -19,6 +19,8 @@ jobs:
       ROOMORA_BACKUP_DATABASE_URL: ${{ secrets.ROOMORA_BACKUP_DATABASE_URL }}
       ROOMORA_BACKUP_KEY: ${{ secrets.ROOMORA_BACKUP_KEY }}
       ROOMORA_POSTGRES_MAJOR: ${{ vars.ROOMORA_POSTGRES_MAJOR || '18' }}
+      # The PostgreSQL image does not include the runner's trusted CA bundle.
+      ROOMORA_BACKUP_CA_FILE: /etc/ssl/certs/ca-certificates.crt
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v7

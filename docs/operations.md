@@ -2,10 +2,11 @@
 
 Hệ thống người dùng cung cấp hiện chạy frontend tại
 `https://roomora-blond.vercel.app` và API tại `https://roomora-api-qxjb.onrender.com`.
-Kiểm tra GET ngày 26/10/2026: trang chủ, readiness API trực tiếp và readiness qua
-proxy Vercel đều trả 200. Chưa xác định nhà cung cấp/gói PostgreSQL; người dùng
-xác nhận chưa có backup. Đã xác nhận PostgreSQL ở Render, chưa có quyền dashboard
-để bật backup thật. Xem [kích hoạt backup/monitor/email](operations-activation.md).
+PostgreSQL ở Render, major version 18; gói dịch vụ chưa được xác nhận. Đã kiểm
+chứng backup mã hóa ngoài Render, restore drill, backup theo lịch và monitor chạy
+tay trên GitHub. Ngày 27/10/2026 người vận hành xác nhận bài thử cảnh báo đạt;
+lưu kết quả và giới hạn bằng chứng tại [kiểm chứng vận hành](operations-verification.md).
+Xem [kích hoạt backup/monitor/email](operations-activation.md) để cấu hình lại.
 
 Bộ Compose trong repo là phương án triển khai riêng trên một máy Docker,
 một API instance theo mặc định. Redis chia sẻ rate limit và cache bản đồ giữa các

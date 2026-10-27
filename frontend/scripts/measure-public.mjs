@@ -8,6 +8,11 @@ const site = new URL(
 const allowed = ["roomora-blond.vercel.app", "localhost", "127.0.0.1"];
 if (
   !allowed.includes(site.hostname) ||
+  (site.protocol !== "https:" &&
+    !(
+      site.protocol === "http:" &&
+      ["localhost", "127.0.0.1"].includes(site.hostname)
+    )) ||
   site.username ||
   site.password ||
   site.search ||
@@ -18,6 +23,14 @@ if (
 const runs = Number(process.env.PERF_RUNS || 3);
 if (!Number.isInteger(runs) || runs < 1 || runs > 5)
   throw new Error("Bounded runs required");
+const routeNames = (process.env.PERF_ROUTES || "home,listings,listing").split(
+  ",",
+);
+if (
+  !routeNames.length ||
+  routeNames.some((name) => !["home", "listings", "listing"].includes(name))
+)
+  throw new Error("Invalid measurement routes");
 const proxyValue = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
 const proxyUrl = proxyValue ? new URL(proxyValue) : null;
 const proxy = proxyUrl
@@ -56,7 +69,8 @@ try {
     ["home", "/"],
     ["listings", "/tim-phong"],
     ...(first ? [["listing", `/phong/${first}`]] : []),
-  ];
+  ].filter(([route]) => routeNames.includes(route));
+  if (!paths.length) throw new Error("No eligible public routes to measure");
   for (const [route, path] of paths)
     for (let run = 0; run < runs; run++) {
       const context = await browser.newContext({ ...devices["Pixel 7"] });
@@ -82,6 +96,12 @@ try {
               tag: e.element?.tagName,
               className: e.element?.className,
               image: e.url ? new URL(e.url).pathname : null,
+              imageSource: e.url
+                ? new URL(
+                    new URL(e.url).searchParams.get("url") || e.url,
+                    location.origin,
+                  ).pathname
+                : null,
               loadTime: e.loadTime,
               renderTime: e.renderTime,
             };
@@ -141,6 +161,7 @@ try {
               type: x.initiatorType,
               ms: Math.round(x.duration),
               bytes: x.transferSize,
+              startMs: Math.round(x.startTime),
             })),
           overflow: document.documentElement.scrollWidth > innerWidth,
         }));
@@ -173,6 +194,7 @@ const report = {
     downloadMbps: 1.6,
     cpuSlowdown: 4,
     runs,
+    routes: routeNames,
   },
   // maxInteractionMs is an Event Timing lab observation, not field INP.
   fieldCoreWebVitalsVerified: false,

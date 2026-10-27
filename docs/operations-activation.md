@@ -34,6 +34,8 @@ thành công. Đây là bằng chứng lịch sử; tiếp tục theo dõi các 
    chuyển khóa vào kho bí mật riêng, không để khóa chỉ tồn tại trong GitHub.
    Mất khóa sẽ không khôi phục được archive. Khi xoay khóa, giữ khóa cũ để đọc các
    bản cũ còn trong retention.
+   Ngày 27/10/2026, người vận hành xác nhận đã cất khóa backup ở nơi riêng an toàn;
+   không thu thập hoặc ghi giá trị khóa vào tài liệu kiểm chứng.
 3. Kiểm tra PostgreSQL version trong Render. Tạo repository variable
    `ROOMORA_POSTGRES_MAJOR=17` hoặc `18`, bằng/cao hơn major version server.
    Client 17 đọc được server cũ hơn 17; server 18 cần client 18. Không nới TLS
@@ -110,7 +112,10 @@ GitHub gửi thông báo theo tài khoản kích hoạt hoặc sửa lịch gầ
 notification, không tự gửi tới mọi collaborator. Xem
 [GitHub Actions notifications](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-github-actions-notifications)
 và [workflow notifications](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs).
-Chưa xác nhận cài đặt email hay nhận email thật từ tài khoản người dùng.
+Ngày 27/10/2026, người vận hành xác nhận bài thử cảnh báo đúng dự kiến sau
+[run thử lỗi](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40492030285)
+và [run bình thường](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40492232358).
+Trạng thái nhận email dựa trên xác nhận của người vận hành.
 Monitor artifact chỉ chứng minh metadata có bản upload mới từ một lần backup thành
 công, không tự chứng minh archive còn khôi phục được; restore drill là bước riêng.
 
@@ -176,6 +181,9 @@ public đi qua Next Image, trì hoãn tải slide phụ đến khi ảnh đầu 
 kết quả tìm kiếm. Tổng font nguồn từ 545.964 byte TTF xuống 160.012 byte WOFF2;
 đây là kích thước file, không phải mức giảm LCP hoặc transfer trước đó đã nén HTTP.
 Chưa có số đo sau deploy để khẳng định LCP thực tế đã đạt 2,5 giây.
+Đo tiếp ngày 27/10 và thử thay đổi preload font được ghi tại
+[báo cáo hiệu năng](performance-followup-2026-10-27.md); candidate local chưa phải
+bằng chứng cải thiện sau deploy hoặc p75 người dùng thật.
 
 Kiểm thử kỹ thuật ba hành trình có ở `frontend/e2e/journeys.spec.ts`: tìm phòng/
 đọc giá-cọc; kết nối-chấp nhận-nhắn tin có lưu DB; phân biệt tổng chi/đã trả/còn

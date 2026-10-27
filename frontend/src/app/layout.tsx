@@ -47,6 +47,9 @@ const beVietnam = localFont({
   ],
   variable: "--font-be-vietnam",
   display: "swap",
+  // Let CSS request the weights needed for paint instead of preloading all four
+  // ahead of the hero image on constrained mobile connections.
+  preload: false,
   fallback: ["system-ui", "Segoe UI", "Arial", "sans-serif"],
 });
 

@@ -1,5 +1,44 @@
 # Bằng chứng đợt hoàn thiện vận hành — 26/10/2026
 
+## Cập nhật triển khai — 27/10/2026
+
+Các kết quả dưới đây đã được đối chiếu với GitHub; bảng local ngày 26/10 phía
+dưới được giữ như lịch sử kiểm thử, không phải số đo mới.
+
+| Hạng mục | Bằng chứng |
+| --- | --- |
+| Backup + restore drill sau bản sửa TCP/upload | [Run 40489900758](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40489900758), commit `36137b6`, thành công và có artifact mã hóa. |
+| Backup theo lịch | [Run 40417834569](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40417834569), thành công; bản ngày giữ 7 ngày. |
+| Monitor bình thường | [Run 40492232358](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40492232358), commit `ad5b8c0`, thành công. |
+| Bài thử cảnh báo | [Run 40492030285](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40492030285), cố ý thất bại; người vận hành xác nhận bài thử đúng dự kiến. Việc nhận email dựa trên xác nhận của người vận hành. |
+| CI mốc `ad5b8c0` | [Run 40491618063](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40491618063), thành công; chưa chứng minh CI cho bản sửa chưa push tiếp theo. |
+
+Readiness qua monitor chứng minh schema/index thuộc contract của release sẵn
+sàng tại lúc kiểm tra; không thay thế kiểm thử toàn bộ nghiệp vụ trên production.
+Người vận hành xác nhận ngày 27/10/2026 đã cất khóa backup riêng ngoài GitHub/Render;
+không thu thập giá trị khóa. Monitor theo lịch, dữ liệu Web Vitals người dùng thật
+và UAT có con người vẫn cần bằng chứng riêng. Người vận hành xác nhận chưa có UAT;
+đã chuẩn bị [kịch bản 10–15 phút](user-acceptance-check.md) và giữ CSV kết quả trống.
+
+## Bổ sung hiệu năng và dev tooling — 27/10/2026
+
+[Báo cáo đo lặp](performance-followup-2026-10-27.md) ghi baseline/candidate, lệnh
+chạy và giới hạn. Trang chủ local có trung vị LCP 3.600 → 2.752 ms, 6 mẫu/cấu hình;
+không phải số đo sau deploy hay field CWV. Build/lint frontend và 19 unit tests qua.
+
+Audit backend trước cập nhật: 9 dependency có cảnh báo, gồm 3 high. Đã nâng Vitest và coverage
+lên 4.1.12, Vite lên 8.3.5; giữ Nest Mau 0.2.8 và override riêng Inquirer 8.2.7,
+Undici 6.29.1 dưới package này. Không dùng `audit fix --force` hoặc downgrade Mau.
+Audit toàn bộ dependency backend và frontend sau cập nhật đều 0 advisory tại
+thời điểm kiểm tra. Lockfile giữ nguyên phiên bản 359 package runtime backend.
+CI backend/frontend kiểm tra toàn bộ dependency bằng `npm audit --audit-level=high`,
+gồm dev tooling; bước audit runtime image hiện có vẫn được giữ.
+
+Smoke test Inquirer và vòng đời file tạm của external editor mới qua; không mở
+editor hoặc gọi Nest Cloud. Unit backend: 230 qua, 5 Redis integration bỏ qua do
+chưa cấu hình `REDIS_TEST_URL`. Build, typecheck và lint backend qua. Đây không
+phải kết quả full E2E hay remote CI cho bản sửa chưa push.
+
 ## Local
 
 Node 22.23.2, PostgreSQL 17 và Redis 7.4 trong container tách biệt. Không dùng DB
@@ -18,7 +57,7 @@ Node 22.23.2, PostgreSQL 17 và Redis 7.4 trong container tách biệt. Không d
 | Build/lint/TypeScript | Backend và frontend qua; 4 workflow YAML được parse. |
 | Dependency audit | Production backend và frontend: 0 advisory theo npm audit lúc kiểm tra. Prisma/client/adapter lên patch 7.10.1; Zod frontend lên 4.6.6. |
 
-Backend full dependency audit còn 9 advisory ở dev tooling (3 high, 4 moderate,
+Tại mốc local 26/10, backend full dependency audit còn 9 advisory ở dev tooling (3 high, 4 moderate,
 2 low), chủ yếu chuỗi Nest Mau và Vitest/Vite. Không dùng `audit fix --force`
 để downgrade/đổi major ngoài phạm vi. Con số 0 phía trên chỉ nói tập dependency
 production, không phải tuyên bố mọi công cụ phát triển đều hết advisory.
@@ -76,12 +115,10 @@ Mẫu baseline ban đầu có proxy bị sandbox chặn đã bị loại, không
 Lưu ý raw font TTF vốn được nén khi truyền HTTP: giảm file từ 545.964 xuống
 160.012 byte không đồng nghĩa giảm cùng tỷ lệ băng thông hoặc LCP.
 
-## Chưa có bằng chứng
+## Chưa có bằng chứng sau cập nhật 27/10
 
-- Backup/restore DB production, artifact backup production và email báo lỗi thực nhận.
-- Migration/schema mới được xác nhận trên Render bằng readiness mới.
-- Deploy/remote CI của đợt chưa push này. CI commit trước `7d6fd49` đã thành công:
-  [GitHub run](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40345169450).
+- Monitor chạy theo lịch sau khi bật variable.
+- Core Web Vitals của release mới đo lại sau deploy, chưa có mẫu field đủ lớn.
 - P75 Core Web Vitals từ người dùng thật hoặc kết quả UAT có con người.
 
 Xem [các bước kích hoạt](operations-activation.md) và

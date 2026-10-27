@@ -78,23 +78,44 @@ export async function backupArtifactFresh({
   )
     throw new Error("Invalid GitHub configuration");
   const path = repository.split("/").map(encodeURIComponent).join("/");
-  const response = await fetch(
-    `https://api.github.com/repos/${path}/actions/artifacts?per_page=100`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
+  async function github(resource) {
+    const response = await fetch(
+      `https://api.github.com/repos/${path}/actions/${resource}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+        },
+        redirect: "error",
+        signal: AbortSignal.timeout(10000),
       },
-      redirect: "error",
-      signal: AbortSignal.timeout(10000),
-    },
+    );
+    if (!response.ok) throw new Error("Backup metadata lookup failed");
+    return response.json();
+  }
+  const [body, runs] = await Promise.all([
+    github("artifacts?per_page=100"),
+    github(
+      "workflows/database-backup.yml/runs?branch=main&status=success&per_page=100",
+    ),
+  ]);
+  // A failed drill still retains its recovery file. It must not make monitoring green.
+  const successfulRuns = new Set(
+    (runs.workflow_runs || [])
+      .filter(
+        (run) =>
+          run.status === "completed" &&
+          run.conclusion === "success" &&
+          run.head_branch === "main",
+      )
+      .map((run) => run.id),
   );
-  if (!response.ok) throw new Error("Artifact lookup failed");
-  const body = await response.json();
   const dates = (body.artifacts || [])
     .filter(
       (x) =>
-        x.name.startsWith("database-encrypted-") &&
+        successfulRuns.has(x.workflow_run?.id) &&
+        x.workflow_run.head_branch === "main" &&
+        x.name === `database-encrypted-${x.workflow_run.id}` &&
         !x.expired &&
         x.size_in_bytes > 0,
     )

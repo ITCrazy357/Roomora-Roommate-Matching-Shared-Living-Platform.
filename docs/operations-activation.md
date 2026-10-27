@@ -8,9 +8,11 @@ trong workspace chỉ trỏ localhost, nên không dùng nó làm bằng chứng
 
 ## Backup ngoài Render và email GitHub
 
-Đích được chuẩn bị là **GitHub Actions artifacts đã mã hóa**, giữ ngoài Render.
-Chưa có bản backup production được tạo trong phiên này. Không đưa DB URL hoặc
-khóa mã hóa vào chat, code, PR hay biến `NEXT_PUBLIC_*`.
+Đích lưu là **GitHub Actions artifacts đã mã hóa**, giữ ngoài Render. Đã xác minh
+[backup thủ công và restore drill](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40372096924)
+và [backup theo lịch](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40417834569)
+thành công. Đây là bằng chứng lịch sử; tiếp tục theo dõi các lần chạy mới. Không
+đưa DB URL hoặc khóa mã hóa vào chat, code, PR hay biến `NEXT_PUBLIC_*`.
 
 1. Trong GitHub repo, mở Settings → Environments, tạo `production-backup` và
    giới hạn deployment branch là **main**. Chỉ cho maintainer tin cậy sửa workflow.
@@ -36,7 +38,8 @@ khóa mã hóa vào chat, code, PR hay biến `NEXT_PUBLIC_*`.
    `ROOMORA_POSTGRES_MAJOR=17` hoặc `18`, bằng/cao hơn major version server.
    Client 17 đọc được server cũ hơn 17; server 18 cần client 18. Không nới TLS
    hoặc tắt xác minh chứng chỉ để vượt lỗi kết nối. Export yêu cầu external host
-   `.render.com`, TLS `verify-full`, CA hệ thống và không đưa credentials vào argv.
+   `.render.com`, TLS `verify-full` và không đưa credentials vào argv. Workflow cấp
+   CA hệ thống của runner qua `ROOMORA_BACKUP_CA_FILE`, mount chỉ đọc vào container.
    Nếu Render có IP allowlist, cần cấp đường truy cập cho runner đã chọn theo
    chính sách hệ thống; không tự mở DB cho toàn Internet để chạy workflow.
 4. Sau khi push/review workflow trên main, vào Actions → **Roomora database backup**
@@ -52,6 +55,15 @@ export. Chỉ `.dump.enc` và checksum được upload; lỗi pg_dump không đ�
 thành backup hoàn chỉnh. Restore drill xác thực GCM/checksum, tạo PostgreSQL
 không có mạng/port public và kiểm tra schema/index sau restore, rồi dọn plaintext
 và container. Drill không kết nối hoặc ghi vào DB production.
+
+File mã hóa được upload ngay sau export, trước restore drill. Nếu drill thất bại,
+workflow vẫn báo lỗi nhưng file đã lưu được giữ lại để điều tra/phục hồi; không
+coi file này là đã kiểm chứng. Summary ghi riêng kết quả upload và restore. Monitor
+chỉ tính artifact đúng tên/run của workflow backup trên main đã kết thúc thành công,
+để file còn lại từ một lần drill lỗi không che khuất backup đã quá hạn. Các lần hằng
+ngày không có drill vẫn được tính nếu workflow thành công; drill chạy tay/hằng tuần
+là bằng chứng khôi phục riêng. Restore chờ PostgreSQL qua TCP loopback để tránh
+nhận nhầm server tạm chỉ có Unix socket trong lúc image khởi tạo.
 
 Lịch này chưa thay thế PITR nếu bạn cần RPO ngắn hơn một ngày. Khóa mã hóa identity
 của ứng dụng, cấu hình provider và tài sản Cloudinary phải có kế hoạch lưu riêng;
@@ -93,8 +105,8 @@ notification, không tự gửi tới mọi collaborator. Xem
 [GitHub Actions notifications](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-github-actions-notifications)
 và [workflow notifications](https://docs.github.com/en/actions/concepts/workflows-and-actions/notifications-for-workflow-runs).
 Chưa xác nhận cài đặt email hay nhận email thật từ tài khoản người dùng.
-Monitor artifact chỉ chứng minh metadata có bản upload mới, không tự chứng minh
-archive còn khôi phục được; restore drill là bước kiểm tra riêng.
+Monitor artifact chỉ chứng minh metadata có bản upload mới từ một lần backup thành
+công, không tự chứng minh archive còn khôi phục được; restore drill là bước riêng.
 
 ## Xác nhận migration sau deploy
 

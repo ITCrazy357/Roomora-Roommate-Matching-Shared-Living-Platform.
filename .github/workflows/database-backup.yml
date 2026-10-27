@@ -31,6 +31,7 @@ jobs:
       - name: Validate backup settings without revealing secrets
         run: node scripts/run-database-backup.mjs --check-config
       - name: Export and encrypt without a plaintext dump on disk
+        id: export
         run: node scripts/run-database-backup.mjs
       - name: Choose daily or weekly retention
         id: retention
@@ -41,14 +42,10 @@ jobs:
           else
             echo 'days=7' >> "$GITHUB_OUTPUT"
           fi
-      - name: Restore drill in an isolated PostgreSQL container
-        if: github.event_name == 'workflow_dispatch' || steps.retention.outputs.days == '35'
-        shell: bash
-        run: |
-          mapfile -t backups < <(find backups/encrypted -name '*.dump.enc' -type f)
-          test "${#backups[@]}" -eq 1
-          node --experimental-strip-types scripts/restore-encrypted-backup.mjs "${backups[0]}"
-      - uses: actions/upload-artifact@v7
+      # Preserve the recovery file even if the following drill has an infrastructure failure.
+      - name: Store encrypted recovery file before the restore drill
+        id: archive
+        uses: actions/upload-artifact@v7
         with:
           name: database-encrypted-${{ github.run_id }}
           path: |
@@ -57,3 +54,20 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: ${{ steps.retention.outputs.days }}
+      - name: Restore drill in an isolated PostgreSQL container
+        id: restore
+        if: github.event_name == 'workflow_dispatch' || steps.retention.outputs.days == '35'
+        shell: bash
+        run: |
+          mapfile -t backups < <(find backups/encrypted -name '*.dump.enc' -type f)
+          test "${#backups[@]}" -eq 1
+          node --experimental-strip-types scripts/restore-encrypted-backup.mjs "${backups[0]}"
+      - name: Record upload and restore outcomes separately
+        if: ${{ !cancelled() && steps.export.outcome == 'success' }}
+        env:
+          ARCHIVE_OUTCOME: ${{ steps.archive.outcome }}
+          RESTORE_OUTCOME: ${{ steps.restore.outcome }}
+        run: |
+          echo "Encrypted backup upload: $ARCHIVE_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Restore drill: $RESTORE_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          echo "A stored file from a failed run is retained for recovery investigation; it has not passed this run's checks." >> "$GITHUB_STEP_SUMMARY"

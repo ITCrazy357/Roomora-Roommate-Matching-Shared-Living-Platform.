@@ -58,7 +58,17 @@ export async function restoreEncryptedBackup(
     let ready = false;
     for (let i = 0; i < 30; i++) {
       try {
-        await docker(["exec", container, "pg_isready", "-U", "postgres"]);
+        // The image's temporary init server listens on Unix sockets only.
+        // TCP readiness proves the final server is running before restore starts.
+        await docker([
+          "exec",
+          container,
+          "pg_isready",
+          "-h",
+          "127.0.0.1",
+          "-U",
+          "postgres",
+        ]);
         ready = true;
         break;
       } catch {
@@ -71,6 +81,8 @@ export async function restoreEncryptedBackup(
       "exec",
       container,
       "createdb",
+      "-h",
+      "127.0.0.1",
       "-U",
       "postgres",
       "roomora_restore",
@@ -80,6 +92,8 @@ export async function restoreEncryptedBackup(
         "exec",
         container,
         "pg_restore",
+        "-h",
+        "127.0.0.1",
         "-U",
         "postgres",
         "--dbname",
@@ -97,6 +111,8 @@ export async function restoreEncryptedBackup(
         "exec",
         container,
         "psql",
+        "-h",
+        "127.0.0.1",
         "-X",
         "-At",
         "-v",

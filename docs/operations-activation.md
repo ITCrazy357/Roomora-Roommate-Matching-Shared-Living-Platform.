@@ -96,9 +96,15 @@ Sau khi backend mới được deploy và có backup thành công:
 3. Đặt repository variable `ROOMORA_MONITOR_ENABLED=true` để chạy mỗi giờ, khoảng
    phút 17. Ba lần thử chỉ xử lý gián đoạn ngắn, không phải kiểm tra mỗi phút.
 4. Trong tài khoản GitHub: Settings → Notifications → System → Actions, chọn
-   **Email** và **Only notify for failed workflows**. Chạy tay workflow bằng tài
-   khoản của bạn; xác nhận một lần lỗi cấu hình có nhận email rồi sửa cấu hình và
-   chạy lại. Không làm hỏng DB/app để thử cảnh báo.
+   **Email** và **Only notify for failed workflows**.
+5. Actions → **Roomora production monitor** → Run workflow trên main, bật
+   `test_alert`. Lần chạy có tên **Roomora notification test (expected failure)**
+   sẽ cố ý báo lỗi ngay ở bước đầu để kiểm tra thông báo GitHub. Nó không gọi API,
+   kết nối database hoặc thay đổi cấu hình app; các bước kiểm tra thật bị bỏ qua.
+   Tùy chọn mặc định tắt và chỉ áp dụng khi chạy tay, không tác động lịch tự động.
+6. Kiểm tra Inbox/Spam của email đã cấu hình. Chỉ xác nhận cảnh báo hoạt động khi
+   nhận được email đúng lần chạy thử; trạng thái đỏ của workflow không chứng minh
+   email đã đến. Chạy lại với `test_alert` tắt để xác nhận monitor thật thành công.
 
 GitHub gửi thông báo theo tài khoản kích hoạt hoặc sửa lịch gần nhất và thiết lập
 notification, không tự gửi tới mọi collaborator. Xem

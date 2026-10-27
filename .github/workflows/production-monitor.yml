@@ -1,6 +1,13 @@
 name: Roomora production monitor
+run-name: ${{ inputs.test_alert && 'Roomora notification test (expected failure)' || 'Roomora production monitor' }}
 on:
   workflow_dispatch:
+    inputs:
+      test_alert:
+        description: "Test GitHub failure notifications only (expected failure; no API/database calls)"
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "17 * * * *"
 permissions:
@@ -20,6 +27,14 @@ jobs:
       CHECK_BACKUP_ARTIFACT: "true"
       GITHUB_TOKEN: ${{ github.token }}
     steps:
+      - name: Intentional failure to verify GitHub notifications
+        if: github.event_name == 'workflow_dispatch' && inputs.test_alert == true
+        run: |
+          echo "## Notification test - expected failure" >> "$GITHUB_STEP_SUMMARY"
+          echo "This failure was requested to verify GitHub Actions notifications. Production health checks were not run and no application or database settings were changed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Check the triggering account's configured email inbox and spam folder. A failed test run alone does not confirm email delivery." >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=Intentional notification test::Expected failure requested with test_alert=true. Check email delivery, then run normally with test_alert=false."
+          exit 1
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v7
         with:

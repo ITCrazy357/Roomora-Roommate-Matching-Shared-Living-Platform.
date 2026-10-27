@@ -70,4 +70,12 @@ jobs:
         run: |
           echo "Encrypted backup upload: $ARCHIVE_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
           echo "Restore drill: $RESTORE_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
-          echo "A stored file from a failed run is retained for recovery investigation; it has not passed this run's checks." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$ARCHIVE_OUTCOME" != "success" ]; then
+            echo "Encrypted backup upload did not succeed. No uploaded recovery file is confirmed for this run." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$RESTORE_OUTCOME" = "success" ]; then
+            echo "Encrypted backup uploaded and restore drill passed." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$RESTORE_OUTCOME" = "skipped" ]; then
+            echo "Encrypted backup uploaded. No restore drill was scheduled for this run." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Encrypted backup is retained for recovery investigation. The restore drill did not pass." >> "$GITHUB_STEP_SUMMARY"
+          fi

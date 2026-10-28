@@ -115,12 +115,41 @@ Mẫu baseline ban đầu có proxy bị sandbox chặn đã bị loại, không
 Lưu ý raw font TTF vốn được nén khi truyền HTTP: giảm file từ 545.964 xuống
 160.012 byte không đồng nghĩa giảm cùng tỷ lệ băng thông hoặc LCP.
 
-## Chưa có bằng chứng sau cập nhật 27/10
+## Review và sửa monitor — 28/10/2026
+
+Commit `08354e5` đã có [CI thành công](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40498386472)
+và [10 bài browser journeys qua](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40498386405).
+Log CI backend xác nhận 489 E2E qua. [Backup theo lịch](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40598885878)
+đã export/upload thành công; restore drill bỏ qua đúng chính sách ngày thường.
+
+Tuy nhiên, [monitor theo lịch ngày 28/10](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40639858975)
+trên cùng commit bị `skipped`. Điều kiện cũ chỉ cho lịch chạy khi repository vars
+trả về đúng `true`; chưa đọc được giá trị/phạm vi variable thực tế, nên không kết
+luận người vận hành đã đặt nhầm. Chạy tay bỏ qua điều kiện này, do đó manual pass
+không chứng minh lịch đã bật.
+
+Bản sửa monitor mặc định chạy trên `main`; chỉ `ROOMORA_MONITOR_ENABLED=false`
+ở repository variables mới tạm dừng lịch. Manual vẫn được phép. Không đổi lịch,
+quyền GitHub token hoặc kiểm tra readiness/tuổi backup. Bản sửa cần được push và
+có một lượt `schedule` thực sự chạy trước khi xác nhận phần này hoạt động từ xa.
+
+Kiểm chứng local cho bản sửa: 5 kiểm thử monitor qua, không skip; YAML parse được,
+6 trường hợp điều kiện workflow qua (lịch thiếu variable/true/false, manual khi
+tạm dừng, manual và schedule ngoài main). Cron, quyền token và mặc định tắt
+`test_alert` được kiểm tra. `git diff --check` qua; chưa có remote CI cho bản sửa này.
+
+Review cũng đo lại bản public: 3 lượt/trang, Pixel 7 giả lập, mạng 1,6 Mbps/150 ms,
+CPU slowdown 4. LCP trung vị home/listings/listing lần lượt 3.400/3.116/3.000 ms;
+9 lượt HTTP 200, không page error/tràn ngang, CLS dưới 0,1. Đây là lab sample,
+không phải field p75 và chưa đạt mục tiêu LCP 2,5 giây. Artifact local đã ignore:
+`.verification/ecc-review-20261028-public-verified.json`.
+
+## Bằng chứng còn thiếu sau review 28/10
 
 - Monitor chạy theo lịch sau khi bật variable.
-- Core Web Vitals của release mới đo lại sau deploy, chưa có mẫu field đủ lớn.
 - P75 Core Web Vitals từ người dùng thật hoặc kết quả UAT có con người.
 
 Xem [các bước kích hoạt](operations-activation.md) và
-[kịch bản UAT](user-acceptance-check.md). Lịch backup/monitor chỉ bật sau khi cấu
-hình secrets/variables; kiểm thử Playwright không được thay tên thành UAT thực tế.
+[kịch bản UAT](user-acceptance-check.md). Backup cần cấu hình secrets/variable bật;
+monitor mặc định chạy theo lịch trên main nếu không chủ động tạm dừng. Kiểm thử
+Playwright không được thay tên thành UAT thực tế.

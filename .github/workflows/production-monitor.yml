@@ -18,7 +18,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   monitor:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.ROOMORA_MONITOR_ENABLED == 'true')
+    # Monitoring is enabled by default. A missing or environment-scoped variable
+    # must not silently disable scheduled checks. Only explicit false pauses them.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.ROOMORA_MONITOR_ENABLED != 'false')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     env:

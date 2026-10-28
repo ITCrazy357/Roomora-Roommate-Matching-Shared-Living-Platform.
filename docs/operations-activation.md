@@ -95,8 +95,13 @@ Sau khi backend mới được deploy và có backup thành công:
 2. Workflow kiểm tra trang Vercel trả 200/CSP nonce; readiness trực tiếp và qua
    proxy phải có `database=up`, `schema=up`, Redis up hoặc disabled; artifact backup
    phải không quá 26 giờ (24 giờ + 2 giờ dư cho lịch/runner).
-3. Đặt repository variable `ROOMORA_MONITOR_ENABLED=true` để chạy mỗi giờ, khoảng
-   phút 17. Ba lần thử chỉ xử lý gián đoạn ngắn, không phải kiểm tra mỗi phút.
+3. Monitor mặc định chạy theo lịch trên `main`, mỗi giờ khoảng phút 17; không cần
+   tạo variable để bật. GitHub có thể chạy lịch trễ. Nếu cần chủ động tạm dừng,
+   vào Settings → Secrets and variables → Actions → **Variables** →
+   **Repository variables**, đặt `ROOMORA_MONITOR_ENABLED=false`. Đặt `true` hoặc
+   xóa variable này để tiếp tục. Variable trong Environment hoặc Secrets không
+   điều khiển điều kiện job này. Chạy tay vẫn được phép khi lịch đang tạm dừng.
+   Ba lần thử chỉ xử lý gián đoạn ngắn, không phải kiểm tra mỗi phút.
 4. Trong tài khoản GitHub: Settings → Notifications → System → Actions, chọn
    **Email** và **Only notify for failed workflows**.
 5. Actions → **Roomora production monitor** → Run workflow trên main, bật
@@ -107,6 +112,11 @@ Sau khi backend mới được deploy và có backup thành công:
 6. Kiểm tra Inbox/Spam của email đã cấu hình. Chỉ xác nhận cảnh báo hoạt động khi
    nhận được email đúng lần chạy thử; trạng thái đỏ của workflow không chứng minh
    email đã đến. Chạy lại với `test_alert` tắt để xác nhận monitor thật thành công.
+7. Sau khi bản sửa workflow đã lên `main`, kiểm tra một lượt có **Event: schedule**:
+   job `monitor` phải thực sự chạy, bước `node scripts/check-production.mjs` thành
+   công và báo `healthy=true`, `backupArtifactFresh=true`. Lượt chạy tay thành
+   công không thay thế bằng chứng này. Nếu lịch bị `skipped`, kiểm tra repository
+   variable có đang là `false` và workflow có bị Disable trong Actions hay không.
 
 GitHub gửi thông báo theo tài khoản kích hoạt hoặc sửa lịch gần nhất và thiết lập
 notification, không tự gửi tới mọi collaborator. Xem

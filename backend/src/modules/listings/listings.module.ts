@@ -16,6 +16,7 @@ import {
 } from './listings.controller.js';
 import { ListingsService } from './listings.service.js';
 import { ListingSeoController } from './listing-seo.controller.js';
+import { PublicSearchRateGuard } from '../../common/public-search-rate.guard.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ListingSeoController } from './listing-seo.controller.js';
     ListingRulesService,
     ListingQuotaService,
     AdminGuard,
+    PublicSearchRateGuard,
   ],
   exports: [ListingQueriesService],
 })

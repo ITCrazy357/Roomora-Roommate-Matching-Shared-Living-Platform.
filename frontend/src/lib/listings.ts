@@ -170,6 +170,9 @@ export function listingError(error: unknown) {
       RENT_RANGE_INVALID: "Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu.",
       LOCATION_INVALID:
         "Kiểm tra lại tỉnh/thành phố, phường/xã và vị trí ghim trên bản đồ.",
+      RATE_LIMITED: "Bạn đã thao tác quá nhiều. Vui lòng chờ rồi thử lại.",
+      RATE_LIMIT_UNAVAILABLE:
+        "Tạm thời chưa thể xử lý yêu cầu. Vui lòng thử lại sau.",
     };
     if (error.code && messages[error.code]) return messages[error.code];
     if (error.status === 401)

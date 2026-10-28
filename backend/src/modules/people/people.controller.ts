@@ -16,6 +16,7 @@ import type {
 } from '../../common/request-context.js';
 import { AuthGuard, OptionalAuthGuard } from '../auth/auth.guard.js';
 import { PeopleService } from './people.service.js';
+import { PublicSearchRateGuard } from '../../common/public-search-rate.guard.js';
 import {
   ConnectionQuery,
   ConnectionVersionDto,
@@ -28,7 +29,7 @@ import {
 export class PeopleController {
   constructor(private readonly people: PeopleService) {}
   @Get()
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(OptionalAuthGuard, PublicSearchRateGuard)
   search(
     @Req() request: OptionallyAuthenticatedRequest,
     @Query() query: PeopleQuery,

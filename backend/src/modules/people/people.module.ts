@@ -14,6 +14,7 @@ import {
   UserSafetyController,
 } from './people.controller.js';
 import { PeopleService } from './people.service.js';
+import { PublicSearchRateGuard } from '../../common/public-search-rate.guard.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, LocationsModule, CommunicationsModule],
@@ -25,6 +26,7 @@ import { PeopleService } from './people.service.js';
     PeopleSafetyService,
     PeopleViewsService,
     PeopleAccessService,
+    PublicSearchRateGuard,
   ],
   exports: [PeopleDiscoveryService],
 })

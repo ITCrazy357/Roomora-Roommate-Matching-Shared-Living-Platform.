@@ -120,6 +120,21 @@ Các rate limit từng nằm trong RAM (auth/OTP/Google, chatbot, avatar, hoàn 
 trong PostgreSQL. Redis mất kết nối: thao tác có rate limit trả 503; cache bỏ qua,
 readiness trả 503. Chi tiết dung lượng, TTL và phục hồi: [Redis](redis.md).
 
+Tìm kiếm công khai `GET /listings` và `GET /people` có limiter Redis dùng chung:
+600 yêu cầu/IP/60 giây và thêm 60 yêu cầu/tài khoản đã đăng nhập/60 giây. Đổi bộ
+lọc, trang hoặc endpoint không làm mới bucket. 429 trả `Retry-After: 60`; kết quả
+và lỗi có `Cache-Control: private, no-store`. Redis không dùng được trả 503.
+Đây là ngưỡng bảo vệ ban đầu, không phải công bố sức tải. Mỗi lần mở trang chủ
+có thể tạo ba lượt server-side tìm tin, cùng IP đi ra của frontend.
+
+Limiter dùng `request.ip` của Express theo `TRUST_PROXY_HOPS`; không tự đọc phần
+tử đầu của `X-Forwarded-For` hoặc tin `X-Real-IP`. Người vận hành xác nhận Render
+đang đặt `TRUST_PROXY_HOPS=1` ngày 28/10/2026. IP thấy tại API có thể là IP proxy/
+NAT/SSR dùng chung, không bảo đảm một IP tương ứng một người. Theo dõi 429 và
+traffic hợp lệ trước khi điều chỉnh ngưỡng; chưa có chứng cứ runtime về từng hop
+của Vercel → Render. Không tăng số hop hoặc miễn trừ SSR theo header tự khai để
+né limiter. Xem [Express proxy trust](https://expressjs.com/en/guide/behind-proxies.html).
+
 ## Đo tải và truy vấn
 
 `scripts/load-test.mjs` chỉ gửi GET, dùng concurrency hữu hạn (1–100), tối đa 10000 requests,

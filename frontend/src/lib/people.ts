@@ -106,6 +106,8 @@ export function peopleError(error: unknown) {
       BUDGET_RANGE_INVALID: "Ngân sách tối đa cần lớn hơn hoặc bằng tối thiểu.",
       LOCATION_INVALID: "Chọn tỉnh/thành phố và phường/xã hợp lệ.",
       RATE_LIMITED: "Bạn đã thao tác quá nhiều. Vui lòng thử lại sau.",
+      RATE_LIMIT_UNAVAILABLE:
+        "Tạm thời chưa thể xử lý yêu cầu. Vui lòng thử lại sau.",
     };
     if (error.code && messages[error.code]) return messages[error.code];
     if (error.status === 401)

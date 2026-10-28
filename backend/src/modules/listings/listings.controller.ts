@@ -33,6 +33,7 @@ import {
 } from './dto/listing.dto.js';
 import { ListingsService } from './listings.service.js';
 import { ListingQuotaService } from './listing-quota.service.js';
+import { PublicSearchRateGuard } from '../../common/public-search-rate.guard.js';
 
 class PhotoVersionDto extends ListingVersionDto {
   @Type(() => Number)
@@ -47,7 +48,7 @@ export class ListingsController {
   ) {}
 
   @Get()
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(OptionalAuthGuard, PublicSearchRateGuard)
   list(
     @Query() query: ListingQueryDto,
     @Req() request: OptionallyAuthenticatedRequest,

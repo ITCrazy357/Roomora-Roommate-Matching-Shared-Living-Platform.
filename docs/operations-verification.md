@@ -175,6 +175,40 @@ Fixture E2E giới hạn tạo tin chuyển sang cặp tài khoản riêng để
 hạn mức HTTP đã dùng trong các bài trước. Chưa chạy lại PostgreSQL E2E vì Docker
 engine local không hoạt động; cần CI sau push để xác nhận regression DB/Redis.
 
+## Giới hạn API tìm kiếm công khai — 28/10/2026
+
+`PublicSearchRateGuard` áp dụng sau `OptionalAuthGuard` cho `GET /listings` và
+`GET /people`, trước DTO validation và service tìm kiếm. Hai endpoint dùng chung
+600 lượt/IP trong cửa sổ 60 giây; phiên đăng nhập hợp lệ có thêm ngưỡng 60 lượt/
+tài khoản/60 giây, kể cả khi đổi IP. Khách vẫn tìm kiếm được; không thay bộ lọc,
+phân trang hoặc quyền xem dữ liệu. Yêu cầu không hợp lệ cũng được tính. Đây là
+giới hạn tìm kiếm HTTP, không áp dụng lại lên tool MCP đã có limiter riêng.
+
+Trả 429 `RATE_LIMITED` với `Retry-After: 60` khi vượt ngưỡng, 503
+`RATE_LIMIT_UNAVAILABLE` khi limiter không hoạt động. `private, no-store` áp dụng
+cả kết quả và lỗi; frontend có thông báo cho hai trường hợp này. Không cache tin
+để né truy vấn. Dùng IP theo cấu hình proxy hiện có, không tin header tùy ý.
+Người vận hành xác nhận `TRUST_PROXY_HOPS=1` trên Render; đây là xác nhận cấu hình,
+chưa chứng minh API nhận đúng IP từng người qua Vercel. Bucket IP có thể dùng
+chung cho NAT/proxy/SSR; xem lưu ý ngưỡng và theo dõi 429 trong runbook.
+
+4 kiểm thử HTTP mới dùng controller, routing, DTO validation và limiter thật,
+xác thực/query là fixture. Đã thấy lỗi trước vá (yêu cầu vượt ngưỡng vẫn 200),
+sau vá đều qua: quota chung hai API và các filter/trang/IP; tài khoản độc lập;
+600 lượt khách có tính DTO sai; header IP giả không đổi bucket khi proxy không
+được tin cậy; IP từ proxy được tin cậy có bucket riêng; hết cửa sổ được thử lại;
+Redis lỗi không gọi service tìm kiếm. Chỉ gọi localhost, không tạo tải production.
+
+Local: backend 239 bài qua, 5 Redis integration bỏ qua; build/lint/typecheck qua.
+Frontend 19 bài qua; lint hai helper sửa và typecheck toàn frontend qua. DI của
+AppModule từ build resolve được guard ở cả ListingsModule và PeopleModule, dùng
+chung RateLimitService, không khởi động server hoặc kết nối database. Docker
+engine local chưa hoạt động nên chưa chạy lại PostgreSQL E2E cho bản sửa này.
+
+Đợt upload chat trước đó đã có [CI thành công ở commit b10455a](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40662229906)
+và [browser journeys thành công](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40662229832).
+Đây không phải bằng chứng remote CI/deploy cho limiter tìm kiếm đang sửa local.
+
 ## Bằng chứng còn thiếu sau review 28/10
 
 - Monitor chạy theo lịch sau khi bật variable.

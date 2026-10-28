@@ -32,6 +32,7 @@ import {
 } from '../communications/dto/communications.dto.js';
 import { HouseChatService } from './house-chat.service.js';
 import { MessageUploadFilter } from '../communications/message-upload.filter.js';
+import { MessageSendRateGuard } from '../communications/message-send-rate.guard.js';
 @Controller('houses/:houseId')
 @UseGuards(AuthGuard)
 export class HouseChatController {
@@ -44,6 +45,7 @@ export class HouseChatController {
     return this.chat.list(req.auth.userId, houseId, query);
   }
   @Post('messages')
+  @UseGuards(MessageSendRateGuard)
   @UseFilters(MessageUploadFilter)
   @UseInterceptors(
     FileFieldsInterceptor(

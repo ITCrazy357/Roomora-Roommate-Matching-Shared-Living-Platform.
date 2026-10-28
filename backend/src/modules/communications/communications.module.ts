@@ -10,6 +10,7 @@ import { ConversationsService } from './conversations.service.js';
 import { NotificationsService } from './notifications.service.js';
 import { UpdatesService } from './updates.service.js';
 import { PresenceService } from './presence.service.js';
+import { MessageSendRateGuard } from './message-send-rate.guard.js';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -23,7 +24,8 @@ import { PresenceService } from './presence.service.js';
     NotificationsService,
     UpdatesService,
     PresenceService,
+    MessageSendRateGuard,
   ],
-  exports: [NotificationsService],
+  exports: [NotificationsService, MessageSendRateGuard],
 })
 export class CommunicationsModule {}

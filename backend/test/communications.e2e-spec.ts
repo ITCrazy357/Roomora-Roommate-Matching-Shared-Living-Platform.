@@ -545,16 +545,28 @@ describe('Phase 5 messaging, appointments and notifications (PostgreSQL)', () =>
       .expect(400);
   });
   it('enforces the per-user message rate limit', async () => {
-    await prisma.message.updateMany({
-      where: { conversationId, senderId: aid },
-      data: { createdAt: new Date(Date.now() - 120000) },
+    // Keep this quota test independent of earlier retries and invalid requests.
+    // Moving message timestamps cannot reset the HTTP request limiter.
+    const sender = await account(),
+      receiver = await account();
+    const connection = (
+      await post(sender.agent, '/api/v1/connections', {
+        targetId: receiver.id,
+      }).expect(201)
+    ).body;
+    await post(receiver.agent, `/api/v1/connections/${connection.id}/accept`, {
+      version: connection.version,
+    }).expect(201);
+    const conversation = await prisma.conversation.findUniqueOrThrow({
+      where: { connectionId: connection.id },
     });
+    const messages = `/api/v1/conversations/${conversation.id}/messages`;
     for (let index = 0; index < 30; index++)
-      await post(a, path() + '/messages', {
+      await post(sender.agent, messages, {
         clientId: randomUUID(),
         text: 'Giới hạn ' + index,
       }).expect(201);
-    await post(a, path() + '/messages', {
+    await post(sender.agent, messages, {
       clientId: randomUUID(),
       text: 'Quá giới hạn',
     }).expect(429);

@@ -26,6 +26,7 @@ import { UpdatesService } from './updates.service.js';
 import { PresenceService } from './presence.service.js';
 import { sendMessageAttachment, type MessageFiles } from './message-media.js';
 import { MessageUploadFilter } from './message-upload.filter.js';
+import { MessageSendRateGuard } from './message-send-rate.guard.js';
 import {
   AppointmentDto,
   AppointmentQuery,
@@ -90,6 +91,7 @@ export class CommunicationsController {
     return this.conversations.messages(req.auth.userId, id, query);
   }
   @Post('conversations/:id/messages')
+  @UseGuards(MessageSendRateGuard)
   @UseFilters(MessageUploadFilter)
   @UseInterceptors(
     FileFieldsInterceptor(

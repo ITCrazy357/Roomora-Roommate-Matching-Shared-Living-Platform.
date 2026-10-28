@@ -144,6 +144,37 @@ CPU slowdown 4. LCP trung vị home/listings/listing lần lượt 3.400/3.116/3
 không phải field p75 và chưa đạt mục tiêu LCP 2,5 giây. Artifact local đã ignore:
 `.verification/ecc-review-20261028-public-verified.json`.
 
+## Giới hạn yêu cầu gửi chat — 28/10/2026
+
+Thêm `MessageSendRateGuard` sau xác thực và trước `FileFieldsInterceptor` cho
+POST tin nhắn riêng và nhà chung. Mỗi tài khoản có tối đa 60 yêu cầu gửi trong
+cửa sổ 60 giây; multipart có thêm ngưỡng 30 yêu cầu trong cùng khoảng thời gian.
+Hai loại chat dùng chung bucket theo tài khoản, nên đổi hội thoại/nhà hoặc gửi lại
+cùng `clientId` không làm mới hạn mức. Cả yêu cầu không hợp lệ cũng được tính.
+Vượt ngưỡng trả 429 `RATE_LIMITED` trước khi Multer buffer file hoặc Sharp xử lý
+ảnh. Guard dùng `RateLimitService` hiện có: production chia sẻ counter qua Redis,
+Redis đã cấu hình mà không dùng được trả 503 `RATE_LIMIT_UNAVAILABLE`.
+
+Giới hạn tạo tin 30/phút và cơ chế chống tạo trùng ở service vẫn được giữ; một
+lượt gửi lại trong hạn mức vẫn đi qua xử lý idempotency hiện có. Frontend giữ
+nội dung/tệp khi nhận lỗi để người dùng thử lại. Không thêm migration, dependency
+hoặc biến môi trường. Đây là bảo vệ trong ứng dụng, không cam kết proxy đã từ chối
+nhận byte từ mạng trước đó.
+
+5 regression HTTP mới dùng controller/guard/Multer thật, xác thực và service
+nghiệp vụ là fixture, không kết nối database: đã bắt lỗi trước khi vá (mong 429
+nhưng nhận 400 từ multipart parser), rồi qua sau vá. Bao phủ retry cùng mã tin,
+quota chung hai route, tài khoản độc lập, reset cửa sổ, yêu cầu sai vẫn tính,
+xác thực trước quota và lỗi limiter trả 503 trước parser. Kiểm tra này không tự
+chứng minh persistence/idempotency với PostgreSQL.
+
+Unit backend: 235 qua, 5 Redis integration bỏ qua do chưa có `REDIS_TEST_URL`.
+Build, lint, TypeScript và Prettier qua; dependency graph toàn AppModule compile
+được và resolve guard từ build, không khởi động server hoặc kết nối database.
+Fixture E2E giới hạn tạo tin chuyển sang cặp tài khoản riêng để không phụ thuộc
+hạn mức HTTP đã dùng trong các bài trước. Chưa chạy lại PostgreSQL E2E vì Docker
+engine local không hoạt động; cần CI sau push để xác nhận regression DB/Redis.
+
 ## Bằng chứng còn thiếu sau review 28/10
 
 - Monitor chạy theo lịch sau khi bật variable.

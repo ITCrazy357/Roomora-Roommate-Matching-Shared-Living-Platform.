@@ -103,6 +103,7 @@ function ChatPanel() {
         type="button"
         className="chat-widget-launcher"
         aria-label={open ? "Thu gọn trợ lý Roomora" : "Mở trợ lý Roomora"}
+        title={open ? "Thu gọn trợ lý Roomora" : "Mở trợ lý Roomora"}
         aria-expanded={open}
         aria-controls={mounted ? "roomora-chat-panel" : undefined}
         onClick={() => {
@@ -114,7 +115,6 @@ function ChatPanel() {
         }}
       >
         <ChatIcon />
-        <span className="chat-widget-label">Hỏi Roomora</span>
       </button>
     </div>
   );

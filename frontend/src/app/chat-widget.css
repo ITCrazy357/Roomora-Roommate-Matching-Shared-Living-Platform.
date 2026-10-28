@@ -6,20 +6,19 @@
 }
 
 .chat-widget-launcher {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 0 18px;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
   border: 0;
-  border-radius: 28px;
+  border-radius: 50%;
   background: var(--primary-action);
   color: var(--on-primary);
   box-shadow: var(--shadow-popup);
   cursor: pointer;
   font: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
+  transition: background-color 150ms;
 }
 
 .chat-widget-launcher:hover {
@@ -116,6 +115,10 @@
 }
 
 @media (max-width: 600px) {
+  body:has(.house-chat) .chat-widget {
+    display: none;
+  }
+
   .chat-widget {
     right: 16px;
     bottom: max(16px, env(safe-area-inset-bottom));
@@ -124,13 +127,6 @@
   .chat-widget-launcher {
     width: 54px;
     height: 54px;
-    min-height: 54px;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .chat-widget-label {
-    display: none;
   }
 
   .chat-widget-panel {

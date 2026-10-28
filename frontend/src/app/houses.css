@@ -190,10 +190,42 @@
 .house-chat > h2 {
   margin-bottom: 8px;
 }
+.house-chat-subtitle {
+  font-size: 0.8rem;
+}
+.house-chat-members {
+  margin-top: 8px;
+}
+.house-chat-members > summary {
+  width: fit-content;
+  min-height: 44px;
+  align-content: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.house-chat-members > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.house-chat-members .house-chat-presence {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin-block: 4px 12px;
+}
+.house-chat-members .house-chat-member {
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+}
 .house-chat .house-chat-history {
-  margin-top: 16px;
+  margin-top: 12px;
   border-radius: 12px;
-  height: clamp(200px, 38dvh, 320px);
+  height: clamp(320px, 55dvh, 600px);
   gap: 12px;
 }
 .house-chat {
@@ -207,6 +239,7 @@
 }
 .house-chat .message-bubble {
   max-width: min(90%, 400px);
+  flex-shrink: 0;
 }
 .balance-card {
   border-top: 4px solid var(--border-strong);
@@ -683,5 +716,40 @@
   }
   .house-member .text-link {
     grid-column: 2 / -1;
+  }
+  .house-panel.house-chat {
+    padding: 12px;
+  }
+  .house-chat .house-chat-history {
+    padding: 12px 8px;
+  }
+  .house-chat .message-bubble {
+    max-width: 95%;
+  }
+  .house-chat .composer-shortcuts > small {
+    display: none;
+  }
+  .house-chat .composer-shortcuts .button {
+    min-height: 44px;
+  }
+  .house-chat .composer-row {
+    display: grid;
+    grid-template-columns: 44px 44px 44px minmax(0, 1fr) 44px;
+    gap: 8px;
+  }
+  .house-chat .composer-row .field {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .house-chat .composer-send {
+    grid-column: 5;
+  }
+  .house-chat .composer-icon,
+  .house-chat .composer-send {
+    width: 44px;
+    height: 44px;
+  }
+  .house-chat .composer-row textarea {
+    font-size: 1rem;
   }
 }

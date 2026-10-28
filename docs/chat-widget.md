@@ -70,6 +70,8 @@ Mã ứng dụng PDF cũ, API riêng, cấu hình môi trường, script Supabas
 
 Hội thoại và bản nháp được giữ khi thu gọn/mở lại và chuyển trang trong cùng phiên trang. Khi đổi tài khoản, khung mới được tạo. Trợ lý không hiện trong khu vực ADMIN.
 
+Nút mở trợ lý là icon tròn trên cả mobile và desktop, có nhãn truy cập và tooltip. Footer chừa khoảng trống để nút không che liên kết “Về đầu trang”. Trên màn hình tối đa 600px, trợ lý nổi được ẩn khi đang mở tab chat chung trong nhà để không che ô soạn hoặc nút gửi; khi chuyển tab, nút hiện lại.
+
 ## Kiểm chứng ngày 13/10/2026
 
 - 26 unit test cho câu hỏi FAQ, cách diễn đạt khác, ngoài phạm vi, yêu cầu xử lý cá nhân, prompt injection, kết quả model sai ID/không chắc chắn, refusal, lỗi provider và giới hạn request đã qua.

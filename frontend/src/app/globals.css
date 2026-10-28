@@ -1424,6 +1424,7 @@ h3 {
   gap: 16px;
   border-top: 1px solid var(--border);
   padding-block: 20px;
+  padding-right: 80px;
   color: var(--muted);
   font-size: 0.75rem;
 }
@@ -2264,6 +2265,7 @@ h3 {
   gap: 12px 24px;
   border-top: 1px solid var(--border);
   padding-block: 24px;
+  padding-right: 80px;
   color: var(--muted);
   font-size: 0.75rem;
 }

@@ -84,6 +84,7 @@ export function HouseChat({
     return () => controller.abort();
   }, [path, revision, refresh]);
   const newest = messages?.at(-1)?.number;
+  const peers = members.filter((member) => member.userId !== userId);
   useLayoutEffect(() => {
     if (stayAtBottom.current && history.current)
       history.current.scrollTop = history.current.scrollHeight;
@@ -107,42 +108,41 @@ export function HouseChat({
   return (
     <Card className="house-panel house-chat">
       <h2>Chat chung trong nhà</h2>
-      <p className="text-muted">
-        {connected ? "Tin nhắn tự cập nhật" : "Đang kết nối lại…"} · Chỉ thành
-        viên đang ở được tham gia.
+      <p className="house-chat-subtitle text-muted">
+        {members.length} thành viên
+        {!connected && <span role="status"> · Đang kết nối lại…</span>}
       </p>
-      <div
-        className="house-chat-presence"
-        aria-label="Trạng thái thành viên trong nhà"
-      >
-        {members.map((member) => (
-          <div className="house-chat-member" key={member.userId}>
-            <span className="presence-avatar">
-              <span className="house-avatar" aria-hidden="true">
-                {member.avatarUrl ? (
-                  <Image
-                    src={member.avatarUrl}
-                    alt=""
-                    width={32}
-                    height={32}
-                    unoptimized
-                  />
-                ) : (
-                  member.displayName.charAt(0)
-                )}
-              </span>
-              <PresenceStatus presence={member.presence} compact />
-            </span>
-            <span>
-              <strong>
-                {member.displayName}
-                {member.userId === userId && " (Bạn)"}
-              </strong>
-              <PresenceStatus presence={member.presence} />
-            </span>
+      {peers.length > 0 && (
+        <details className="house-chat-members">
+          <summary>Xem thành viên ({peers.length})</summary>
+          <div
+            className="house-chat-presence"
+            aria-label="Trạng thái các thành viên khác trong nhà"
+          >
+            {peers.map((member) => (
+              <div className="house-chat-member" key={member.userId}>
+                <span className="house-avatar" aria-hidden="true">
+                  {member.avatarUrl ? (
+                    <Image
+                      src={member.avatarUrl}
+                      alt=""
+                      width={32}
+                      height={32}
+                      unoptimized
+                    />
+                  ) : (
+                    member.displayName.charAt(0)
+                  )}
+                </span>
+                <span>
+                  <strong>{member.displayName}</strong>
+                  <PresenceStatus presence={member.presence} />
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </details>
+      )}
       {error && (
         <ErrorState
           message={error}
@@ -185,32 +185,31 @@ export function HouseChat({
                 className={`message-bubble house-message ${message.senderId === userId ? "message-own" : ""}`}
                 key={message.id}
               >
-                <div className="house-message-person">
-                  <span className="house-avatar">
-                    {message.sender.avatarUrl ? (
-                      <Image
-                        src={message.sender.avatarUrl}
-                        width={32}
-                        height={32}
-                        alt=""
-                        unoptimized
-                      />
-                    ) : (
-                      message.sender.displayName.charAt(0)
-                    )}
-                  </span>
-                  <div>
-                    <strong>
-                      {message.sender.displayName}
-                      {message.senderId === userId && " (Bạn)"}
-                    </strong>
-                    <small>
-                      {message.sender.role === "OWNER"
-                        ? "Trưởng nhà"
-                        : "Thành viên"}
-                    </small>
+                {message.senderId !== userId && (
+                  <div className="house-message-person">
+                    <span className="house-avatar">
+                      {message.sender.avatarUrl ? (
+                        <Image
+                          src={message.sender.avatarUrl}
+                          width={32}
+                          height={32}
+                          alt=""
+                          unoptimized
+                        />
+                      ) : (
+                        message.sender.displayName.charAt(0)
+                      )}
+                    </span>
+                    <div>
+                      <strong>{message.sender.displayName}</strong>
+                      <small>
+                        {message.sender.role === "OWNER"
+                          ? "Trưởng nhà"
+                          : "Thành viên"}
+                      </small>
+                    </div>
                   </div>
-                </div>
+                )}
                 {message.deletedAt ? (
                   <p className="message-deleted">Tin nhắn đã bị xóa</p>
                 ) : (

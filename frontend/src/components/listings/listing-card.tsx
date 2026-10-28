@@ -121,7 +121,7 @@ export function ListingCard({
               sizes={
                 manage
                   ? "220px"
-                  : "(max-width: 640px) 100vw, (max-width: 1100px) 45vw, 30vw"
+                  : "(max-width: 640px) calc(100vw - 32px), (max-width: 1100px) 45vw, 30vw"
               }
               loader={
                 isPublicCloudinaryImage(listing.photos[0].url)

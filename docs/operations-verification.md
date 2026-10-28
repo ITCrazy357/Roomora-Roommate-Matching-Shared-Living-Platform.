@@ -209,6 +209,22 @@ engine local chưa hoạt động nên chưa chạy lại PostgreSQL E2E cho b�
 và [browser journeys thành công](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40662229832).
 Đây không phải bằng chứng remote CI/deploy cho limiter tìm kiếm đang sửa local.
 
+## LCP theo chiều rộng ảnh — 28/10/2026
+
+[Báo cáo đo đối chứng](performance-followup-2026-10-28.md): chỉ sửa `sizes` theo
+lề mobile, không hạ quality hoặc sửa ảnh gốc. Pixel 7 chọn ảnh 1.080 thay vì
+1.200 px; ảnh LCP trong dataset giảm transfer khoảng 31%. A/B/A2/B2 trên cùng
+server local, 6 mẫu/trang/cấu hình: LCP trung vị home 2.592 → 2.122 ms, listings
+2.178 → 1.762 ms, listing 2.284 → 1.896 ms. Không so phần trăm này với production.
+
+36 mẫu hợp lệ, CLS dưới 0,1, không page error/tràn ngang. 18 tổ hợp viewport/
+trang qua QA; slideshow/theme/trợ lý và SSR không JavaScript qua. Frontend build,
+lint và 19 tests qua. Candidate chưa deploy; chưa có field p75 hoặc UAT mới.
+
+Limiter tìm kiếm tại `60cdf80` đã có [CI thành công](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40664001277)
+và [browser journeys thành công](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40664001238).
+Các run đó không kiểm chứng bản sửa `sizes` chưa push trong phiên này.
+
 ## Bằng chứng còn thiếu sau review 28/10
 
 - Monitor chạy theo lịch sau khi bật variable.

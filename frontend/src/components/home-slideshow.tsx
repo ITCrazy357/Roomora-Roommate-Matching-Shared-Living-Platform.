@@ -117,7 +117,7 @@ export function HomeSlideshow() {
                 src={item.src}
                 alt={item.alt}
                 fill
-                sizes="(max-width: 700px) 100vw, 50vw"
+                sizes="(max-width: 767px) calc(100vw - 32px), 50vw"
                 preload={index === 1}
                 loading={index === 1 ? undefined : "lazy"}
                 className="hero-image"

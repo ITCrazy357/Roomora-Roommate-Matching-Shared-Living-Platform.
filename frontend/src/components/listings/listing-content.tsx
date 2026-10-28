@@ -68,7 +68,11 @@ export function ListingContent({
                 src={photo.url}
                 alt={`${listing.title} — ảnh ${index + 1}`}
                 fill
-                sizes={index === 0 ? "(max-width: 700px) 100vw, 65vw" : "30vw"}
+                sizes={
+                  index === 0
+                    ? "(max-width: 700px) calc(100vw - 32px), 65vw"
+                    : "30vw"
+                }
                 loader={
                   isPublicCloudinaryImage(photo.url)
                     ? publicImageLoader

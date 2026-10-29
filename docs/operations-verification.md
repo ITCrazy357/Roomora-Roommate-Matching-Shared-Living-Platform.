@@ -227,10 +227,43 @@ Các run đó không kiểm chứng bản sửa `sizes` chưa push trong phiên 
 
 ## Bằng chứng còn thiếu sau review 28/10
 
-- Monitor chạy theo lịch sau khi bật variable.
+- Monitor theo lịch đã có lượt thành công; xem cập nhật 29/10 bên dưới về lỗi
+  truy cập API ngắt quãng và bản sửa chẩn đoán/retry.
 - P75 Core Web Vitals từ người dùng thật hoặc kết quả UAT có con người.
 
 Xem [các bước kích hoạt](operations-activation.md) và
 [kịch bản UAT](user-acceptance-check.md). Backup cần cấu hình secrets/variable bật;
 monitor mặc định chạy theo lịch trên main nếu không chủ động tạm dừng. Kiểm thử
 Playwright không được thay tên thành UAT thực tế.
+
+## Monitor theo lịch và lỗi truy cập API — 29/10/2026
+
+Đối chiếu GitHub trên commit `becf11e`: [#14](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40749226837),
+[#15](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40785979562)
+và [#16](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40806648978)
+đều là `event=schedule`, `conclusion=success`. Đây là bằng chứng lịch tự kích hoạt
+và kiểm tra đã chạy được sau bản sửa điều kiện job.
+
+[#17](https://github.com/ITCrazy357/Roomora-Roommate-Matching-Shared-Living-Platform./actions/runs/40854191403)
+lúc 17:01 ngày 29/10 (UTC+7) thất bại: direct/proxy đều `status=null`, home 200/CSP
+hợp lệ, backup còn mới khoảng 10,75 giờ. #13 có cùng biểu hiện. Mã cũ gộp lỗi mạng,
+timeout và lỗi đọc JSON thành null nên không thể phân biệt nguyên nhân từ log đó.
+Không có bằng chứng lỗi backup hay lịch chưa bật. Kiểm tra GET công khai lúc
+17:08 ngày 29/10: direct/proxy 200 với readiness hợp lệ; home 200/CSP hợp lệ.
+Điều này chứng minh đã phục hồi lúc kiểm tra, không phủ nhận sự cố trước đó.
+
+Bản sửa local giữ status đã nhận, thêm thời gian và mã lỗi an toàn, giữ lịch sử
+từng lần thử; tăng từ 3 lần/3 giây nghỉ (khoảng 66 giây tối đa) lên 5 lần/5 giây
+nghỉ (khoảng 120 giây tối đa). Job giới hạn 4 phút để còn thời gian setup và tra
+metadata backup. Không gộp các endpoint thành công ở những lần khác nhau; vẫn lỗi
+nếu không có một lần tất cả cùng đạt. Backup quá hạn/lỗi metadata vẫn làm job lỗi.
+Không đổi lịch, không tạo traffic liên tục, không thay điều kiện schema/Redis/CSP.
+
+8 kiểm thử monitor local qua: phân loại lỗi không lộ provider body, timeout khi
+body chưa hoàn tất dù đã nhận HTTP 200, phục hồi và dừng retry sớm, hết 5 lần vẫn
+unhealthy, cùng các kiểm tra schema và backup hiện có. Fixture không chứng minh
+nguyên nhân hạ tầng. Chưa có kết quả GitHub Actions cho bản sửa local này.
+Toàn bộ 18 kiểm thử script local qua, không skip; YAML và `git diff --check` qua.
+Chạy CLI vừa sửa lúc 17:11 (UTC+7) với ba URL công khai đạt ngay lần đầu, cả ba
+HTTP 200, `healthy=true`. Lượt local này không tra metadata artifact GitHub vì
+không sử dụng token workflow, nên không thay thế lần chạy đầy đủ trên Actions.

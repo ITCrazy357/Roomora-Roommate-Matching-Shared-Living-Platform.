@@ -1,7 +1,156 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { checkProduction, backupArtifactFresh } from "./check-production.mjs";
+import {
+  checkProduction,
+  checkProductionWithRetries,
+  backupArtifactFresh,
+} from "./check-production.mjs";
+
+const readyBody = {
+  status: "ok",
+  service: "roomora-api",
+  database: "up",
+  schema: "up",
+  redis: "up",
+};
+const site = "https://site.example.test";
+const api = "https://api.example.test";
+function healthyResponse(url) {
+  return new URL(url).pathname === "/"
+    ? new Response("home", {
+        headers: { "Content-Security-Policy": "script-src 'nonce-fixture'" },
+      })
+    : Response.json(readyBody);
+}
+
+test("request diagnostics distinguish timeout, network and invalid JSON without logging provider data", async () => {
+  const original = globalThis.fetch;
+  try {
+    for (const [response, status, error] of [
+      [
+        () => {
+          throw new DOMException("private timeout", "TimeoutError");
+        },
+        null,
+        "TIMEOUT",
+      ],
+      [
+        () => {
+          throw new TypeError("private network details");
+        },
+        null,
+        "NETWORK_ERROR",
+      ],
+      [
+        () => new Response("private provider HTML", { status: 503 }),
+        503,
+        "INVALID_JSON",
+      ],
+    ]) {
+      globalThis.fetch = async (url) =>
+        new URL(url).pathname === "/" ? healthyResponse(url) : response();
+      const result = await checkProduction({ site, api });
+      assert.equal(result.healthy, false);
+      for (const probe of [result.direct, result.proxy]) {
+        assert.equal(probe.status, status);
+        assert.equal(probe.error, error);
+        assert.ok(probe.elapsedMs >= 0);
+      }
+      assert.equal(JSON.stringify(result).includes("private"), false);
+    }
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("the timeout also bounds a stalled response body and keeps its HTTP status", async () => {
+  const server = createServer((req, res) => {
+    if (req.url === "/") {
+      res.writeHead(200, {
+        "Content-Security-Policy": "script-src 'nonce-fixture'",
+      });
+      res.end("home");
+    } else {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.write('{"status":');
+    }
+  });
+  await new Promise((ok) => server.listen(0, "127.0.0.1", ok));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const result = await checkProduction({
+      site: origin,
+      api: origin,
+      timeoutMs: 200,
+    });
+    assert.equal(result.healthy, false);
+    assert.equal(result.home.status, 200);
+    for (const probe of [result.direct, result.proxy]) {
+      assert.equal(probe.status, 200);
+      assert.equal(probe.error, "TIMEOUT");
+    }
+  } finally {
+    server.closeAllConnections();
+    await new Promise((ok) => server.close(ok));
+  }
+});
+
+test("retries allow recovery, record the failed attempts and stop immediately once healthy", async () => {
+  const original = globalThis.fetch;
+  let directCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).origin === api && ++directCalls < 3)
+      throw new DOMException("fixture", "TimeoutError");
+    return healthyResponse(url);
+  };
+  try {
+    const result = await checkProductionWithRetries({
+      site,
+      api,
+      retryDelayMs: 0,
+    });
+    assert.equal(result.healthy, true);
+    assert.equal(directCalls, 3);
+    assert.equal(result.attempts.length, 3);
+    assert.equal(result.attempts[0].direct.error, "TIMEOUT");
+    assert.equal(result.attempts[1].healthy, false);
+    assert.equal(result.attempts[2].healthy, true);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("five unsuccessful attempts remain unhealthy; successes from different attempts are not combined", async () => {
+  const original = globalThis.fetch;
+  let attempt = 0;
+  globalThis.fetch = async (url) => {
+    const target = new URL(url);
+    if (target.origin === api) attempt++;
+    if (target.pathname !== "/") {
+      const failing =
+        target.origin === api ? attempt % 2 === 1 : attempt % 2 === 0;
+      if (failing)
+        return Response.json({ ...readyBody, schema: "down" }, { status: 503 });
+    }
+    return healthyResponse(url);
+  };
+  try {
+    const result = await checkProductionWithRetries({
+      site,
+      api,
+      retryDelayMs: 0,
+    });
+    assert.equal(result.healthy, false);
+    assert.equal(result.attempts.length, 5);
+    assert.equal(attempt, 5);
+    assert.ok(result.attempts.every((x) => !x.healthy));
+    assert.equal(result.direct.ready, false);
+    assert.equal(result.proxy.ready, true);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
 
 test("a live process without the release schema is not deployment-ready", async () => {
   let schema = "up";

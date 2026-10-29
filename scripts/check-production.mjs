@@ -1,6 +1,12 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+function requestError(error) {
+  if (["TimeoutError", "AbortError"].includes(error?.name)) return "TIMEOUT";
+  if (error instanceof SyntaxError) return "INVALID_JSON";
+  return "NETWORK_ERROR";
+}
+
 export async function checkProduction({ site, api, timeoutMs = 20000 }) {
   const frontend = new URL(site);
   const backend = new URL(api);
@@ -17,44 +23,64 @@ export async function checkProduction({ site, api, timeoutMs = 20000 }) {
       throw new Error("Invalid origin");
   }
   async function readiness(url) {
+    const started = performance.now();
+    let status = null;
     try {
       const r = await fetch(url, {
+        cache: "no-store",
         redirect: "error",
         signal: AbortSignal.timeout(timeoutMs),
       });
+      status = r.status;
       const body = await r.json();
       return {
-        status: r.status,
+        status,
+        elapsedMs: Math.round(performance.now() - started),
         ready:
           r.status === 200 &&
-          body.status === "ok" &&
-          body.service === "roomora-api" &&
-          body.database === "up" &&
-          body.schema === "up" &&
-          ["up", "disabled"].includes(body.redis),
+          body?.status === "ok" &&
+          body?.service === "roomora-api" &&
+          body?.database === "up" &&
+          body?.schema === "up" &&
+          ["up", "disabled"].includes(body?.redis),
       };
-    } catch {
-      return { status: null, ready: false };
+    } catch (error) {
+      return {
+        status,
+        ready: false,
+        elapsedMs: Math.round(performance.now() - started),
+        error: requestError(error),
+      };
     }
   }
   const [direct, proxy, home] = await Promise.all([
     readiness(new URL("/api/v1/health/ready", backend)),
     readiness(new URL("/api/v1/health/ready", frontend)),
     (async () => {
+      const started = performance.now();
+      let status = null;
       try {
         const r = await fetch(frontend, {
+          cache: "no-store",
           redirect: "error",
           signal: AbortSignal.timeout(timeoutMs),
         });
+        status = r.status;
         await r.arrayBuffer();
         return {
-          status: r.status,
+          status,
+          elapsedMs: Math.round(performance.now() - started),
           csp: /script-src[^;]*'nonce-[^']+'/.test(
             r.headers.get("content-security-policy") || "",
           ),
         };
-      } catch {
-        return { status: null, csp: false };
+      } catch (error) {
+        return {
+          status,
+          csp: false,
+          elapsedMs: Math.round(performance.now() - started),
+          error: requestError(error),
+        };
       }
     })(),
   ]);
@@ -65,6 +91,23 @@ export async function checkProduction({ site, api, timeoutMs = 20000 }) {
     home,
     healthy: direct.ready && proxy.ready && home.status === 200 && home.csp,
   };
+}
+
+export async function checkProductionWithRetries({
+  site,
+  api,
+  timeoutMs = 20000,
+  retryDelayMs = 5000,
+}) {
+  const attempts = [];
+  // At most 5 * 20s + 4 * 5s = 120s for health checks. A recovered service
+  // must pass all checks in the same attempt; earlier success cannot mask failure.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const result = await checkProduction({ site, api, timeoutMs });
+    attempts.push(result);
+    if (result.healthy || attempt === 4) return { ...result, attempts };
+    await new Promise((ok) => setTimeout(ok, retryDelayMs));
+  }
 }
 
 export async function backupArtifactFresh({
@@ -133,16 +176,10 @@ if (
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   try {
-    let result;
-    // Retries handle short network failures; no continuous traffic or load test.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      result = await checkProduction({
-        site: process.env.SITE_URL,
-        api: process.env.API_ORIGIN,
-      });
-      if (result.healthy) break;
-      if (attempt < 2) await new Promise((ok) => setTimeout(ok, 3000));
-    }
+    const result = await checkProductionWithRetries({
+      site: process.env.SITE_URL,
+      api: process.env.API_ORIGIN,
+    });
     const backup =
       process.env.CHECK_BACKUP_ARTIFACT === "true"
         ? await backupArtifactFresh({

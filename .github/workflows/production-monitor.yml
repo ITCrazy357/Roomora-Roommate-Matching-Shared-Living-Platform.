@@ -22,7 +22,8 @@ jobs:
     # must not silently disable scheduled checks. Only explicit false pauses them.
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.ROOMORA_MONITOR_ENABLED != 'false')
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    # Health retries have a 120s budget, plus GitHub backup metadata and setup.
+    timeout-minutes: 4
     env:
       SITE_URL: https://roomora-blond.vercel.app
       API_ORIGIN: https://roomora-api-qxjb.onrender.com

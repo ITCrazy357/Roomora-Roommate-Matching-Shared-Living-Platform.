@@ -95,6 +95,17 @@ Sau khi backend mới được deploy và có backup thành công:
 2. Workflow kiểm tra trang Vercel trả 200/CSP nonce; readiness trực tiếp và qua
    proxy phải có `database=up`, `schema=up`, Redis up hoặc disabled; artifact backup
    phải không quá 26 giờ (24 giờ + 2 giờ dư cho lịch/runner).
+   Health check thử tối đa 5 lần, mỗi yêu cầu có timeout 20 giây, cách nhau 5 giây:
+   tổng ngân sách khoảng 120 giây, chưa tính tra metadata backup. Job có giới hạn
+   4 phút. JSON log giữ từng lần thử, thời gian mỗi endpoint và mã `TIMEOUT`,
+   `NETWORK_ERROR` hoặc `INVALID_JSON`; không ghi response body/lỗi thô của provider.
+   Phải đạt cả ba kiểm tra trong cùng một lần thử mới được coi là healthy.
+   API phục hồi sau retry không chứng minh người truy cập không gặp chậm/lỗi.
+   Nếu dùng Render Free, dịch vụ có thể ngủ sau 15 phút không có traffic và mất
+   khoảng một phút khởi động lại ([Render](https://render.com/docs/free#spinning-down-on-idle)).
+   Không mặc định quy lỗi timeout cho chế độ ngủ: đối chiếu Render Events/Logs
+   với thời gian `checkedAt` trước khi kết luận. Tăng cửa sổ retry không cải thiện
+   thời gian người dùng chờ API; nếu cần luôn sẵn sàng, đánh giá compute không ngủ.
 3. Monitor mặc định chạy theo lịch trên `main`, mỗi giờ khoảng phút 17; không cần
    tạo variable để bật. GitHub có thể chạy lịch trễ. Nếu cần chủ động tạm dừng,
    vào Settings → Secrets and variables → Actions → **Variables** →

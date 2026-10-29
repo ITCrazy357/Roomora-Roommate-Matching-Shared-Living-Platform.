@@ -27,9 +27,9 @@ jobs:
           image_prefix="$(bash scripts/image-prefix.sh)"
           printf 'Image prefix: %s\n' "$image_prefix"
           printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker build --target runtime -t "$image_prefix-api:$RELEASE" backend
-          docker build --target migrate -t "$image_prefix-migrate:$RELEASE" backend
-          docker build -t "$image_prefix-frontend:$RELEASE" frontend
+          bash scripts/docker-build.sh --target runtime -t "$image_prefix-api:$RELEASE" backend
+          bash scripts/docker-build.sh --target migrate -t "$image_prefix-migrate:$RELEASE" backend
+          bash scripts/docker-build.sh -t "$image_prefix-frontend:$RELEASE" frontend
           docker push "$image_prefix-api:$RELEASE"
           docker push "$image_prefix-migrate:$RELEASE"
           docker push "$image_prefix-frontend:$RELEASE"

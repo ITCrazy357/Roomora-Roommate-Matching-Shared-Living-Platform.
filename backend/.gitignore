@@ -43,4 +43,5 @@
 Thumbs.db
 Desktop.ini
 
-/room.todo/
+# Local development roadmap (a file, not a directory).
+/room.todo

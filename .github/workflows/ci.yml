@@ -82,10 +82,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
-      - run: docker build --target runtime -t roomora-api:ci backend
+      - run: bash scripts/docker-build.sh --target runtime -t roomora-api:ci backend
       - run: docker run --rm --entrypoint npm roomora-api:ci audit --omit=dev --omit=peer --audit-level=high
-      - run: docker build --target migrate -t roomora-migrate:ci backend
-      - run: docker build -t roomora-frontend:ci frontend
+      - run: bash scripts/docker-build.sh --target migrate -t roomora-migrate:ci backend
+      - run: bash scripts/docker-build.sh -t roomora-frontend:ci frontend
       - name: Validate release image tags
         shell: bash
         run: |

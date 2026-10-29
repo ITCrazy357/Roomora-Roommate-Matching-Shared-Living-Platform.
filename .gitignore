@@ -3,6 +3,9 @@
 *.env
 *.env.*
 
+# Local documentation; project READMEs remain tracked.
+/docs/
+
 # Local design references and verification artifacts.
 /design-reference/
 /.verification/

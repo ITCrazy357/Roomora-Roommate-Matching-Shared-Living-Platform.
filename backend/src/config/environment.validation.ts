@@ -92,6 +92,7 @@ export function validateEnvironment(
   const smtpUser = optionalText('SMTP_USER');
   const smtpPassword = optionalText('SMTP_PASSWORD');
   const mailFrom = optionalText('MAIL_FROM');
+  const databaseSslCa = optionalText('DATABASE_SSL_CA_BASE64');
 
   if ((smtpUser && !smtpPassword) || (!smtpUser && smtpPassword)) {
     throw new Error('SMTP_USER và SMTP_PASSWORD phải được cấu hình cùng nhau');
@@ -299,6 +300,7 @@ export function validateEnvironment(
       1,
       60000,
     ),
+    DATABASE_SSL_CA_BASE64: databaseSslCa,
     TRUST_PROXY_HOPS: integerInRange('TRUST_PROXY_HOPS', 0, 0, 1),
     FRONTEND_ORIGIN: origin.origin,
     MCP_ENABLED: mcpEnabled,

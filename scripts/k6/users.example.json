@@ -1,0 +1,10 @@
+[
+  {
+    "email": "load-01@example.test",
+    "password": "REPLACE_WITH_TEST_ACCOUNT_PASSWORD"
+  },
+  {
+    "email": "load-02@example.test",
+    "password": "REPLACE_WITH_TEST_ACCOUNT_PASSWORD"
+  }
+]

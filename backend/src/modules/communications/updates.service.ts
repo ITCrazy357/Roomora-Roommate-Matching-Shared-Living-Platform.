@@ -19,6 +19,7 @@ import {
   takeUntil,
 } from 'rxjs';
 import { PrismaService } from '../../database/prisma.service.js';
+import { postgresConnectionOptions } from '../../database/postgres-connection-options.js';
 import type { AuthContext } from '../../common/request-context.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 
@@ -49,7 +50,10 @@ export class UpdatesService implements OnModuleInit, OnModuleDestroy {
 
   private async connect() {
     const client = new Client({
-      connectionString: this.config.getOrThrow<string>('DATABASE_URL'),
+      ...postgresConnectionOptions(
+        this.config.getOrThrow<string>('DATABASE_URL'),
+        this.config.get<string>('DATABASE_SSL_CA_BASE64'),
+      ),
       connectionTimeoutMillis: 5000,
     });
     this.client = client;

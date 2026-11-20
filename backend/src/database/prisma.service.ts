@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type Prisma } from '../generated/prisma/client.js';
+import { postgresConnectionOptions } from './postgres-connection-options.js';
 
 @Injectable()
 export class PrismaService
@@ -20,7 +21,10 @@ export class PrismaService
 
   constructor(config: ConfigService) {
     const adapter = new PrismaPg({
-      connectionString: config.getOrThrow<string>('DATABASE_URL'),
+      ...postgresConnectionOptions(
+        config.getOrThrow<string>('DATABASE_URL'),
+        config.get<string>('DATABASE_SSL_CA_BASE64'),
+      ),
       connectionTimeoutMillis: 5_000,
       query_timeout: 5_000,
       max: config.get<number>('DATABASE_POOL_SIZE', 10),

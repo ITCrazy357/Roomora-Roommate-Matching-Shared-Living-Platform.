@@ -6,15 +6,24 @@ import { useUpdates } from "../communications/updates-provider";
 
 export function useHouseholdData<T>(
   path: string,
-  { keepOnError = false }: { keepOnError?: boolean } = {},
+  {
+    keepOnError = false,
+    refreshOnUpdates = true,
+    timeoutMs,
+  }: {
+    keepOnError?: boolean;
+    refreshOnUpdates?: boolean;
+    timeoutMs?: number;
+  } = {},
 ) {
   const { revision } = useUpdates();
+  const dataRevision = refreshOnUpdates ? revision : 0;
   const [result, setResult] = useState<{ path: string; data: T } | null>(null);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    apiFetch<T>(path, { signal: controller.signal })
+    apiFetch<T>(path, { signal: controller.signal, timeoutMs })
       .then((value) => {
         if (controller.signal.aborted) return;
         setResult({ path, data: value });
@@ -27,7 +36,7 @@ export function useHouseholdData<T>(
         }
       });
     return () => controller.abort();
-  }, [path, revision, refresh, keepOnError]);
+  }, [path, dataRevision, refresh, keepOnError, timeoutMs]);
   return {
     data: result?.path === path ? result.data : null,
     error,

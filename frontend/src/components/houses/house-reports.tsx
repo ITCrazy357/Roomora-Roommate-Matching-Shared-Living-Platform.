@@ -141,6 +141,8 @@ export function HouseReports({ houseId }: { houseId: string }) {
     reload,
   } = useHouseholdData<HouseReport>(`${path}?month=${month}`, {
     keepOnError: true,
+    refreshOnUpdates: false,
+    timeoutMs: 15_000,
   });
   const [pending, setPending] = useState<"pdf" | "csv" | null>(null),
     [error, setError] = useState("");

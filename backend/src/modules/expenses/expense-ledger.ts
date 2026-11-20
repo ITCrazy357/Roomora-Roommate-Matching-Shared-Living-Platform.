@@ -1,4 +1,5 @@
 import type { Prisma } from '../../generated/prisma/client.js';
+import type { PrismaService } from '../../database/prisma.service.js';
 import { personSelect, participantView } from './expense-views.js';
 
 export interface BalanceExpenseDetail {
@@ -42,35 +43,75 @@ function emptyDetails(): BalanceDetails {
 }
 
 export async function calculateHouseBalances(
-  tx: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient | PrismaService,
   houseId: string,
   includeDetails = false,
+  parallelReads = false,
 ) {
-  const people = await tx.houseParticipant.findMany({
-    where: { houseId },
-    select: personSelect,
-    orderBy: { id: 'asc' },
-  });
-  const expenses = await tx.expense.findMany({
-    where: { houseId, status: { not: 'CANCELLED' } },
-    orderBy: includeDetails
-      ? [{ spentOn: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }]
-      : undefined,
-    select: {
-      id: true,
-      title: true,
-      spentOn: true,
-      status: true,
-      payerId: true,
-      amount: true,
-      paidAmount: true,
-      splits: { select: { participantId: true, amount: true } },
-    },
-  });
-  const payments = await tx.debtPayment.findMany({
-    where: { houseId, status: { in: ['PENDING', 'CONFIRMED'] } },
-    orderBy: includeDetails ? [{ createdAt: 'asc' }, { id: 'asc' }] : undefined,
-  });
+  const peopleQuery = () =>
+    tx.houseParticipant.findMany({
+      where: { houseId },
+      select: personSelect,
+      orderBy: { id: 'asc' },
+    });
+  const expensesQuery = () =>
+    tx.expense.findMany({
+      where: { houseId, status: { not: 'CANCELLED' } },
+      orderBy: includeDetails
+        ? [{ spentOn: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }]
+        : undefined,
+      select: {
+        id: true,
+        title: true,
+        spentOn: true,
+        status: true,
+        payerId: true,
+        amount: true,
+        paidAmount: true,
+        splits: { select: { participantId: true, amount: true } },
+      },
+    });
+  const paymentsQuery = () =>
+    tx.debtPayment.findMany({
+      where: { houseId, status: { in: ['PENDING', 'CONFIRMED'] } },
+      orderBy: includeDetails
+        ? [{ createdAt: 'asc' }, { id: 'asc' }]
+        : undefined,
+    });
+  const correctionsQuery = () =>
+    tx.expenseCorrection.findMany({
+      where: { houseId },
+      orderBy: includeDetails
+        ? [{ recordedOn: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }]
+        : undefined,
+      select: {
+        id: true,
+        expenseId: true,
+        recordedOn: true,
+        settledAt: true,
+        reason: true,
+        expense: { select: { title: true } },
+        shares: {
+          select: { participantId: true, paidDelta: true, owedDelta: true },
+        },
+      },
+    });
+  // An interactive transaction owns one PostgreSQL connection, so its reads
+  // must stay ordered. The report route uses PrismaService (a pool) and opts
+  // in to overlap these independent reads across connections.
+  const [people, expenses, payments, corrections] = parallelReads
+    ? await Promise.all([
+        peopleQuery(),
+        expensesQuery(),
+        paymentsQuery(),
+        correctionsQuery(),
+      ])
+    : [
+        await peopleQuery(),
+        await expensesQuery(),
+        await paymentsQuery(),
+        await correctionsQuery(),
+      ];
   const rows = new Map(
     people.map((person) => [
       person.id,
@@ -111,23 +152,6 @@ export async function calculateHouseBalances(
           .details?.owed.push({ ...detail, amount: split.amount });
     }
   }
-  const corrections = await tx.expenseCorrection.findMany({
-    where: { houseId },
-    orderBy: includeDetails
-      ? [{ recordedOn: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }]
-      : undefined,
-    select: {
-      id: true,
-      expenseId: true,
-      recordedOn: true,
-      settledAt: true,
-      reason: true,
-      expense: { select: { title: true } },
-      shares: {
-        select: { participantId: true, paidDelta: true, owedDelta: true },
-      },
-    },
-  });
   for (const correction of corrections) {
     for (const share of correction.shares) {
       rows.get(share.participantId)!.paid += share.paidDelta;

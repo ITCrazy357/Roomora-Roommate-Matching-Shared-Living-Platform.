@@ -62,6 +62,7 @@
     "zod": "4.6.7"
   },
   "overrides": {
+    "effect": "3.22.2",
     "@nestjs/mau": {
       "inquirer": "8.2.7",
       "undici": "6.29.1"

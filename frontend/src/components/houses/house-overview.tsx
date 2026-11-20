@@ -29,6 +29,11 @@ export function HouseOverview({
   const [chartMode, setChartMode] = useState<"cumulative" | "days" | "categories">("cumulative");
   const { data, error, reload } = useHouseholdData<HouseReport>(
     `/houses/${house.id}/household/reports?month=${month}`,
+    {
+      keepOnError: true,
+      refreshOnUpdates: false,
+      timeoutMs: 15_000,
+    },
   );
   const [year, monthNumber] = month.split("-").map(Number);
   const days = Array.from(

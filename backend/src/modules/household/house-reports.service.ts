@@ -43,92 +43,98 @@ export class HouseReportsService {
       throw new BadRequestException({ code: 'REPORT_MONTH_INVALID' });
     const from = dateOnly(`${query.month}-01`),
       to = new Date(Date.UTC(year, from.getUTCMonth() + 1, 1));
-    return this.prisma.$transaction(
-      async (tx) => {
-        const house = await this.access.active(tx, userId, houseId);
-        const rows = await tx.expense.findMany({
-          where: {
-            houseId,
-            status: { not: 'CANCELLED' },
-            spentOn: { gte: from, lt: to },
-          },
-          include: expenseInclude,
-          orderBy: [{ spentOn: 'asc' }, { id: 'asc' }],
-        });
-        const balances = await calculateHouseBalances(tx, houseId);
-        const corrections = await tx.expenseCorrection.findMany({
-          where: { houseId, recordedOn: { gte: from, lt: to } },
-          include: correctionInclude,
-          orderBy: [{ recordedOn: 'asc' }, { id: 'asc' }],
-        });
-        const categories = Object.entries(categoryLabels).map(
-          ([category, label]) => ({ category, label, amount: 0, count: 0 }),
-        );
-        const members = balances.map((row) => ({
-          participantId: row.participantId,
-          displayName: row.displayName,
-          avatarUrl: row.avatarUrl,
-          isGuest: row.isGuest,
-          leftAt: row.leftAt,
-          paid: 0,
-          owed: 0,
-        }));
-        const memberMap = new Map(
-          members.map((row) => [row.participantId, row]),
-        );
-        let total = 0;
-        for (const row of rows) {
-          total += row.amount;
-          const category = categories.find(
-            (item) => item.category === row.category,
-          )!;
-          category.amount += row.amount;
-          category.count++;
-          memberMap.get(row.payerId)!.paid += row.amount;
-          for (const split of row.splits)
-            memberMap.get(split.participantId)!.owed += split.amount;
-        }
-        for (const correction of corrections) {
-          total += correction.amountDelta;
-          const category = categories.find(
-            (item) => item.category === correction.expense.category,
-          )!;
-          category.amount += correction.amountDelta;
-          category.count++;
-          for (const share of correction.shares) {
-            memberMap.get(share.participantId)!.paid += share.paidDelta;
-            memberMap.get(share.participantId)!.owed += share.owedDelta;
-          }
-        }
-        const openExpenses = await tx.expense.count({
-          where: { houseId, status: { in: ['ACTIVE', 'ADJUSTMENT_REQUIRED'] } },
-        });
-        const openCorrections = await tx.expenseCorrection.count({
-          where: { houseId, settledAt: null },
-        });
-        const unsettledCount = openExpenses + openCorrections;
-        return {
-          houseName: house.name,
-          month: query.month,
-          generatedAt: new Date(),
-          total,
-          count: rows.length + corrections.length,
-          categories,
-          members,
-          expenses: rows.map(expenseView),
-          corrections: corrections.map(correctionView),
-          ledger: {
-            balances,
-            transfers: settlementTransfers(balances),
-            isSettled: unsettledCount === 0,
-            pendingCount: await tx.debtPayment.count({
-              where: { houseId, status: 'PENDING' },
-            }),
-          },
-        };
-      },
-      { isolationLevel: 'RepeatableRead', timeout: 15000 },
+    // Reports are a read model. Authorize first, then overlap independent reads
+    // across the pool so a remote managed database's latency is paid once, not
+    // once per ledger query. Writes retain their transactional locking paths.
+    const house = await this.access.active(this.prisma, userId, houseId);
+    const [
+      rows,
+      balances,
+      corrections,
+      openExpenses,
+      openCorrections,
+      pendingCount,
+    ] = await Promise.all([
+      this.prisma.expense.findMany({
+        where: {
+          houseId,
+          status: { not: 'CANCELLED' },
+          spentOn: { gte: from, lt: to },
+        },
+        include: expenseInclude,
+        orderBy: [{ spentOn: 'asc' }, { id: 'asc' }],
+      }),
+      calculateHouseBalances(this.prisma, houseId, false, true),
+      this.prisma.expenseCorrection.findMany({
+        where: { houseId, recordedOn: { gte: from, lt: to } },
+        include: correctionInclude,
+        orderBy: [{ recordedOn: 'asc' }, { id: 'asc' }],
+      }),
+      this.prisma.expense.count({
+        where: { houseId, status: { in: ['ACTIVE', 'ADJUSTMENT_REQUIRED'] } },
+      }),
+      this.prisma.expenseCorrection.count({
+        where: { houseId, settledAt: null },
+      }),
+      this.prisma.debtPayment.count({
+        where: { houseId, status: 'PENDING' },
+      }),
+    ]);
+    const categories = Object.entries(categoryLabels).map(
+      ([category, label]) => ({ category, label, amount: 0, count: 0 }),
     );
+    const members = balances.map((row) => ({
+      participantId: row.participantId,
+      displayName: row.displayName,
+      avatarUrl: row.avatarUrl,
+      isGuest: row.isGuest,
+      leftAt: row.leftAt,
+      paid: 0,
+      owed: 0,
+    }));
+    const memberMap = new Map(members.map((row) => [row.participantId, row]));
+    let total = 0;
+    for (const row of rows) {
+      total += row.amount;
+      const category = categories.find(
+        (item) => item.category === row.category,
+      )!;
+      category.amount += row.amount;
+      category.count++;
+      memberMap.get(row.payerId)!.paid += row.amount;
+      for (const split of row.splits)
+        memberMap.get(split.participantId)!.owed += split.amount;
+    }
+    for (const correction of corrections) {
+      total += correction.amountDelta;
+      const category = categories.find(
+        (item) => item.category === correction.expense.category,
+      )!;
+      category.amount += correction.amountDelta;
+      category.count++;
+      for (const share of correction.shares) {
+        memberMap.get(share.participantId)!.paid += share.paidDelta;
+        memberMap.get(share.participantId)!.owed += share.owedDelta;
+      }
+    }
+    const unsettledCount = openExpenses + openCorrections;
+    return {
+      houseName: house.name,
+      month: query.month,
+      generatedAt: new Date(),
+      total,
+      count: rows.length + corrections.length,
+      categories,
+      members,
+      expenses: rows.map(expenseView),
+      corrections: corrections.map(correctionView),
+      ledger: {
+        balances,
+        transfers: settlementTransfers(balances),
+        isSettled: unsettledCount === 0,
+        pendingCount,
+      },
+    };
   }
   async export(userId: string, houseId: string, query: ReportQueryDto) {
     const report = await this.get(userId, houseId, query);
